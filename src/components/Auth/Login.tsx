@@ -32,15 +32,15 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-8">
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-center text-gray-900 mb-8">
+    <div className="max-w-md mx-auto mt-8 p-6">
+      <div className="bg-gradient-to-br from-cream-50 to-amber-50 rounded-2xl shadow-xl p-8 border border-amber-200/50">
+        <h1 className="text-3xl font-bold text-center text-amber-900 mb-8">
           Sign In
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-amber-800 mb-2">
               Email Address
             </label>
             <input
@@ -48,13 +48,13 @@ const Login: React.FC = () => {
               required
               value={formData.email}
               onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
               placeholder="Enter your email"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-amber-800 mb-2">
               Password
             </label>
             <input
@@ -62,7 +62,7 @@ const Login: React.FC = () => {
               required
               value={formData.password}
               onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
               placeholder="Enter your password"
             />
           </div>
@@ -70,24 +70,24 @@ const Login: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-gradient-to-r from-rose-500 to-rose-600 text-white py-3 px-6 rounded-xl hover:from-rose-600 hover:to-rose-700 hover:shadow-lg transform hover:scale-[1.02] disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed disabled:transform-none transition-all duration-300 font-semibold"
           >
             {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-amber-700">
             Don't have an account?{' '}
-            <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link to="/register" className="text-rose-600 hover:text-rose-700 font-medium transition-colors duration-300">
               Sign up here
             </Link>
           </p>
         </div>
 
-        <div className="mt-4 p-4 bg-gray-50 rounded-md">
-          <p className="text-sm text-gray-600 mb-2">Demo Credentials:</p>
-          <p className="text-xs text-gray-500">Admin: admin@celyspets.com / admin123</p>
+        <div className="mt-4 p-4 bg-amber-100/50 rounded-xl border border-amber-200">
+          <p className="text-sm text-amber-800 mb-2">Demo Credentials:</p>
+          <p className="text-xs text-amber-700">Admin: admin@celyspets.com / admin123</p>
         </div>
       </div>
     </div>

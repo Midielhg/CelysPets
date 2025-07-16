@@ -169,23 +169,23 @@ const BookingPage: React.FC = () => {
   const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto p-6">
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+        <h1 className="text-4xl font-bold text-amber-900 mb-4">
           Book Your Mobile Grooming Appointment
         </h1>
-        <p className="text-lg text-gray-600">
+        <p className="text-lg text-amber-700">
           Fill out the form below and we'll contact you to confirm your appointment
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8 space-y-8">
+      <form onSubmit={handleSubmit} className="bg-gradient-to-br from-cream-50 to-amber-50 rounded-2xl shadow-xl p-8 space-y-8 border border-amber-200/50">
         {/* Customer Information */}
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Customer Information</h2>
+          <h2 className="text-2xl font-semibold text-amber-900 mb-6">Customer Information</h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-amber-800 mb-2">
                 Full Name *
               </label>
               <input
@@ -193,11 +193,11 @@ const BookingPage: React.FC = () => {
                 required
                 value={formData.customerName}
                 onChange={(e) => setFormData(prev => ({ ...prev, customerName: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-amber-800 mb-2">
                 Email Address *
               </label>
               <input
@@ -205,11 +205,11 @@ const BookingPage: React.FC = () => {
                 required
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-amber-800 mb-2">
                 Phone Number *
               </label>
               <input
@@ -217,11 +217,11 @@ const BookingPage: React.FC = () => {
                 required
                 value={formData.phone}
                 onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-amber-800 mb-2">
                 Service Address *
               </label>
               <input
@@ -230,7 +230,7 @@ const BookingPage: React.FC = () => {
                 placeholder="123 Main St, City, State, ZIP"
                 value={formData.address}
                 onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
               />
             </div>
           </div>
@@ -239,25 +239,25 @@ const BookingPage: React.FC = () => {
         {/* Pet Information */}
         <div>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold text-gray-900">Pet Information</h2>
+            <h2 className="text-2xl font-semibold text-amber-900">Pet Information</h2>
             <button
               type="button"
               onClick={addPet}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+              className="bg-gradient-to-r from-rose-400 to-rose-500 text-white px-6 py-3 rounded-full hover:from-rose-500 hover:to-rose-600 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold"
             >
               + Add Another Pet
             </button>
           </div>
           
           {formData.pets.map((pet, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-6 mb-4">
+            <div key={index} className="border border-amber-200 rounded-xl p-6 mb-4 bg-white/50 backdrop-blur-sm">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Pet #{index + 1}</h3>
+                <h3 className="text-lg font-medium text-amber-900">Pet #{index + 1}</h3>
                 {formData.pets.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removePet(index)}
-                    className="text-red-600 hover:text-red-700"
+                    className="text-rose-600 hover:text-rose-700 font-medium transition-colors duration-300"
                   >
                     Remove
                   </button>
@@ -266,7 +266,7 @@ const BookingPage: React.FC = () => {
               
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-amber-800 mb-2">
                     Pet Name *
                   </label>
                   <input
@@ -274,25 +274,25 @@ const BookingPage: React.FC = () => {
                     required
                     value={pet.name}
                     onChange={(e) => updatePet(index, 'name', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-amber-800 mb-2">
                     Pet Type *
                   </label>
                   <select
                     required
                     value={pet.type}
                     onChange={(e) => updatePet(index, 'type', e.target.value as 'dog' | 'cat')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
                   >
                     <option value="dog">Dog</option>
                     <option value="cat">Cat</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-amber-800 mb-2">
                     Breed *
                   </label>
                   <input
@@ -300,11 +300,11 @@ const BookingPage: React.FC = () => {
                     required
                     value={pet.breed}
                     onChange={(e) => updatePet(index, 'breed', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-amber-800 mb-2">
                     Weight (approximate)
                   </label>
                   <input
@@ -312,11 +312,11 @@ const BookingPage: React.FC = () => {
                     placeholder="e.g., 25 lbs"
                     value={pet.weight}
                     onChange={(e) => updatePet(index, 'weight', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-amber-800 mb-2">
                     Special Instructions
                   </label>
                   <textarea
@@ -324,7 +324,7 @@ const BookingPage: React.FC = () => {
                     placeholder="Any special needs, behavioral notes, or preferences..."
                     value={pet.specialInstructions}
                     onChange={(e) => updatePet(index, 'specialInstructions', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
                   />
                 </div>
               </div>
@@ -334,24 +334,24 @@ const BookingPage: React.FC = () => {
 
         {/* Services */}
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Select Services</h2>
+          <h2 className="text-2xl font-semibold text-amber-900 mb-6">Select Services</h2>
           <div className="grid md:grid-cols-2 gap-4">
             {services.map((service) => (
-              <div key={service.id} className="border border-gray-200 rounded-lg p-4">
+              <div key={service.id} className="border border-amber-200 rounded-xl p-4 bg-white/50 backdrop-blur-sm hover:bg-white/70 transition-all duration-300">
                 <div className="flex items-start space-x-3">
                   <input
                     type="checkbox"
                     id={service.id}
                     checked={formData.services.includes(service.id)}
                     onChange={() => handleServiceToggle(service.id)}
-                    className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="mt-1 h-4 w-4 text-rose-600 focus:ring-rose-500 border-amber-300 rounded"
                   />
                   <div className="flex-1">
-                    <label htmlFor={service.id} className="block text-sm font-medium text-gray-900 cursor-pointer">
+                    <label htmlFor={service.id} className="block text-sm font-medium text-amber-900 cursor-pointer">
                       {service.name}
                     </label>
-                    <p className="text-sm text-gray-600 mt-1">{service.description}</p>
-                    <p className="text-sm font-semibold text-blue-600 mt-2">${service.price}</p>
+                    <p className="text-sm text-amber-700 mt-1">{service.description}</p>
+                    <p className="text-sm font-semibold text-rose-600 mt-2">${service.price}</p>
                   </div>
                 </div>
               </div>
@@ -361,10 +361,10 @@ const BookingPage: React.FC = () => {
 
         {/* Scheduling */}
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Preferred Date & Time</h2>
+          <h2 className="text-2xl font-semibold text-amber-900 mb-6">Preferred Date & Time</h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-amber-800 mb-2">
                 Preferred Date *
               </label>
               <input
@@ -373,18 +373,18 @@ const BookingPage: React.FC = () => {
                 min={today}
                 value={formData.preferredDate}
                 onChange={(e) => setFormData(prev => ({ ...prev, preferredDate: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-amber-800 mb-2">
                 Preferred Time *
               </label>
               <select
                 required
                 value={formData.preferredTime}
                 onChange={(e) => setFormData(prev => ({ ...prev, preferredTime: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
               >
                 <option value="">Select a time</option>
                 {timeSlots.map((time) => (
@@ -397,7 +397,7 @@ const BookingPage: React.FC = () => {
 
         {/* Additional Notes */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-amber-800 mb-2">
             Additional Notes
           </label>
           <textarea
@@ -405,18 +405,18 @@ const BookingPage: React.FC = () => {
             placeholder="Any additional information or special requests..."
             value={formData.notes}
             onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
           />
         </div>
 
         {/* Total and Submit */}
-        <div className="border-t pt-6">
+        <div className="border-t border-amber-200 pt-6">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <p className="text-lg font-semibold text-gray-900">
+              <p className="text-lg font-semibold text-amber-900">
                 Estimated Total: ${calculateTotal()}
               </p>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-amber-700">
                 Final price may vary based on pet size and condition
               </p>
             </div>
@@ -425,12 +425,12 @@ const BookingPage: React.FC = () => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg text-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-gradient-to-r from-rose-500 to-rose-600 text-white py-4 px-6 rounded-2xl text-lg font-semibold hover:from-rose-600 hover:to-rose-700 hover:shadow-xl transform hover:scale-[1.02] disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed disabled:transform-none transition-all duration-300"
           >
             {isSubmitting ? 'Booking...' : 'Book Appointment'}
           </button>
           
-          <p className="text-sm text-gray-600 text-center mt-4">
+          <p className="text-sm text-amber-700 text-center mt-4">
             We'll contact you within 24 hours to confirm your appointment and payment details.
           </p>
         </div>

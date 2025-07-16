@@ -1,30 +1,24 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import Logo from './Logo';
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
 
   return (
-    <nav className="bg-white shadow-lg">
+    <nav className="bg-gradient-to-r from-orange-50 to-amber-50 backdrop-blur-md border-b border-orange-100/50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold text-gray-900">Cely's Pets</span>
-          </Link>
+          <Logo size="md" />
 
           {/* Navigation Links */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors">
+            <Link to="/" className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300">
               Home
             </Link>
-            <Link to="/book" className="text-gray-700 hover:text-blue-600 transition-colors">
+            <Link to="/book" className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300">
               Book Now
             </Link>
             
@@ -32,21 +26,21 @@ const Navbar: React.FC = () => {
               <div className="flex items-center space-x-4">
                 <Link 
                   to="/dashboard" 
-                  className="text-gray-700 hover:text-blue-600 transition-colors"
+                  className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300"
                 >
                   Dashboard
                 </Link>
                 {user.role === 'admin' && (
                   <Link 
                     to="/admin" 
-                    className="text-gray-700 hover:text-blue-600 transition-colors"
+                    className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300"
                   >
                     Admin
                   </Link>
                 )}
                 <button
                   onClick={logout}
-                  className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors"
+                  className="bg-gradient-to-r from-amber-200 to-orange-200 text-amber-900 px-6 py-2 rounded-full hover:from-amber-300 hover:to-orange-300 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold border border-amber-300/50"
                 >
                   Logout
                 </button>
@@ -55,13 +49,13 @@ const Navbar: React.FC = () => {
               <div className="flex items-center space-x-4">
                 <Link 
                   to="/login" 
-                  className="text-gray-700 hover:text-blue-600 transition-colors"
+                  className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300"
                 >
                   Login
                 </Link>
                 <Link 
                   to="/register" 
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                  className="bg-gradient-to-r from-rose-400 to-rose-500 text-white px-6 py-2 rounded-full hover:from-rose-500 hover:to-rose-600 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold"
                 >
                   Register
                 </Link>
@@ -71,7 +65,7 @@ const Navbar: React.FC = () => {
 
           {/* Mobile menu button */}
           <div className="md:hidden">
-            <button className="text-gray-700 hover:text-blue-600">
+            <button className="text-amber-800 hover:text-rose-600 transition-colors duration-300">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>

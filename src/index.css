@@ -1,3 +1,24 @@
 @import "tailwindcss";
 
+/* Custom cream color palette */
+:root {
+  --cream-50: #fdf9f0;
+  --cream-100: #faf7f0;
+  --cream-200: #f5f1e8;
+  --warm-cream: #f8f5ee;
+  --soft-cream: #fbf8f1;
+}
+
+/* Seamless global background with unified cream tones */
+body {
+  background: linear-gradient(180deg, #fdf9f0 0%, #faf7f0 25%, #f8f5ee 50%, #faf7f0 75%, #fdf9f0 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* Ensure all main content has transparent backgrounds to show the seamless cream */
+#root, .min-h-screen {
+  background: transparent;
+}
+
 /* Custom styles if needed */
