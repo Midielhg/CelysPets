@@ -8,6 +8,8 @@ import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import Dashboard from './components/Dashboard/Dashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
+import AdminRouteOptimization from './components/Admin/AdminRouteOptimization';
+import RouteOptimization from './components/RouteOptimization/RouteOptimization';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 
 function App() {
@@ -36,6 +38,22 @@ function App() {
                   element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminDashboard />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/admin/routes" 
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <AdminRouteOptimization />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/routes" 
+                  element={
+                    <ProtectedRoute>
+                      <RouteOptimization />
                     </ProtectedRoute>
                   } 
                 />

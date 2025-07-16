@@ -31,13 +31,27 @@ const Navbar: React.FC = () => {
                   Dashboard
                 </Link>
                 {user.role === 'admin' && (
-                  <Link 
-                    to="/admin" 
-                    className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300"
-                  >
-                    Admin
-                  </Link>
+                  <>
+                    <Link 
+                      to="/admin" 
+                      className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300"
+                    >
+                      Admin
+                    </Link>
+                    <Link 
+                      to="/admin/routes" 
+                      className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300"
+                    >
+                      🗺️ Routes
+                    </Link>
+                  </>
                 )}
+                <Link 
+                  to="/routes" 
+                  className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300"
+                >
+                  My Routes
+                </Link>
                 <button
                   onClick={logout}
                   className="bg-gradient-to-r from-amber-200 to-orange-200 text-amber-900 px-6 py-2 rounded-full hover:from-amber-300 hover:to-orange-300 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold border border-amber-300/50"

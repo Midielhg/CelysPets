@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../contexts/ToastContext';
+import GoogleMapRoute from '../GoogleMapRoute';
 
 interface Appointment {
   _id: string;
@@ -327,6 +328,14 @@ const RouteOptimization: React.FC = () => {
               <div className="text-yellow-600 text-sm font-medium">Fuel Cost</div>
               <div className="text-2xl font-bold text-yellow-900">${optimizedRoute.estimatedFuelCost.toFixed(2)}</div>
             </div>
+          </div>
+
+          {/* Visual Map Component */}
+          <div className="mb-6">
+            <GoogleMapRoute 
+              route={optimizedRoute} 
+              startLocation={startLocation}
+            />
           </div>
 
           {/* Route Steps */}

@@ -1,8 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import AppointmentsMapView from '../AppointmentsMapView';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [showMapView, setShowMapView] = useState(false);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [selectedDate]);
+
+  const fetchAppointments = async () => {
+    try {
+      const response = await fetch(`http://localhost:5001/api/appointments?date=${selectedDate}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAppointments(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch appointments:', error);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -75,6 +100,72 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Today's Appointments Map */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-amber-900">Today's Appointments</h2>
+          <div className="flex items-center space-x-4">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-3 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-cream-50"
+            />
+            <button
+              onClick={() => setShowMapView(!showMapView)}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                showMapView 
+                  ? 'bg-amber-500 text-white' 
+                  : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+              }`}
+            >
+              {showMapView ? '📋 List View' : '🗺️ Map View'}
+            </button>
+          </div>
+        </div>
+
+        {showMapView ? (
+          <AppointmentsMapView 
+            appointments={appointments} 
+            selectedDate={selectedDate} 
+            startLocation="Miami, FL"
+          />
+        ) : (
+          <div className="bg-gradient-to-br from-cream-50 to-amber-50 rounded-2xl p-6 border border-amber-200">
+            {appointments.length > 0 ? (
+              <div className="space-y-4">
+                {appointments.map((appointment) => (
+                  <div key={appointment._id} className="bg-white rounded-lg p-4 shadow-lg border border-amber-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-amber-900">{appointment.client.name}</h3>
+                        <p className="text-amber-700">{appointment.time}</p>
+                        <p className="text-sm text-gray-600">📍 {appointment.client.address}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          appointment.status === 'confirmed' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {appointment.status}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-6xl mb-4">🐾</div>
+                <h3 className="text-xl font-semibold text-amber-900 mb-2">No appointments today</h3>
+                <p className="text-amber-700">Enjoy your free day or schedule some new appointments!</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}
