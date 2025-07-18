@@ -13,7 +13,13 @@
     "start:production": "./start-production.sh",
     "serve": "serve dist -p 5173",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:setup": "./deploy-setup.sh",
+    "deploy:vercel": "vercel --prod",
+    "deploy:check": "npm run build && echo '✅ Frontend build successful'",
+    "deploy:free": "echo '🆓 Deploy to Netlify (frontend) + Render (backend) for FREE hosting!'",
+    "deploy:netlify": "netlify deploy --prod --dir=dist",
+    "test:free-hosting": "echo '🧪 Testing free hosting configuration...' && npm run build && echo '✅ Ready for FREE deployment!'"
   },
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",

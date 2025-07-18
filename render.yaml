@@ -1,0 +1,21 @@
+# Render.com configuration for FREE backend hosting
+version: 2
+
+services:
+  - type: web
+    name: cely-pets-api
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    healthCheckPath: /health
+    
+    # Free tier auto-sleep settings
+    autoDeploy: true
+    branch: main
+    rootDir: server
