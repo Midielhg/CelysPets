@@ -16,10 +16,10 @@ function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <Router>
-          <div className="min-h-screen bg-gray-50">
+        <Router basename="/dev">
+          <div className="min-h-screen bg-transparent">
             <Navbar />
-            <main className="container mx-auto px-4 py-8">
+            <main>
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/book" element={<BookingPage />} />
@@ -56,8 +56,7 @@ function App() {
                       <RouteOptimization />
                     </ProtectedRoute>
                   } 
-                />
-              </Routes>
+                />                </Routes>
             </main>
           </div>
         </Router>
