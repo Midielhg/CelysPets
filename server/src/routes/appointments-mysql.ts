@@ -1,5 +1,6 @@
 import express from 'express';
-import { Appointment, Client } from '../models/index';
+import { Appointment } from '../models/AppointmentMySQL';
+import { Client } from '../models/ClientMySQL';
 import { auth } from '../middleware/auth';
 
 const router = express.Router();
@@ -63,7 +64,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get all appointments (no auth required for now - can add later)
+// Get all appointments (requires auth)
 router.get('/', async (req, res) => {
   try {
     console.log('Fetching all appointments...');
@@ -85,7 +86,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get appointment by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', auth, async (req, res) => {
   try {
     const appointment = await Appointment.findByPk(req.params.id, {
       include: [{ model: Client, as: 'client' }]
@@ -103,7 +104,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Update appointment status
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', auth, async (req, res) => {
   try {
     const { status, notes } = req.body;
     
@@ -129,61 +130,8 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-// Full appointment update (admin only)
-router.put('/:id', async (req, res) => {
-  try {
-    const { client: clientData, services, date, time, status, notes } = req.body;
-    
-    console.log('Updating appointment with data:', { clientData, services, date, time, status });
-
-    const appointment = await Appointment.findByPk(req.params.id, {
-      include: [{ model: Client, as: 'client' }]
-    });
-    
-    if (!appointment) {
-      return res.status(404).json({ message: 'Appointment not found' });
-    }
-
-    // Update client information if provided
-    if (clientData && (appointment as any).client) {
-      await (appointment as any).client.update({
-        name: clientData.name || (appointment as any).client.name,
-        email: clientData.email || (appointment as any).client.email,
-        phone: clientData.phone || (appointment as any).client.phone,
-        address: clientData.address || (appointment as any).client.address,
-        pets: clientData.pets || (appointment as any).client.pets,
-        notes: clientData.notes !== undefined ? clientData.notes : (appointment as any).client.notes
-      });
-    }
-
-    // Update appointment details
-    const updateData: any = {};
-    if (services !== undefined) updateData.services = services;
-    if (date !== undefined) updateData.date = new Date(date);
-    if (time !== undefined) updateData.time = time;
-    if (status !== undefined) updateData.status = status;
-    if (notes !== undefined) updateData.notes = notes;
-    if (services !== undefined) updateData.totalAmount = calculateTotal(services);
-
-    await appointment.update(updateData);
-
-    // Fetch updated appointment with client data
-    const updatedAppointment = await Appointment.findByPk(req.params.id, {
-      include: [{ model: Client, as: 'client' }]
-    });
-
-    res.json({
-      message: 'Appointment updated successfully',
-      appointment: updatedAppointment
-    });
-  } catch (error) {
-    console.error('Error updating full appointment:', error);
-    res.status(500).json({ message: 'Failed to update appointment' });
-  }
-});
-
 // Delete appointment
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', auth, async (req, res) => {
   try {
     const appointment = await Appointment.findByPk(req.params.id);
     if (!appointment) {

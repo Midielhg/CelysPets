@@ -20,10 +20,7 @@ const sequelize = new Sequelize({
   },
   dialectOptions: {
     charset: 'utf8mb4',
-    collate: 'utf8mb4_unicode_ci',
     connectTimeout: 60000,
-    acquireTimeout: 60000,
-    timeout: 60000,
     // Handle packets out of order issue
     multipleStatements: false,
     supportBigNumbers: true,
@@ -60,6 +57,15 @@ export const connectDatabase = async (): Promise<void> => {
     console.log('✅ Database models synchronized');
   } catch (error) {
     console.error('❌ Unable to connect to MySQL database:', error);
+    
+    // In development, warn but don't exit - allow frontend-only development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('⚠️ Development mode: Continuing without database connection');
+      console.warn('⚠️ API endpoints will not work until database is connected');
+      return;
+    }
+    
+    // In production, exit on database connection failure
     process.exit(1);
   }
 };
