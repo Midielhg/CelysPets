@@ -5,12 +5,16 @@
   "main": "index.js",
   "scripts": {
     "start": "node dist/index.js",
+    "start:mysql": "node dist/indexMySQL.js",
     "dev": "nodemon --exec ts-node src/index.ts",
+    "dev:mysql": "nodemon --exec ts-node src/indexMySQL.ts",
     "build": "tsc",
     "build:prod": "npm run build && echo 'Server build completed ✅'",
     "start:prod": "NODE_ENV=production node dist/index.js",
+    "start:prod:mysql": "NODE_ENV=production node dist/indexMySQL.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "db:test": "node -e \"require('dotenv').config(); const mongoose = require('mongoose'); mongoose.connect(process.env.MONGODB_URI).then(() => { console.log('✅ MongoDB connection successful'); process.exit(0); }).catch((err) => { console.error('❌ MongoDB connection failed:', err.message); process.exit(1); });\""
+    "db:test": "node -e \"require('dotenv').config(); const mongoose = require('mongoose'); mongoose.connect(process.env.MONGODB_URI).then(() => { console.log('✅ MongoDB connection successful'); process.exit(0); }).catch((err) => { console.error('❌ MongoDB connection failed:', err.message); process.exit(1); });\"",
+    "db:test:mysql": "node -e \"require('dotenv').config(); const { Sequelize } = require('sequelize'); const sequelize = new Sequelize({ host: process.env.MYSQL_HOST, database: process.env.MYSQL_DATABASE, username: process.env.MYSQL_USERNAME, password: process.env.MYSQL_PASSWORD, dialect: 'mysql' }); sequelize.authenticate().then(() => { console.log('✅ MySQL connection successful'); process.exit(0); }).catch((err) => { console.error('❌ MySQL connection failed:', err.message); process.exit(1); });\""
   },
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",
@@ -24,7 +28,9 @@
     "googleapis": "^128.0.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.0.0"
+    "mongoose": "^8.0.0",
+    "mysql2": "^3.14.2",
+    "sequelize": "^6.37.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
