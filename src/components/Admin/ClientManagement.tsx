@@ -1,0 +1,849 @@
+import React, { useState, useEffect } from 'react';
+import { useToast } from '../../contexts/ToastContext';
+
+interface Pet {
+  name: string;
+  breed: string;
+  age: number;
+  weight?: string;
+  specialInstructions?: string;
+}
+
+interface Client {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  pets: Pet[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  appointment_count?: number;
+  last_appointment_date?: string;
+  first_appointment_date?: string;
+}
+
+
+const ClientManagement: React.FC = () => {
+  const { showToast } = useToast();
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalClients, setTotalClients] = useState(0);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [showAddModal, setShowAddModal] = useState(false);
+  
+  const [clientForm, setClientForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    pets: [] as Pet[],
+    notes: ''
+  });
+
+  const itemsPerPage = 12;
+
+  useEffect(() => {
+    fetchClients();
+  }, [currentPage, searchTerm]);
+
+  const fetchClients = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+        ...(searchTerm && { search: searchTerm })
+      });
+
+      const apiUrl = `${import.meta.env.VITE_API_URL}/clients-from-appointments.php?${params}`;
+      console.log('Fetching clients from:', apiUrl);
+      console.log('Environment API URL:', import.meta.env.VITE_API_URL);
+
+      let response = await fetch(apiUrl);
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
+      // Fallback to appointments API if clients API fails
+      if (!response.ok) {
+        console.log('Clients API failed, trying appointments API as fallback...');
+        const fallbackUrl = `${import.meta.env.VITE_API_URL}/appointments.php`;
+        response = await fetch(fallbackUrl);
+        
+        if (response.ok) {
+          const appointmentsData = await response.json();
+          // Extract unique clients from appointments
+          const clientsMap = new Map();
+          appointmentsData.forEach((appointment: any) => {
+            if (appointment.client && appointment.client.id) {
+              clientsMap.set(appointment.client.id, {
+                id: appointment.client.id,
+                name: appointment.client.name,
+                email: appointment.client.email,
+                phone: appointment.client.phone,
+                address: appointment.client.address,
+                pets: appointment.client.pets || [],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                appointment_count: 1
+              });
+            }
+          });
+          
+          const uniqueClients = Array.from(clientsMap.values());
+          setClients(uniqueClients);
+          setTotalPages(Math.ceil(uniqueClients.length / itemsPerPage));
+          setTotalClients(uniqueClients.length);
+          console.log('Fallback successful, extracted clients:', uniqueClients);
+          return;
+        }
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error text:', errorText);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Data received:', data);
+      setClients(data.clients || []);
+      setTotalPages(data.totalPages || 1);
+      setTotalClients(data.total || 0);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      showToast(`Failed to fetch clients: ${errorMessage}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    setCurrentPage(1);
+  };
+
+  const openClientModal = (client: Client) => {
+    setSelectedClient(client);
+    setEditMode(false);
+    setShowModal(true);
+  };
+
+  const openEditModal = (client: Client) => {
+    setSelectedClient(client);
+    setClientForm({
+      name: client.name,
+      email: client.email,
+      phone: client.phone,
+      address: client.address,
+      pets: client.pets || [],
+      notes: client.notes || ''
+    });
+    setEditMode(true);
+    setShowModal(true);
+  };
+
+  const openAddModal = () => {
+    setClientForm({
+      name: '',
+      email: '',
+      phone: '',
+      address: '',
+      pets: [],
+      notes: ''
+    });
+    setShowAddModal(true);
+  };
+
+  const saveClient = async () => {
+    try {
+      showToast('Client management editing coming soon! For now, clients are managed through appointments.', 'info');
+      setShowModal(false);
+      setShowAddModal(false);
+    } catch (error) {
+      showToast(`Failed to ${editMode ? 'update' : 'create'} client: ${error}`, 'error');
+    }
+  };
+
+  const deleteClient = async (_clientId: string) => {
+    showToast('Client deletion coming soon! Clients with appointments cannot be deleted.', 'info');
+    return;
+  };
+
+  const addPet = () => {
+    setClientForm(prev => ({
+      ...prev,
+      pets: [...prev.pets, { name: '', breed: '', age: 1 }]
+    }));
+  };
+
+  const updatePet = (index: number, field: keyof Pet, value: string | number) => {
+    setClientForm(prev => ({
+      ...prev,
+      pets: prev.pets.map((pet, i) => 
+        i === index ? { ...pet, [field]: value } : pet
+      )
+    }));
+  };
+
+  const removePet = (index: number) => {
+    setClientForm(prev => ({
+      ...prev,
+      pets: prev.pets.filter((_, i) => i !== index)
+    }));
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto">
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">Client Management</h1>
+          <button
+            onClick={openAddModal}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          >
+            + Add New Client
+          </button>
+        </div>
+        
+        {/* Search and View Toggle */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex-1 max-w-md">
+            <input
+              type="text"
+              placeholder="Search clients by name, email, phone, or address..."
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'cards'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              📱 Cards
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'table'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              📋 Table
+            </button>
+          </div>
+        </div>
+
+        {/* Results Summary */}
+        <div className="text-sm text-gray-600 mb-4">
+          Showing {clients.length} of {totalClients} clients
+          {searchTerm && ` for "${searchTerm}"`}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      {clients.length === 0 ? (
+        <div className="text-center py-12">
+          <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <p className="text-gray-500 text-lg">
+            {searchTerm ? 'No clients found matching your search' : 'No clients found'}
+          </p>
+          <p className="text-gray-400">
+            {searchTerm ? 'Try adjusting your search terms' : 'Start by adding your first client'}
+          </p>
+        </div>
+      ) : viewMode === 'cards' ? (
+        /* Cards View */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {clients.map((client) => (
+            <div key={client.id} className="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 truncate">{client.name}</h3>
+                  <div className="flex space-x-1">
+                    <button
+                      onClick={() => openEditModal(client)}
+                      className="text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => openClientModal(client)}
+                      className="text-green-600 hover:text-green-800 text-sm"
+                    >
+                      👁️
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex items-center">
+                    <span className="w-4">📧</span>
+                    <span className="ml-2 truncate">{client.email}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="w-4">📞</span>
+                    <span className="ml-2">{client.phone}</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="w-4 mt-0.5">📍</span>
+                    <span className="ml-2 text-xs line-clamp-2">{client.address}</span>
+                  </div>
+                </div>
+                
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">
+                      {client.pets?.length || 0} pet{(client.pets?.length || 0) !== 1 ? 's' : ''}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      Added {formatDate(client.createdAt)}
+                    </span>
+                  </div>
+                  
+                  {client.pets && client.pets.length > 0 && (
+                    <div className="mt-2">
+                      <div className="flex flex-wrap gap-1">
+                        {client.pets.slice(0, 2).map((pet, index) => (
+                          <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            🐕 {pet.name}
+                          </span>
+                        ))}
+                        {client.pets.length > 2 && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
+                            +{client.pets.length - 2} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* Table View */
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Client
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Address
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Pets
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {clients.map((client) => (
+                  <tr key={client.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{client.name}</div>
+                      <div className="text-sm text-gray-500">Added {formatDate(client.createdAt)}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{client.email}</div>
+                      <div className="text-sm text-gray-500">{client.phone}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 max-w-xs truncate">{client.address}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {client.pets && client.pets.length > 0 ? (
+                          <div>
+                            {client.pets.slice(0, 2).map((pet, index) => (
+                              <div key={index} className="mb-1">
+                                <span className="font-medium">{pet.name}</span>
+                                <span className="text-gray-500"> ({pet.breed})</span>
+                              </div>
+                            ))}
+                            {client.pets.length > 2 && (
+                              <div className="text-gray-400 text-xs">
+                                +{client.pets.length - 2} more pets
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">No pets</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={() => openClientModal(client)}
+                        className="text-blue-600 hover:text-blue-900 mr-3"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => openEditModal(client)}
+                        className="text-green-600 hover:text-green-900"
+                      >
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-8 flex justify-center">
+          <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Previous
+            </button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                  page === currentPage
+                    ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Next
+            </button>
+          </nav>
+        </div>
+      )}
+
+      {/* Client Detail/Edit Modal */}
+      {showModal && selectedClient && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border shadow-lg rounded-md bg-white w-4/5 max-w-4xl">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                {editMode ? 'Edit Client' : 'Client Details'}
+              </h3>
+              
+              {!editMode ? (
+                /* View Mode */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Name</label>
+                      <p className="mt-1 text-sm text-gray-900">{selectedClient.name}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Email</label>
+                      <p className="mt-1 text-sm text-gray-900">{selectedClient.email}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Phone</label>
+                      <p className="mt-1 text-sm text-gray-900">{selectedClient.phone}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Address</label>
+                      <p className="mt-1 text-sm text-gray-900">{selectedClient.address}</p>
+                    </div>
+                    {selectedClient.notes && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Notes</label>
+                        <p className="mt-1 text-sm text-gray-900">{selectedClient.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Pets</label>
+                    {selectedClient.pets && selectedClient.pets.length > 0 ? (
+                      <div className="space-y-3">
+                        {selectedClient.pets.map((pet, index) => (
+                          <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                            <div className="font-medium">{pet.name}</div>
+                            <div className="text-sm text-gray-600">
+                              {pet.breed} • Age: {pet.age}
+                              {pet.weight && ` • Weight: ${pet.weight}`}
+                            </div>
+                            {pet.specialInstructions && (
+                              <div className="text-sm text-gray-500 mt-1">{pet.specialInstructions}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-sm">No pets registered</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Edit Mode */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Name *</label>
+                      <input
+                        type="text"
+                        value={clientForm.name}
+                        onChange={(e) => setClientForm(prev => ({ ...prev, name: e.target.value }))}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Email *</label>
+                      <input
+                        type="email"
+                        value={clientForm.email}
+                        onChange={(e) => setClientForm(prev => ({ ...prev, email: e.target.value }))}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Phone *</label>
+                      <input
+                        type="tel"
+                        value={clientForm.phone}
+                        onChange={(e) => setClientForm(prev => ({ ...prev, phone: e.target.value }))}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Address *</label>
+                      <textarea
+                        value={clientForm.address}
+                        onChange={(e) => setClientForm(prev => ({ ...prev, address: e.target.value }))}
+                        rows={3}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Notes</label>
+                      <textarea
+                        value={clientForm.notes}
+                        onChange={(e) => setClientForm(prev => ({ ...prev, notes: e.target.value }))}
+                        rows={3}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between items-center mb-3">
+                      <label className="block text-sm font-medium text-gray-700">Pets</label>
+                      <button
+                        onClick={addPet}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        + Add Pet
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {clientForm.pets.map((pet, index) => (
+                        <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-sm font-medium">Pet {index + 1}</span>
+                            <button
+                              onClick={() => removePet(index)}
+                              className="text-red-600 hover:text-red-800 text-sm"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              placeholder="Pet name"
+                              value={pet.name}
+                              onChange={(e) => updatePet(index, 'name', e.target.value)}
+                              className="px-2 py-1 border border-gray-300 rounded text-sm"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Breed"
+                              value={pet.breed}
+                              onChange={(e) => updatePet(index, 'breed', e.target.value)}
+                              className="px-2 py-1 border border-gray-300 rounded text-sm"
+                            />
+                            <input
+                              type="number"
+                              placeholder="Age"
+                              value={pet.age}
+                              onChange={(e) => updatePet(index, 'age', parseInt(e.target.value) || 0)}
+                              className="px-2 py-1 border border-gray-300 rounded text-sm"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Weight (optional)"
+                              value={pet.weight || ''}
+                              onChange={(e) => updatePet(index, 'weight', e.target.value)}
+                              className="px-2 py-1 border border-gray-300 rounded text-sm"
+                            />
+                          </div>
+                          
+                          <textarea
+                            placeholder="Special instructions (optional)"
+                            value={pet.specialInstructions || ''}
+                            onChange={(e) => updatePet(index, 'specialInstructions', e.target.value)}
+                            rows={2}
+                            className="mt-2 w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex justify-between mt-6 pt-4 border-t border-gray-200">
+                {!editMode ? (
+                  <>
+                    <button
+                      onClick={() => deleteClient(selectedClient.id)}
+                      className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+                    >
+                      Delete Client
+                    </button>
+                    <div className="space-x-2">
+                      <button
+                        onClick={() => openEditModal(selectedClient)}
+                        className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                      >
+                        Edit Client
+                      </button>
+                      <button
+                        onClick={() => setShowModal(false)}
+                        className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setEditMode(false)}
+                      className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={saveClient}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                      Save Changes
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Client Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border shadow-lg rounded-md bg-white w-4/5 max-w-4xl">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Client</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Name *</label>
+                    <input
+                      type="text"
+                      value={clientForm.name}
+                      onChange={(e) => setClientForm(prev => ({ ...prev, name: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Email *</label>
+                    <input
+                      type="email"
+                      value={clientForm.email}
+                      onChange={(e) => setClientForm(prev => ({ ...prev, email: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Phone *</label>
+                    <input
+                      type="tel"
+                      value={clientForm.phone}
+                      onChange={(e) => setClientForm(prev => ({ ...prev, phone: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Address *</label>
+                    <textarea
+                      value={clientForm.address}
+                      onChange={(e) => setClientForm(prev => ({ ...prev, address: e.target.value }))}
+                      rows={3}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Notes</label>
+                    <textarea
+                      value={clientForm.notes}
+                      onChange={(e) => setClientForm(prev => ({ ...prev, notes: e.target.value }))}
+                      rows={3}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-medium text-gray-700">Pets</label>
+                    <button
+                      onClick={addPet}
+                      className="text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      + Add Pet
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {clientForm.pets.map((pet, index) => (
+                      <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-sm font-medium">Pet {index + 1}</span>
+                          <button
+                            onClick={() => removePet(index)}
+                            className="text-red-600 hover:text-red-800 text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Pet name"
+                            value={pet.name}
+                            onChange={(e) => updatePet(index, 'name', e.target.value)}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Breed"
+                            value={pet.breed}
+                            onChange={(e) => updatePet(index, 'breed', e.target.value)}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          />
+                          <input
+                            type="number"
+                            placeholder="Age"
+                            value={pet.age}
+                            onChange={(e) => updatePet(index, 'age', parseInt(e.target.value) || 0)}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Weight (optional)"
+                            value={pet.weight || ''}
+                            onChange={(e) => updatePet(index, 'weight', e.target.value)}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          />
+                        </div>
+                        
+                        <textarea
+                          placeholder="Special instructions (optional)"
+                          value={pet.specialInstructions || ''}
+                          onChange={(e) => updatePet(index, 'specialInstructions', e.target.value)}
+                          rows={2}
+                          className="mt-2 w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-between mt-6 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveClient}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Add Client
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ClientManagement;

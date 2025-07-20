@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import AppointmentManagement from './AppointmentManagement';
+import ClientManagement from './ClientManagement';
 import RouteOptimization from '../RouteOptimization/RouteOptimization';
 
 type AdminView = 'dashboard' | 'appointments' | 'clients' | 'routes';
@@ -12,12 +13,7 @@ const AdminDashboard: React.FC = () => {
       case 'appointments':
         return <AppointmentManagement />;
       case 'clients':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Client Management</h2>
-            <p className="text-gray-600">Coming soon...</p>
-          </div>
-        );
+        return <ClientManagement />;
       case 'routes':
         return <RouteOptimization />;
       default:

@@ -13,6 +13,7 @@ dotenv.config();
 // Import routes
 import appointmentsRouter from './routes/appointments';
 import authRouter from './routes/auth';
+import clientsRouter from './routes/clients';
 import routeOptimizationRouter from './routes/routeOptimization';
 
 const app = express();
@@ -78,6 +79,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/appointments', appointmentsRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/clients', clientsRouter);
 app.use('/api/route-optimization', routeOptimizationRouter);
 
 // Root endpoint

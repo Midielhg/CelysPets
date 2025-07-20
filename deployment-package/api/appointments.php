@@ -34,7 +34,7 @@ if ($method === 'GET') {
         
         if ($date) {
             $stmt = $pdo->prepare('
-                SELECT a.*, c.name as client_name, c.address as client_address, c.phone as client_phone, c.email as client_email 
+                SELECT a.*, c.name as client_name, c.address as client_address, c.phone as client_phone, c.email as client_email, c.pets as client_pets
                 FROM appointments a 
                 LEFT JOIN clients c ON a.clientId = c.id 
                 WHERE DATE(a.date) = ? 
@@ -43,7 +43,7 @@ if ($method === 'GET') {
             $stmt->execute([$date]);
         } else {
             $stmt = $pdo->query('
-                SELECT a.*, c.name as client_name, c.address as client_address, c.phone as client_phone, c.email as client_email 
+                SELECT a.*, c.name as client_name, c.address as client_address, c.phone as client_phone, c.email as client_email, c.pets as client_pets
                 FROM appointments a 
                 LEFT JOIN clients c ON a.clientId = c.id 
                 ORDER BY a.date, a.time
@@ -62,14 +62,22 @@ if ($method === 'GET') {
             // Parse services JSON
             $services = json_decode($apt['services'], true) ?? [];
             
+            // Parse pets JSON from client data (it's stored as JSON in clients table)
+            $pets = [];
+            if (isset($apt['client_pets']) && $apt['client_pets']) {
+                $pets = json_decode($apt['client_pets'], true) ?? [];
+            }
+            
             return [
                 '_id' => (string)$apt['id'],
                 'id' => $apt['id'],
                 'client' => [
+                    'id' => $apt['clientId'] ?? '',
                     'name' => $apt['client_name'] ?? 'Unknown Client',
                     'address' => $apt['client_address'] ?? '',
                     'phone' => $apt['client_phone'] ?? '',
-                    'email' => $apt['client_email'] ?? ''
+                    'email' => $apt['client_email'] ?? '',
+                    'pets' => $pets
                 ],
                 'client_name' => $apt['client_name'] ?? 'Unknown Client',
                 'client_email' => $apt['client_email'] ?? '',

@@ -165,8 +165,15 @@ const BookingPage: React.FC = () => {
     }, 0);
   };
 
-  // Get minimum date (today)
-  const today = new Date().toISOString().split('T')[0];
+  // Get minimum date (today) without timezone issues
+  const getTodayString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const today = getTodayString();
 
   return (
     <div className="max-w-4xl mx-auto p-6">

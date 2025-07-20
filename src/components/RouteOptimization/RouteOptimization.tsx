@@ -37,7 +37,16 @@ interface OptimizedRoute {
 
 const RouteOptimization: React.FC = () => {
   const { showToast } = useToast();
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  // Helper function to get today's date in YYYY-MM-DD format without timezone issues
+  const getTodayString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [optimizedRoute, setOptimizedRoute] = useState<OptimizedRoute | null>(null);
   const [loading, setLoading] = useState(false);
@@ -64,8 +73,8 @@ const RouteOptimization: React.FC = () => {
       
       // Filter appointments for selected date
       const filteredAppointments = data.filter((apt: Appointment) => {
-        const aptDate = new Date(apt.date).toISOString().split('T')[0];
-        return aptDate === selectedDate && apt.status !== 'cancelled';
+        // The apt.date should already be in YYYY-MM-DD format, so we can compare directly
+        return apt.date === selectedDate && apt.status !== 'cancelled';
       });
 
       setAppointments(filteredAppointments);

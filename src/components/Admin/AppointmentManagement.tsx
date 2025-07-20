@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, momentLocalizer, Views } from 'react-big-calendar';
+import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import type { View } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import './calendar-styles.css';
 import { useToast } from '../../contexts/ToastContext';
+
+const DragAndDropCalendar = withDragAndDrop(Calendar);
 
 interface Pet {
   name: string;
@@ -74,11 +78,30 @@ const AppointmentManagement: React.FC = () => {
     notes: ''
   });
 
+  // Helper function to create a date without timezone issues
+  const createLocalDate = (dateString: string) => {
+    const [year, month, day] = dateString.split('-').map(Number);
+    return new Date(year, month - 1, day); // month is 0-indexed
+  };
+
+  // Helper function to get today's date in YYYY-MM-DD format without timezone issues
+  const getTodayString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Convert appointments to calendar events
   const convertToCalendarEvents = (appointments: Appointment[]): CalendarEvent[] => {
-    return appointments.map(appointment => {
-      const appointmentDate = new Date(appointment.date);
-      const [time, period] = appointment.time.split(' ');
+    return appointments.filter(appointment => 
+      appointment.date && appointment.time && appointment.client
+    ).map(appointment => {
+      // Use createLocalDate to avoid timezone shifts
+      const appointmentDate = createLocalDate(appointment.date);
+      const timeString = appointment.time || '12:00 PM';
+      const [time, period] = timeString.split(' ');
       const [hours, minutes] = time.split(':').map(Number);
       
       // Convert to 24-hour format
@@ -87,14 +110,16 @@ const AppointmentManagement: React.FC = () => {
       if (period === 'AM' && hours === 12) hour24 = 0;
       
       const startTime = new Date(appointmentDate);
-      startTime.setHours(hour24, minutes, 0);
+      startTime.setHours(hour24, minutes || 0, 0);
       
       const endTime = new Date(startTime);
       endTime.setHours(startTime.getHours() + 1); // Default 1 hour duration
       
       return {
         id: appointment.id,
-        title: `${appointment.client.name} - ${appointment.services.length} service(s)`,
+        title: `${appointment.client?.name || 'Unknown client'} - ${
+          appointment.services ? appointment.services.length : 0
+        } service(s)`,
         start: startTime,
         end: endTime,
         resource: appointment
@@ -159,13 +184,26 @@ const AppointmentManagement: React.FC = () => {
         tokenPreview: token ? `${token.substring(0, 10)}...` : 'no token'
       });
       
+      // Get the current appointment data to include in the PUT request
+      const currentAppointment = appointments.find(apt => apt.id === appointmentId);
+      if (!currentAppointment) {
+        throw new Error('Appointment not found');
+      }
+      
       const response = await fetch(url, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({
+          date: currentAppointment.date,
+          time: currentAppointment.time,
+          services: currentAppointment.services,
+          status: newStatus,
+          notes: currentAppointment.notes || '',
+          totalAmount: currentAppointment.totalAmount || 0
+        })
       });
 
       console.log('Response status:', response.status);
@@ -199,6 +237,95 @@ const AppointmentManagement: React.FC = () => {
     }
   };
 
+  // Handle drag and drop events
+  const handleEventDrop = async (args: any) => {
+    try {
+      const { event, start } = args;
+      const appointment = event.resource;
+      const newDate = moment(start).format('YYYY-MM-DD');
+      const newTime = moment(start).format('h:mm A');
+      
+      // Update the appointment via API
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php?id=${appointment.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...appointment,
+          date: newDate,
+          time: newTime
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update appointment');
+      }
+
+      // Update local state
+      setAppointments(prev => 
+        prev.map(apt => 
+          apt.id === appointment.id 
+            ? { ...apt, date: newDate, time: newTime }
+            : apt
+        )
+      );
+
+      showToast('Appointment moved successfully', 'success');
+    } catch (error) {
+      console.error('Error moving appointment:', error);
+      showToast('Failed to move appointment', 'error');
+      // Refresh appointments to revert UI changes
+      fetchAppointments();
+    }
+  };
+
+  const handleEventResize = async (args: any) => {
+    try {
+      const { event, start } = args;
+      const appointment = event.resource;
+      const newDate = moment(start).format('YYYY-MM-DD');
+      const newTime = moment(start).format('h:mm A');
+      
+      // Update the appointment via API
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php?id=${appointment.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...appointment,
+          date: newDate,
+          time: newTime
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update appointment');
+      }
+
+      // Update local state
+      setAppointments(prev => 
+        prev.map(apt => 
+          apt.id === appointment.id 
+            ? { ...apt, date: newDate, time: newTime }
+            : apt
+        )
+      );
+
+      showToast('Appointment duration updated successfully', 'success');
+    } catch (error) {
+      console.error('Error resizing appointment:', error);
+      showToast('Failed to update appointment duration', 'error');
+      // Refresh appointments to revert UI changes
+      fetchAppointments();
+    }
+  };
+
   const deleteAppointment = async (appointmentId: string) => {
     if (!confirm('Are you sure you want to delete this appointment?')) {
       return;
@@ -229,16 +356,16 @@ const AppointmentManagement: React.FC = () => {
     setSelectedAppointment(appointment);
     setEditForm({
       client: {
-        name: appointment.client.name,
-        email: appointment.client.email,
-        phone: appointment.client.phone,
-        address: appointment.client.address,
-        pets: appointment.client.pets || []
+        name: appointment.client?.name || '',
+        email: appointment.client?.email || '',
+        phone: appointment.client?.phone || '',
+        address: appointment.client?.address || '',
+        pets: appointment.client?.pets || []
       },
-      services: appointment.services,
-      date: appointment.date.split('T')[0], // Convert to YYYY-MM-DD format
-      time: appointment.time,
-      status: appointment.status,
+      services: appointment.services || [],
+      date: appointment.date || '', // Keep the date as-is since it should already be in YYYY-MM-DD format
+      time: appointment.time || '',
+      status: appointment.status || 'pending',
       notes: appointment.notes || ''
     });
     setEditMode(true);
@@ -289,7 +416,7 @@ const AppointmentManagement: React.FC = () => {
   };
 
   const filteredAppointments = appointments.filter(appointment => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayString();
     
     switch (filter) {
       case 'today':
@@ -309,7 +436,9 @@ const AppointmentManagement: React.FC = () => {
   const calendarEvents = convertToCalendarEvents(filteredAppointments);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    // Use createLocalDate to avoid timezone shifts
+    const date = createLocalDate(dateString);
+    return date.toLocaleDateString('en-US', {
       weekday: 'short',
       year: 'numeric',
       month: 'short',
@@ -428,43 +557,48 @@ const AppointmentManagement: React.FC = () => {
               </div>
             </div>
             
-            <Calendar
+            <DragAndDropCalendar
               localizer={localizer}
               events={calendarEvents}
-              startAccessor="start"
-              endAccessor="end"
-              titleAccessor="title"
+              startAccessor={(event: any) => event.start}
+              endAccessor={(event: any) => event.end}
+              titleAccessor={(event: any) => event.title}
               views={['month', 'week', 'day']}
               view={calendarView}
               date={calendarDate}
               onNavigate={handleNavigate}
               onView={handleViewChange}
               defaultView={Views.WEEK}
-              onSelectEvent={(event) => {
+              onSelectEvent={(event: any) => {
                 setSelectedAppointment(event.resource);
                 setEditMode(false);
                 setShowModal(true);
               }}
-              eventPropGetter={(event) => {
+              onEventDrop={handleEventDrop}
+              onEventResize={handleEventResize}
+              resizable={true}
+              eventPropGetter={(event: any) => {
                 const appointment = event.resource;
                 let backgroundColor = '#3b82f6'; // Default blue
                 
-                switch (appointment.status) {
-                  case 'pending':
-                    backgroundColor = '#f59e0b'; // Amber
-                    break;
-                  case 'confirmed':
-                    backgroundColor = '#10b981'; // Green
-                    break;
-                  case 'in-progress':
-                    backgroundColor = '#8b5cf6'; // Purple
-                    break;
-                  case 'completed':
-                    backgroundColor = '#059669'; // Dark green
-                    break;
-                  case 'cancelled':
-                    backgroundColor = '#ef4444'; // Red
-                    break;
+                if (appointment?.status) {
+                  switch (appointment.status) {
+                    case 'pending':
+                      backgroundColor = '#f59e0b'; // Amber
+                      break;
+                    case 'confirmed':
+                      backgroundColor = '#10b981'; // Green
+                      break;
+                    case 'in-progress':
+                      backgroundColor = '#8b5cf6'; // Purple
+                      break;
+                    case 'completed':
+                      backgroundColor = '#059669'; // Dark green
+                      break;
+                    case 'cancelled':
+                      backgroundColor = '#ef4444'; // Red
+                      break;
+                  }
                 }
                 
                 return {
@@ -519,45 +653,58 @@ const AppointmentManagement: React.FC = () => {
                   <tr key={appointment.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {formatDate(appointment.date)}
+                        {appointment.date ? formatDate(appointment.date) : 'No date'}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {formatTime(appointment.time)}
+                        {appointment.time ? formatTime(appointment.time) : 'No time'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {appointment.client.name}
+                        {appointment.client?.name || 'No client name'}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {appointment.client.phone}
+                        {appointment.client?.phone || 'No phone'}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {appointment.client.address}
+                        {appointment.client?.address || 'No address'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {appointment.client.pets.map((pet, index) => (
-                          <div key={index} className="mb-1">
-                            <span className="font-medium">{pet.name}</span>
-                            <span className="text-gray-500"> ({pet.breed})</span>
-                          </div>
-                        ))}
+                        {appointment.client?.pets && Array.isArray(appointment.client.pets) ? 
+                          appointment.client.pets.map((pet, index) => (
+                            <div key={index} className="mb-1">
+                              <span className="font-medium">{pet?.name || 'Unknown pet'}</span>
+                              <span className="text-gray-500"> ({pet?.breed || 'Unknown breed'})</span>
+                            </div>
+                          )) : 
+                          <div className="text-gray-400">No pets listed</div>
+                        }
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">
-                        {appointment.services.map((serviceId, index) => (
-                          <div key={index} className="mb-1">
-                            {serviceNames[serviceId] || serviceId}
-                          </div>
-                        ))}
+                        {appointment.services && Array.isArray(appointment.services) ?
+                          appointment.services.map((serviceId, index) => (
+                            <div key={index} className="mb-1">
+                              {serviceNames[serviceId] || serviceId || 'Unknown service'}
+                            </div>
+                          )) :
+                          <div className="text-gray-400">No services listed</div>
+                        }
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusColors[appointment.status]}`}>
-                        {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        appointment.status && statusColors[appointment.status] 
+                          ? statusColors[appointment.status] 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {appointment.status ? 
+                          appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1) : 
+                          'Unknown'
+                        }
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -600,15 +747,22 @@ const AppointmentManagement: React.FC = () => {
                   {/* Manage Mode - Quick Status Update */}
                   <div className="mb-4">
                     <p className="text-sm text-gray-600 mb-2">
-                      <strong>Client:</strong> {selectedAppointment.client.name}
+                      <strong>Client:</strong> {selectedAppointment.client?.name || 'Unknown client'}
                     </p>
                     <p className="text-sm text-gray-600 mb-2">
-                      <strong>Date:</strong> {formatDate(selectedAppointment.date)} at {formatTime(selectedAppointment.time)}
+                      <strong>Date:</strong> {selectedAppointment.date ? formatDate(selectedAppointment.date) : 'No date'} at {selectedAppointment.time ? formatTime(selectedAppointment.time) : 'No time'}
                     </p>
                     <p className="text-sm text-gray-600 mb-4">
                       <strong>Current Status:</strong> 
-                      <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusColors[selectedAppointment.status]}`}>
-                        {selectedAppointment.status.charAt(0).toUpperCase() + selectedAppointment.status.slice(1)}
+                      <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        selectedAppointment.status && statusColors[selectedAppointment.status] 
+                          ? statusColors[selectedAppointment.status] 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {selectedAppointment.status ? 
+                          selectedAppointment.status.charAt(0).toUpperCase() + selectedAppointment.status.slice(1) : 
+                          'Unknown'
+                        }
                       </span>
                     </p>
                   </div>
