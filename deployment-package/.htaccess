@@ -1,0 +1,21 @@
+Options +FollowSymLinks
+RewriteEngine On
+
+# Alternative API routing - try different approaches
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} ^/dev/api/(.*)$
+RewriteRule ^dev/api/(.*)$ /dev/api/index.php?route=$1 [QSA,L]
+
+# Also handle direct /api/ calls
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} ^/api/(.*)$
+RewriteRule ^api/(.*)$ api/index.php?route=$1 [QSA,L]
+
+# Handle frontend routes (React Router)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/dev/api/
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteRule ^(.*)$ index.html [QSA,L]

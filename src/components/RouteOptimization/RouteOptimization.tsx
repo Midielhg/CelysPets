@@ -50,7 +50,7 @@ const RouteOptimization: React.FC = () => {
   const fetchAppointments = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/appointments`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -89,7 +89,7 @@ const RouteOptimization: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/route-optimization/optimize`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/route-optimization.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

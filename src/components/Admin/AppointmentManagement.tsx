@@ -125,7 +125,7 @@ const AppointmentManagement: React.FC = () => {
   const fetchAppointments = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/appointments`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -149,7 +149,7 @@ const AppointmentManagement: React.FC = () => {
   const updateAppointmentStatus = async (appointmentId: string, newStatus: string) => {
     try {
       const token = localStorage.getItem('token');
-      const url = `${import.meta.env.VITE_API_URL}/api/appointments/${appointmentId}`;
+      const url = `${import.meta.env.VITE_API_URL}/appointments.php?id=${appointmentId}`;
       
       console.log('Updating appointment status:', { 
         appointmentId, 
@@ -206,7 +206,7 @@ const AppointmentManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/appointments/${appointmentId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php?id=${appointmentId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -250,7 +250,7 @@ const AppointmentManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/appointments/${selectedAppointment.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php?id=${selectedAppointment.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

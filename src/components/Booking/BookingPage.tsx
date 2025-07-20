@@ -112,7 +112,7 @@ const BookingPage: React.FC = () => {
       }
 
       // Submit to backend
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/appointments`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

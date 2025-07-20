@@ -14,7 +14,7 @@ const Dashboard: React.FC = () => {
 
   const fetchAppointments = async () => {
     try {
-      const response = await fetch(`http://localhost:5001/api/appointments?date=${selectedDate}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php?date=${selectedDate}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
