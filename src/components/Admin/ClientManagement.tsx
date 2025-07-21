@@ -25,6 +25,16 @@ const ClientManagement: React.FC = () => {
     notes: ''
   });
 
+  const [addressVerification, setAddressVerification] = useState<{
+    isVerifying: boolean;
+    suggestions: Array<{ description: string; place_id: string }>;
+    showSuggestions: boolean;
+  }>({
+    isVerifying: false,
+    suggestions: [],
+    showSuggestions: false
+  });
+
   const itemsPerPage = 12;
 
   useEffect(() => {
@@ -128,6 +138,76 @@ const ClientManagement: React.FC = () => {
     setShowModal(true);
   };
 
+  // Phone number validation function
+  const validatePhoneNumber = (phone: string): { isValid: boolean; formatted?: string; error?: string } => {
+    // Remove all non-digit characters
+    const digitsOnly = phone.replace(/\D/g, '');
+    
+    // Check for common US/international formats
+    if (digitsOnly.length === 10) {
+      // US number without country code
+      const formatted = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6)}`;
+      return { isValid: true, formatted };
+    } else if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
+      // US number with country code
+      const formatted = `+1 (${digitsOnly.slice(1, 4)}) ${digitsOnly.slice(4, 7)}-${digitsOnly.slice(7)}`;
+      return { isValid: true, formatted };
+    } else if (digitsOnly.length >= 10 && digitsOnly.length <= 15) {
+      // International number
+      return { isValid: true, formatted: `+${digitsOnly}` };
+    }
+    
+    return { 
+      isValid: false, 
+      error: 'Please enter a valid phone number (10-15 digits)' 
+    };
+  };
+
+  // Address verification using Google Places API
+  const verifyAddress = async (address: string) => {
+    if (!address.trim()) return;
+    
+    setAddressVerification(prev => ({ ...prev, isVerifying: true }));
+    
+    try {
+      // Note: This requires Google Places API key to be configured
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(address)}&types=address&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.predictions && data.predictions.length > 0) {
+          setAddressVerification({
+            isVerifying: false,
+            suggestions: data.predictions.slice(0, 5), // Show top 5 suggestions
+            showSuggestions: true
+          });
+        } else {
+          // No suggestions found - ask user to confirm
+          const confirmed = confirm(`Address "${address}" could not be verified. Do you want to use it anyway?`);
+          if (!confirmed) {
+            setClientForm(prev => ({ ...prev, address: '' }));
+          }
+          setAddressVerification({ isVerifying: false, suggestions: [], showSuggestions: false });
+        }
+      } else {
+        // API not available - continue without verification
+        setAddressVerification({ isVerifying: false, suggestions: [], showSuggestions: false });
+      }
+    } catch (error) {
+      // Network error or API key not configured - continue without verification
+      console.warn('Address verification unavailable:', error);
+      setAddressVerification({ isVerifying: false, suggestions: [], showSuggestions: false });
+    }
+  };
+
+  // Select suggested address
+  const selectSuggestedAddress = (suggestion: { description: string; place_id: string }) => {
+    setClientForm(prev => ({ ...prev, address: suggestion.description }));
+    setAddressVerification({ isVerifying: false, suggestions: [], showSuggestions: false });
+  };
+
   const openAddModal = () => {
     setClientForm({
       name: '',
@@ -157,11 +237,42 @@ const ClientManagement: React.FC = () => {
       return;
     }
 
+    // Phone number validation
+    const phoneValidation = validatePhoneNumber(clientForm.phone);
+    if (!phoneValidation.isValid) {
+      showToast(phoneValidation.error || 'Invalid phone number format', 'error');
+      return;
+    }
+
+    // Address verification (if provided)
+    if (clientForm.address.trim()) {
+      // Check if we have Google Maps API key
+      if (import.meta.env.VITE_GOOGLE_MAPS_API_KEY) {
+        try {
+          await verifyAddress(clientForm.address);
+          // If address verification shows suggestions, wait for user to select
+          if (addressVerification.showSuggestions) {
+            showToast('Please select a valid address from the suggestions', 'warning');
+            return;
+          }
+        } catch (error) {
+          console.warn('Address verification failed:', error);
+          // Continue without verification
+        }
+      }
+    }
+
     try {
       const token = localStorage.getItem('token');
       const url = editMode 
         ? `${import.meta.env.VITE_API_URL}/clients-from-appointments.php?id=${selectedClient?.id}`
         : `${import.meta.env.VITE_API_URL}/clients-from-appointments.php`;
+      
+      // Prepare client data with formatted phone number
+      const clientData = {
+        ...clientForm,
+        phone: phoneValidation.formatted || clientForm.phone
+      };
       
       const response = await fetch(url, {
         method: editMode ? 'PUT' : 'POST',
@@ -169,7 +280,7 @@ const ClientManagement: React.FC = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(clientForm)
+        body: JSON.stringify(clientData)
       });
 
       if (!response.ok) {
@@ -780,17 +891,80 @@ const ClientManagement: React.FC = () => {
                       type="tel"
                       value={clientForm.phone}
                       onChange={(e) => setClientForm(prev => ({ ...prev, phone: e.target.value }))}
+                      onBlur={(e) => {
+                        // Format phone number when user leaves the field
+                        const phoneValidation = validatePhoneNumber(e.target.value);
+                        if (phoneValidation.isValid && phoneValidation.formatted) {
+                          setClientForm(prev => ({ ...prev, phone: phoneValidation.formatted || e.target.value }));
+                        }
+                      }}
                       className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="(305) 555-1234 or +1 305 555 1234"
                     />
+                    {clientForm.phone && (
+                      <div className="mt-1">
+                        {validatePhoneNumber(clientForm.phone).isValid ? (
+                          <p className="text-xs text-green-600">✓ Valid phone number</p>
+                        ) : (
+                          <p className="text-xs text-red-600">⚠ Please enter a valid phone number (10-15 digits)</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Address *</label>
-                    <textarea
-                      value={clientForm.address}
-                      onChange={(e) => setClientForm(prev => ({ ...prev, address: e.target.value }))}
-                      rows={3}
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div className="relative">
+                      <textarea
+                        value={clientForm.address}
+                        onChange={(e) => {
+                          setClientForm(prev => ({ ...prev, address: e.target.value }));
+                          // Clear previous suggestions when user types
+                          setAddressVerification(prev => ({ ...prev, showSuggestions: false }));
+                        }}
+                        onBlur={(e) => {
+                          // Verify address when user leaves the field
+                          if (e.target.value.trim()) {
+                            verifyAddress(e.target.value);
+                          }
+                        }}
+                        rows={3}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter full address for verification"
+                      />
+                      {addressVerification.isVerifying && (
+                        <div className="absolute right-2 top-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Address suggestions */}
+                    {addressVerification.showSuggestions && addressVerification.suggestions.length > 0 && (
+                      <div className="mt-2 border border-gray-300 rounded-md bg-white shadow-lg max-h-48 overflow-y-auto z-10">
+                        <div className="p-2 bg-blue-50 border-b">
+                          <p className="text-sm text-blue-700 font-medium">Select a verified address:</p>
+                        </div>
+                        {addressVerification.suggestions.map((suggestion, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => selectSuggestedAddress(suggestion)}
+                            className="w-full text-left p-3 hover:bg-gray-50 border-b last:border-b-0 focus:outline-none focus:bg-blue-50"
+                          >
+                            <div className="text-sm text-gray-900">{suggestion.description}</div>
+                          </button>
+                        ))}
+                        <div className="p-2 bg-gray-50 border-t">
+                          <button
+                            type="button"
+                            onClick={() => setAddressVerification(prev => ({ ...prev, showSuggestions: false }))}
+                            className="text-xs text-gray-600 hover:text-gray-800"
+                          >
+                            Use address as entered
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Notes</label>

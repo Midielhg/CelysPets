@@ -21,6 +21,12 @@
 - **Form Validation**: Proper input validation and error handling
 - **Graceful Null Handling**: Safe handling of missing pet data fields to prevent crashes
 
+### ✅ Advanced Form Validation
+- **Phone Number Validation**: Real-time validation and auto-formatting for US/international numbers
+- **Address Verification**: Google Maps integration for address validation and suggestions
+- **Visual Feedback**: Real-time validation indicators for phone and address fields
+- **Smart Formatting**: Automatic phone number formatting (e.g., (305) 555-1234)
+
 ### ✅ Appointment Management Crash Fix
 - **Pet Data Safety**: Added null-safe handling for pet properties in appointment editing
 - **Type Compatibility**: Ensures both existing and new pet data work seamlessly
@@ -32,7 +38,12 @@
 ## 🚀 Deployment Instructions
 
 1. **Upload all files** in this deployment-package-v2 directory to your web server's dev folder
-2. **Maintain directory structure**:
+2. **Configure Google Maps API** (optional but recommended):
+   - Copy `.env.example` to `.env`
+   - Get a Google Maps API key from [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+   - Enable the "Places API" for your project
+   - Add your API key to `.env`: `VITE_GOOGLE_MAPS_API_KEY=your_api_key_here`
+3. **Maintain directory structure**:
    ```
    /dev/
    ├── index.html
@@ -77,6 +88,9 @@ Visit: `http://celyspets.com/dev/`
 - **Real-time Search**: Instant client search across name, email, and phone
 - **Pagination**: Handles large client databases efficiently
 - **Error Handling**: Comprehensive error messages and recovery
+- **Phone Validation**: Supports US (10-11 digits) and international (10-15 digits) formats
+- **Address Verification**: Google Places API integration with suggestion dropdown
+- **Smart Auto-formatting**: Phone numbers automatically formatted on blur
 
 ### Database Integration
 - **MySQL Compatible**: Works with existing database structure
