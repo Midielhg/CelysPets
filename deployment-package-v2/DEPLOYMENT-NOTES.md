@@ -14,6 +14,8 @@
 - **Shared Type System**: Created unified Pet, Client, and Appointment interfaces
 - **Cross-Component Compatibility**: Fixed crashes between AppointmentManagement and ClientManagement
 - **Consistent Data Structure**: Both components now use compatible data types
+- **Navigation Cleanup**: Removed duplicate "My Routes" entry, keeping only Admin Routes for authorized users
+- **Role-Based Navigation**: Dashboard only for clients, Admin tools only for admins, Book Now hidden from admins
 
 ### ✅ Enhanced Pet Form Fields
 - **Pet Type Selection**: Dropdown for Dog/Cat selection

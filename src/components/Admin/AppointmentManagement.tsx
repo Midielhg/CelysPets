@@ -31,6 +31,7 @@ const AppointmentManagement: React.FC = () => {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [isAddingNew, setIsAddingNew] = useState(false);
   const [viewMode, setViewMode] = useState<'calendar' | 'table'>('calendar');
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [calendarView, setCalendarView] = useState<View>('week');
@@ -347,16 +348,35 @@ const AppointmentManagement: React.FC = () => {
       notes: appointment.notes || ''
     });
     setEditMode(true);
+    setIsAddingNew(false);
     setShowModal(true);
   };
 
   const saveAppointmentChanges = async () => {
-    if (!selectedAppointment) return;
+    // Basic validation
+    if (!editForm.client.name.trim()) {
+      showToast('Client name is required', 'error');
+      return;
+    }
+    if (!editForm.client.email.trim()) {
+      showToast('Client email is required', 'error');
+      return;
+    }
+    if (!editForm.date.trim()) {
+      showToast('Appointment date is required', 'error');
+      return;
+    }
+    if (!editForm.time.trim()) {
+      showToast('Appointment time is required', 'error');
+      return;
+    }
+
+    const isCreating = !selectedAppointment;
 
     try {
       const token = localStorage.getItem('token');
       
-      // Prepare data for appointment update (excluding pets modifications)
+      // Prepare data for appointment update/creation (excluding pets modifications)
       const appointmentData = {
         client: {
           name: editForm.client.name,
@@ -372,8 +392,12 @@ const AppointmentManagement: React.FC = () => {
         notes: editForm.notes
       };
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php?id=${selectedAppointment.id}`, {
-        method: 'PUT',
+      const url = isCreating 
+        ? `${import.meta.env.VITE_API_URL}/appointments.php`
+        : `${import.meta.env.VITE_API_URL}/appointments.php?id=${selectedAppointment.id}`;
+
+      const response = await fetch(url, {
+        method: isCreating ? 'POST' : 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -382,25 +406,32 @@ const AppointmentManagement: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update appointment');
+        throw new Error(`Failed to ${isCreating ? 'create' : 'update'} appointment`);
       }
 
       const data = await response.json();
       
       // Update local state
-      setAppointments(prev => 
-        prev.map(apt => 
-          apt.id === selectedAppointment.id 
-            ? data.appointment
-            : apt
-        )
-      );
+      if (isCreating) {
+        // Add new appointment to the list
+        setAppointments(prev => [...prev, data.appointment]);
+      } else {
+        // Update existing appointment
+        setAppointments(prev => 
+          prev.map(apt => 
+            apt.id === selectedAppointment!.id 
+              ? data.appointment
+              : apt
+          )
+        );
+      }
 
-      showToast('Appointment updated successfully', 'success');
+      showToast(`Appointment ${isCreating ? 'created' : 'updated'} successfully`, 'success');
       setShowModal(false);
       setEditMode(false);
+      setIsAddingNew(false);
     } catch (error) {
-      showToast('Failed to update appointment', 'error');
+      showToast(`Failed to ${isCreating ? 'create' : 'update'} appointment`, 'error');
     }
   };
 
@@ -408,6 +439,32 @@ const AppointmentManagement: React.FC = () => {
     setEditMode(false);
     setShowModal(false);
     setSelectedAppointment(null);
+    setIsAddingNew(false);
+  };
+
+  // Handle calendar slot selection (click on empty time slot)
+  const handleSelectSlot = (slotInfo: any) => {
+    const startDate = moment(slotInfo.start);
+    const newAppointment = {
+      client: {
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+        pets: []
+      },
+      services: [],
+      date: startDate.format('YYYY-MM-DD'),
+      time: startDate.format('HH:mm'),
+      status: 'pending' as Appointment['status'],
+      notes: ''
+    };
+    
+    setEditForm(newAppointment);
+    setSelectedAppointment(null);
+    setIsAddingNew(true);
+    setEditMode(true);
+    setShowModal(true);
   };
 
   const filteredAppointments = appointments.filter(appointment => {
@@ -495,28 +552,58 @@ const AppointmentManagement: React.FC = () => {
             ))}
           </div>
           
-          {/* View Toggle */}
-          <div className="flex bg-gray-100 rounded-lg p-1">
+          {/* Add Appointment and View Toggle */}
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setViewMode('calendar')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'calendar'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              onClick={() => {
+                const now = new Date();
+                const newAppointment = {
+                  client: {
+                    name: '',
+                    email: '',
+                    phone: '',
+                    address: '',
+                    pets: []
+                  },
+                  services: [],
+                  date: now.toISOString().split('T')[0],
+                  time: now.toTimeString().split(' ')[0].substring(0, 5),
+                  status: 'pending' as Appointment['status'],
+                  notes: ''
+                };
+                setEditForm(newAppointment);
+                setSelectedAppointment(null);
+                setIsAddingNew(true);
+                setEditMode(true);
+                setShowModal(true);
+              }}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
             >
-              📅 Calendar
+              ➕ Add Appointment
             </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'table'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              📋 Table
-            </button>
+            
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'calendar'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                📅 Calendar
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'table'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                📋 Table
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -569,6 +656,8 @@ const AppointmentManagement: React.FC = () => {
                 setEditMode(false);
                 setShowModal(true);
               }}
+              onSelectSlot={handleSelectSlot}
+              selectable={true}
               onEventDrop={handleEventDrop}
               onEventResize={handleEventResize}
               resizable={true}
@@ -729,16 +818,16 @@ const AppointmentManagement: React.FC = () => {
         )}
       </div>
 
-      {/* Modal for Managing/Editing Appointment */}
-      {showModal && selectedAppointment && (
+      {/* Modal for Managing/Editing/Adding Appointment */}
+      {showModal && (selectedAppointment || isAddingNew) && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className={`relative top-10 mx-auto p-5 border shadow-lg rounded-md bg-white ${editMode ? 'w-4/5 max-w-4xl' : 'w-96'}`}>
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {editMode ? 'Edit Appointment' : 'Manage Appointment'}
+                {isAddingNew ? 'Add New Appointment' : editMode ? 'Edit Appointment' : 'Manage Appointment'}
               </h3>
               
-              {!editMode ? (
+              {!editMode && selectedAppointment && !isAddingNew ? (
                 <>
                   {/* Manage Mode - Quick Status Update */}
                   <div className="mb-4">
