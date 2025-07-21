@@ -7,38 +7,9 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import './calendar-styles.css';
 import { useToast } from '../../contexts/ToastContext';
+import type { Pet, Appointment } from '../../types';
 
 const DragAndDropCalendar = withDragAndDrop(Calendar);
-
-interface Pet {
-  name: string;
-  type: 'dog' | 'cat';
-  breed: string;
-  weight?: string;
-  specialInstructions?: string;
-}
-
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  pets: Pet[];
-}
-
-interface Appointment {
-  id: string;
-  client: Client;
-  services: string[];
-  date: string;
-  time: string;
-  status: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled';
-  notes?: string;
-  totalAmount?: number;
-  createdAt: string;
-  updatedAt: string;
-}
 
 // Setup calendar localizer
 const localizer = momentLocalizer(moment);
@@ -360,7 +331,14 @@ const AppointmentManagement: React.FC = () => {
         email: appointment.client?.email || '',
         phone: appointment.client?.phone || '',
         address: appointment.client?.address || '',
-        pets: appointment.client?.pets || []
+        pets: (appointment.client?.pets || []).map(pet => ({
+          name: pet?.name || '',
+          breed: pet?.breed || '',
+          age: pet?.age || 0,
+          type: pet?.type || undefined,
+          weight: pet?.weight || '',
+          specialInstructions: pet?.specialInstructions || ''
+        }))
       },
       services: appointment.services || [],
       date: appointment.date || '', // Keep the date as-is since it should already be in YYYY-MM-DD format
@@ -377,13 +355,30 @@ const AppointmentManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
+      
+      // Prepare data for appointment update (excluding pets modifications)
+      const appointmentData = {
+        client: {
+          name: editForm.client.name,
+          email: editForm.client.email,
+          phone: editForm.client.phone,
+          address: editForm.client.address
+          // Don't include pets - they should be managed separately
+        },
+        services: editForm.services,
+        date: editForm.date,
+        time: editForm.time,
+        status: editForm.status,
+        notes: editForm.notes
+      };
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php?id=${selectedAppointment.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(editForm)
+        body: JSON.stringify(appointmentData)
       });
 
       if (!response.ok) {
@@ -677,6 +672,7 @@ const AppointmentManagement: React.FC = () => {
                             <div key={index} className="mb-1">
                               <span className="font-medium">{pet?.name || 'Unknown pet'}</span>
                               <span className="text-gray-500"> ({pet?.breed || 'Unknown breed'})</span>
+                              {pet?.type && <span className="text-xs text-blue-600"> - {pet.type}</span>}
                             </div>
                           )) : 
                           <div className="text-gray-400">No pets listed</div>
@@ -869,6 +865,32 @@ const AppointmentManagement: React.FC = () => {
                           rows={3}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
+                      </div>
+
+                      {/* Pets Information - Read Only */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Pets</label>
+                        <div className="border border-gray-300 rounded-md p-3 bg-gray-50">
+                          {editForm.client.pets && editForm.client.pets.length > 0 ? (
+                            editForm.client.pets.map((pet, index) => (
+                              <div key={index} className="mb-2 last:mb-0">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {pet?.name || 'Unknown pet'}
+                                </div>
+                                <div className="text-xs text-gray-600">
+                                  {pet?.breed || 'Unknown breed'}
+                                  {pet?.age && ` - ${pet.age} years old`}
+                                  {pet?.type && ` - ${pet.type}`}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-sm text-gray-500">No pets listed</div>
+                          )}
+                          <div className="text-xs text-blue-600 mt-2">
+                            To edit pet details, use Client Management
+                          </div>
+                        </div>
                       </div>
                     </div>
 

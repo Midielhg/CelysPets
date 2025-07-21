@@ -1,29 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../contexts/ToastContext';
-
-interface Pet {
-  name: string;
-  breed: string;
-  age: number;
-  weight?: string;
-  specialInstructions?: string;
-}
-
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  pets: Pet[];
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  appointment_count?: number;
-  last_appointment_date?: string;
-  first_appointment_date?: string;
-}
-
+import type { Pet, Client } from '../../types';
 
 const ClientManagement: React.FC = () => {
   const { showToast } = useToast();
@@ -160,28 +137,88 @@ const ClientManagement: React.FC = () => {
       pets: [],
       notes: ''
     });
+    setEditMode(false); // Ensure we're in add mode, not edit mode
+    setSelectedClient(null); // Clear any selected client
     setShowAddModal(true);
   };
 
   const saveClient = async () => {
+    // Basic validation
+    if (!clientForm.name.trim()) {
+      showToast('Client name is required', 'error');
+      return;
+    }
+    if (!clientForm.email.trim()) {
+      showToast('Client email is required', 'error');
+      return;
+    }
+    if (!clientForm.phone.trim()) {
+      showToast('Client phone is required', 'error');
+      return;
+    }
+
     try {
-      showToast('Client management editing coming soon! For now, clients are managed through appointments.', 'info');
+      const token = localStorage.getItem('token');
+      const url = editMode 
+        ? `${import.meta.env.VITE_API_URL}/clients-from-appointments.php?id=${selectedClient?.id}`
+        : `${import.meta.env.VITE_API_URL}/clients-from-appointments.php`;
+      
+      const response = await fetch(url, {
+        method: editMode ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(clientForm)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save client');
+      }
+
+      showToast(`Client ${editMode ? 'updated' : 'created'} successfully`, 'success');
       setShowModal(false);
       setShowAddModal(false);
+      fetchClients();
     } catch (error) {
-      showToast(`Failed to ${editMode ? 'update' : 'create'} client: ${error}`, 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      showToast(`Failed to ${editMode ? 'update' : 'create'} client: ${errorMessage}`, 'error');
     }
   };
 
-  const deleteClient = async (_clientId: string) => {
-    showToast('Client deletion coming soon! Clients with appointments cannot be deleted.', 'info');
-    return;
+  const deleteClient = async (clientId: string) => {
+    if (!confirm('Are you sure you want to delete this client? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/clients-from-appointments.php?id=${clientId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete client');
+      }
+
+      showToast('Client deleted successfully', 'success');
+      setShowModal(false);
+      fetchClients();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      showToast(`Failed to delete client: ${errorMessage}`, 'error');
+    }
   };
 
   const addPet = () => {
     setClientForm(prev => ({
       ...prev,
-      pets: [...prev.pets, { name: '', breed: '', age: 1 }]
+      pets: [...prev.pets, { name: '', breed: '', age: 1, type: 'dog' as const }]
     }));
   };
 
@@ -201,7 +238,8 @@ const ClientManagement: React.FC = () => {
     }));
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -624,6 +662,15 @@ const ClientManagement: React.FC = () => {
                               onChange={(e) => updatePet(index, 'breed', e.target.value)}
                               className="px-2 py-1 border border-gray-300 rounded text-sm"
                             />
+                            <select
+                              value={pet.type || ''}
+                              onChange={(e) => updatePet(index, 'type', e.target.value)}
+                              className="px-2 py-1 border border-gray-300 rounded text-sm"
+                            >
+                              <option value="">Select Type</option>
+                              <option value="dog">Dog</option>
+                              <option value="cat">Cat</option>
+                            </select>
                             <input
                               type="number"
                               placeholder="Age"
@@ -795,6 +842,15 @@ const ClientManagement: React.FC = () => {
                             onChange={(e) => updatePet(index, 'breed', e.target.value)}
                             className="px-2 py-1 border border-gray-300 rounded text-sm"
                           />
+                          <select
+                            value={pet.type || ''}
+                            onChange={(e) => updatePet(index, 'type', e.target.value)}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          >
+                            <option value="">Select Type</option>
+                            <option value="dog">Dog</option>
+                            <option value="cat">Cat</option>
+                          </select>
                           <input
                             type="number"
                             placeholder="Age"
