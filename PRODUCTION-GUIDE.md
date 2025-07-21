@@ -195,7 +195,7 @@ For technical support or feature requests, refer to the codebase documentation o
 1. Connect your GitHub repository to Railway
 2. Add environment variables in Railway dashboard:
    ```
-   MONGODB_URI=mongodb+srv://CepysPets:c59Y4UPSzbuzbjEV@cluster0.qejw5mq.mongodb.net/mobile-grooming?retryWrites=true&w=majority&appName=CelysPets
+   DATABASE_URL=mysql://celyspets_celypets:hY9cq6KT3$@mysql.us.cloudlogin.co:3306/celyspets_celypets
    JWT_SECRET=cely-pets-mobile-grooming-super-secure-jwt-secret-production-2024-v1
    NODE_ENV=production
    GOOGLE_MAPS_API_KEY=AIzaSyAKlC3v4GgU1jRhFdungYa38hbDHm0qQx0
@@ -217,7 +217,7 @@ For technical support or feature requests, refer to the codebase documentation o
 
 **Environment Variables:**
 ```bash
-heroku config:set MONGODB_URI="mongodb+srv://CepysPets:c59Y4UPSzbuzbjEV@cluster0.qejw5mq.mongodb.net/mobile-grooming?retryWrites=true&w=majority&appName=CelysPets"
+heroku config:set DATABASE_URL="mysql://celyspets_celypets:hY9cq6KT3$@mysql.us.cloudlogin.co:3306/celyspets_celypets"
 heroku config:set JWT_SECRET="cely-pets-mobile-grooming-super-secure-jwt-secret-production-2024-v1"
 heroku config:set NODE_ENV="production"
 heroku config:set GOOGLE_MAPS_API_KEY="AIzaSyAKlC3v4GgU1jRhFdungYa38hbDHm0qQx0"
@@ -229,7 +229,7 @@ heroku config:set GOOGLE_MAPS_API_KEY="AIzaSyAKlC3v4GgU1jRhFdungYa38hbDHm0qQx0"
 1. Create new Web Service from GitHub
 2. Environment variables:
    ```
-   MONGODB_URI=mongodb+srv://CepysPets:c59Y4UPSzbuzbjEV@cluster0.qejw5mq.mongodb.net/mobile-grooming?retryWrites=true&w=majority&appName=CelysPets
+   DATABASE_URL=mysql://celyspets_celypets:hY9cq6KT3$@mysql.us.cloudlogin.co:3306/celyspets_celypets
    JWT_SECRET=cely-pets-mobile-grooming-super-secure-jwt-secret-production-2024-v1
    NODE_ENV=production
    PORT=10000
@@ -271,6 +271,6 @@ npm run db:test
 ### Production Test:
 ```bash
 # Set your production environment variables first
-export MONGODB_URI="mongodb+srv://CepysPets:c59Y4UPSzbuzbjEV@cluster0.qejw5mq.mongodb.net/mobile-grooming?retryWrites=true&w=majority&appName=CelysPets"
-node -e "const mongoose = require('mongoose'); mongoose.connect(process.env.MONGODB_URI).then(() => { console.log('✅ Production MongoDB connection successful'); process.exit(0); }).catch((err) => { console.error('❌ Production MongoDB connection failed:', err.message); process.exit(1); });"
+export DATABASE_URL="mysql://celyspets_celypets:hY9cq6KT3$@mysql.us.cloudlogin.co:3306/celyspets_celypets"
+node -e "const { Sequelize } = require('sequelize'); const sequelize = new Sequelize(process.env.DATABASE_URL); sequelize.authenticate().then(() => { console.log('✅ Production MySQL connection successful'); process.exit(0); }).catch((err) => { console.error('❌ Production MySQL connection failed:', err.message); process.exit(1); });"
 ```

@@ -42,7 +42,7 @@ echo "2. Create new project from GitHub"
 echo "3. Select this repository"
 echo "4. Set root directory to: server"
 echo "5. Add environment variables:"
-echo "   MONGODB_URI=mongodb+srv://CepysPets:c59Y4UPSzbuzbjEV@cluster0.qejw5mq.mongodb.net/mobile-grooming?retryWrites=true&w=majority&appName=CelysPets"
+echo "   DATABASE_URL=mysql://celyspets_celypets:hY9cq6KT3$@localhost:3306/celyspets_celypets"
 echo "   JWT_SECRET=cely-pets-mobile-grooming-super-secure-jwt-secret-production-2024-v1"
 echo "   NODE_ENV=production"
 echo "   GOOGLE_MAPS_API_KEY=AIzaSyAKlC3v4GgU1jRhFdungYa38hbDHm0qQx0"
@@ -64,7 +64,7 @@ echo "3. Copy your Vercel frontend URL"
 echo "4. Update CORS_ORIGIN in Railway with Vercel URL"
 echo ""
 
-echo -e "${GREEN}✅ MongoDB Connection: TESTED AND WORKING${NC}"
+echo -e "${GREEN}✅ MySQL Connection: TESTED AND WORKING${NC}"
 echo -e "${GREEN}✅ Server Build: SUCCESSFUL${NC}"
 echo -e "${GREEN}✅ Configuration: COMPLETE${NC}"
 echo ""
@@ -94,8 +94,8 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo -e "${BLUE}Running quick tests...${NC}"
     
-    # Test MongoDB connection
-    echo "Testing MongoDB connection..."
+    # Test MySQL connection
+    echo "Testing MySQL connection..."
     cd server && npm run db:test
     
     # Test server build

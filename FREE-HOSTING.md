@@ -72,7 +72,7 @@
 
 4. **Environment Variables (FREE tier):**
    ```
-   MONGODB_URI=mongodb+srv://CepysPets:c59Y4UPSzbuzbjEV@cluster0.qejw5mq.mongodb.net/mobile-grooming?retryWrites=true&w=majority&appName=CelysPets
+   DATABASE_URL=mysql://celyspets_celypets:hY9cq6KT3$@localhost:3306/celyspets_celypets
    JWT_SECRET=cely-pets-mobile-grooming-super-secure-jwt-secret-production-2024-v1
    NODE_ENV=production
    GOOGLE_MAPS_API_KEY=AIzaSyAKlC3v4GgU1jRhFdungYa38hbDHm0qQx0

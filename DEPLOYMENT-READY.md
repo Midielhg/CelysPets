@@ -33,7 +33,7 @@ mongodb+srv://CepysPets:c59Y4UPSzbuzbjEV@cluster0.qejw5mq.mongodb.net/mobile-gro
 2. Set root directory: `/server`
 3. Add environment variables:
    ```
-   MONGODB_URI=mongodb+srv://CepysPets:c59Y4UPSzbuzbjEV@cluster0.qejw5mq.mongodb.net/mobile-grooming?retryWrites=true&w=majority&appName=CelysPets
+   DATABASE_URL=mysql://celyspets_celypets:hY9cq6KT3$@localhost:3306/celyspets_celypets
    JWT_SECRET=cely-pets-mobile-grooming-super-secure-jwt-secret-production-2024-v1
    NODE_ENV=production
    GOOGLE_MAPS_API_KEY=AIzaSyAKlC3v4GgU1jRhFdungYa38hbDHm0qQx0
@@ -59,7 +59,7 @@ mongodb+srv://CepysPets:c59Y4UPSzbuzbjEV@cluster0.qejw5mq.mongodb.net/mobile-gro
 ```bash
 # Deploy to Heroku
 heroku create cely-pets-grooming
-heroku config:set MONGODB_URI="mongodb+srv://CepysPets:c59Y4UPSzbuzbjEV@cluster0.qejw5mq.mongodb.net/mobile-grooming?retryWrites=true&w=majority&appName=CelysPets"
+heroku config:set DATABASE_URL="mysql://celyspets_celypets:hY9cq6KT3$@localhost:3306/celyspets_celypets"
 heroku config:set JWT_SECRET="cely-pets-mobile-grooming-super-secure-jwt-secret-production-2024-v1"
 heroku config:set NODE_ENV="production"
 heroku config:set GOOGLE_MAPS_API_KEY="AIzaSyAKlC3v4GgU1jRhFdungYa38hbDHm0qQx0"

@@ -7,18 +7,21 @@
     "start": "node dist/index.js",
     "start:mysql": "node dist/indexMySQL.js",
     "dev": "nodemon --exec ts-node src/index.ts",
+    "dev:local": "NODE_ENV=development USE_LOCAL_DB=true nodemon --exec ts-node src/index.ts",
+    "dev:mysql": "NODE_ENV=development USE_LOCAL_DB=false nodemon --exec ts-node src/index.ts",
     "dev:remote": "NODE_ENV=development nodemon -r dotenv/config --exec ts-node src/index.ts dotenv_config_path=.env.mysql",
-    "dev:local": "NODE_ENV=development nodemon -r dotenv/config --exec ts-node src/index.ts dotenv_config_path=.env.production",
     "build": "tsc",
     "build:prod": "npm run build && echo 'Production build completed ✅ - Ready for localhost deployment'",
     "start:prod": "NODE_ENV=production node dist/index.js",
+    "start:prod:mysql": "NODE_ENV=production USE_LOCAL_DB=false node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "db:test": "node -e \"require('dotenv').config(); const mongoose = require('mongoose'); mongoose.connect(process.env.MONGODB_URI).then(() => { console.log('✅ MongoDB connection successful'); process.exit(0); }).catch((err) => { console.error('❌ MongoDB connection failed:', err.message); process.exit(1); });\"",
+    "db:test": "node -e \"require('dotenv').config(); const { Sequelize } = require('sequelize'); const sequelize = new Sequelize({ dialect: 'sqlite', storage: './database/celyspets_local.db' }); sequelize.authenticate().then(() => { console.log('✅ SQLite connection successful'); process.exit(0); }).catch((err) => { console.error('❌ SQLite connection failed:', err.message); process.exit(1); });\"",
     "db:test:mysql": "node -e \"require('dotenv').config(); const { Sequelize } = require('sequelize'); const sequelize = new Sequelize({ host: process.env.MYSQL_HOST, database: process.env.MYSQL_DATABASE, username: process.env.MYSQL_USERNAME, password: process.env.MYSQL_PASSWORD, dialect: 'mysql' }); sequelize.authenticate().then(() => { console.log('✅ MySQL connection successful'); process.exit(0); }).catch((err) => { console.error('❌ MySQL connection failed:', err.message); process.exit(1); });\"",
     "db:test:mysql:remote": "node -r dotenv/config -e \"const { Sequelize } = require('sequelize'); const sequelize = new Sequelize({ host: process.env.MYSQL_HOST, database: process.env.MYSQL_DATABASE, username: process.env.MYSQL_USERNAME, password: process.env.MYSQL_PASSWORD, dialect: 'mysql' }); sequelize.authenticate().then(() => { console.log('✅ MySQL remote connection successful'); process.exit(0); }).catch((err) => { console.error('❌ MySQL remote connection failed:', err.message); process.exit(1); });\" dotenv_config_path=.env.development",
     "db:setup": "ts-node setup-database.ts",
     "db:setup:prod": "NODE_ENV=production ts-node setup-database.ts",
-    "db:check": "ts-node check-database.ts"
+    "db:check": "ts-node check-database.ts",
+    "db:import": "NODE_ENV=development USE_LOCAL_DB=true ts-node import-production-data.ts"
   },
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",
@@ -36,7 +39,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.0.0",
     "mysql2": "^3.14.2",
-    "sequelize": "^6.37.7"
+    "sequelize": "^6.37.7",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

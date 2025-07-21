@@ -15,6 +15,7 @@ dotenv_1.default.config();
 // Import routes
 const appointments_1 = __importDefault(require("./routes/appointments"));
 const auth_1 = __importDefault(require("./routes/auth"));
+const clients_1 = __importDefault(require("./routes/clients"));
 const routeOptimization_1 = __importDefault(require("./routes/routeOptimization"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5001;
@@ -72,6 +73,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/appointments', appointments_1.default);
 app.use('/api/auth', auth_1.default);
+app.use('/api/clients', clients_1.default);
 app.use('/api/route-optimization', routeOptimization_1.default);
 // Root endpoint
 app.get('/', (req, res) => {
