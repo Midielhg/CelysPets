@@ -17,6 +17,7 @@ dotenv.config();
 import appointmentsRouter from './routes/appointments';
 import authRouter from './routes/auth';
 import routeOptimizationRouter from './routes/routeOptimization';
+import clientsRouter from './routes/clients';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -84,6 +85,7 @@ app.get('/health', (req, res) => {
 app.use('/api/appointments', appointmentsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/route-optimization', routeOptimizationRouter);
+app.use('/api/clients', clientsRouter);
 
 // Root endpoint
 app.get('/', (req, res) => {

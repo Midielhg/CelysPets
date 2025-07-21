@@ -67,11 +67,16 @@ const AppointmentManagement: React.FC = () => {
 
   // Convert appointments to calendar events
   const convertToCalendarEvents = (appointments: Appointment[]): CalendarEvent[] => {
-    return appointments.filter(appointment => 
-      appointment.date && appointment.time && appointment.client
-    ).map(appointment => {
+    const filteredAppointments = appointments.filter(appointment => {
+      const hasRequiredFields = appointment.date && appointment.time && appointment.client;
+      return hasRequiredFields;
+    });
+    
+    return filteredAppointments.map(appointment => {
+      // Normalize date from ISO string to YYYY-MM-DD format
+      const normalizedDate = appointment.date ? appointment.date.split('T')[0] : '';
       // Use createLocalDate to avoid timezone shifts
-      const appointmentDate = createLocalDate(appointment.date);
+      const appointmentDate = createLocalDate(normalizedDate);
       const timeString = appointment.time || '12:00 PM';
       const [time, period] = timeString.split(' ');
       const [hours, minutes] = time.split(':').map(Number);
@@ -122,7 +127,7 @@ const AppointmentManagement: React.FC = () => {
   const fetchAppointments = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -137,6 +142,7 @@ const AppointmentManagement: React.FC = () => {
         new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime()
       ));
     } catch (error) {
+      console.error('Error fetching appointments:', error);
       showToast('Failed to fetch appointments', 'error');
     } finally {
       setLoading(false);
@@ -146,7 +152,7 @@ const AppointmentManagement: React.FC = () => {
   const updateAppointmentStatus = async (appointmentId: string, newStatus: string) => {
     try {
       const token = localStorage.getItem('token');
-      const url = `${import.meta.env.VITE_API_URL}/appointments.php?id=${appointmentId}`;
+      const url = `${import.meta.env.VITE_API_URL}/appointments/${appointmentId}`;
       
       console.log('Updating appointment status:', { 
         appointmentId, 
@@ -219,7 +225,7 @@ const AppointmentManagement: React.FC = () => {
       
       // Update the appointment via API
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php?id=${appointment.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments/${appointment.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -263,7 +269,7 @@ const AppointmentManagement: React.FC = () => {
       
       // Update the appointment via API
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php?id=${appointment.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments/${appointment.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -305,7 +311,7 @@ const AppointmentManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php?id=${appointmentId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments/${appointmentId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -393,8 +399,8 @@ const AppointmentManagement: React.FC = () => {
       };
 
       const url = isCreating 
-        ? `${import.meta.env.VITE_API_URL}/appointments.php`
-        : `${import.meta.env.VITE_API_URL}/appointments.php?id=${selectedAppointment.id}`;
+        ? `${import.meta.env.VITE_API_URL}/appointments`
+        : `${import.meta.env.VITE_API_URL}/appointments/${selectedAppointment.id}`;
 
       const response = await fetch(url, {
         method: isCreating ? 'POST' : 'PUT',
@@ -469,10 +475,12 @@ const AppointmentManagement: React.FC = () => {
 
   const filteredAppointments = appointments.filter(appointment => {
     const today = getTodayString();
+    // Normalize appointment date to YYYY-MM-DD format for comparison
+    const appointmentDate = appointment.date ? appointment.date.split('T')[0] : '';
     
     switch (filter) {
       case 'today':
-        return appointment.date === today;
+        return appointmentDate === today;
       case 'pending':
         return appointment.status === 'pending';
       case 'confirmed':
@@ -488,8 +496,10 @@ const AppointmentManagement: React.FC = () => {
   const calendarEvents = convertToCalendarEvents(filteredAppointments);
 
   const formatDate = (dateString: string) => {
+    // Normalize date from ISO string to YYYY-MM-DD format
+    const normalizedDate = dateString ? dateString.split('T')[0] : '';
     // Use createLocalDate to avoid timezone shifts
-    const date = createLocalDate(dateString);
+    const date = createLocalDate(normalizedDate);
     return date.toLocaleDateString('en-US', {
       weekday: 'short',
       year: 'numeric',
@@ -708,113 +718,177 @@ const AppointmentManagement: React.FC = () => {
           </div>
         ) : (
           /* Table View */
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date & Time
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Client
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Pet(s)
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Services
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredAppointments.map((appointment) => (
-                  <tr key={appointment.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {appointment.date ? formatDate(appointment.date) : 'No date'}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {appointment.time ? formatTime(appointment.time) : 'No time'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {appointment.client?.name || 'No client name'}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {appointment.client?.phone || 'No phone'}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {appointment.client?.address || 'No address'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {appointment.client?.pets && Array.isArray(appointment.client.pets) ? 
-                          appointment.client.pets.map((pet, index) => (
-                            <div key={index} className="mb-1">
-                              <span className="font-medium">{pet?.name || 'Unknown pet'}</span>
-                              <span className="text-gray-500"> ({pet?.breed || 'Unknown breed'})</span>
-                              {pet?.type && <span className="text-xs text-blue-600"> - {pet.type}</span>}
-                            </div>
-                          )) : 
-                          <div className="text-gray-400">No pets listed</div>
-                        }
-                      </div>
-                    </td>
+          (() => {
+            try {
+              return (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Date & Time
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Client
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Pet(s)
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Services
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredAppointments.map((appointment) => {
+                        try {
+                          return (
+                            <tr key={appointment.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {appointment.date ? formatDate(appointment.date) : 'No date'}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {appointment.time ? formatTime(appointment.time) : 'No time'}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {appointment.client?.name || 'No client name'}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {appointment.client?.phone || 'No phone'}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {appointment.client?.address || 'No address'}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {appointment.client?.pets && Array.isArray(appointment.client.pets) ? 
+                                    appointment.client.pets.map((pet, index) => (
+                                      <div key={index} className="mb-1">
+                                        <span className="font-medium">{pet?.name || 'Unknown pet'}</span>
+                                        <span className="text-gray-500"> ({pet?.breed || 'Unknown breed'})</span>
+                                        {pet?.type && <span className="text-xs text-blue-600"> - {pet.type}</span>}
+                                      </div>
+                                    )) : 
+                                    <div className="text-gray-400">No pets listed</div>
+                                  }
+                                </div>
+                              </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">
-                        {appointment.services && Array.isArray(appointment.services) ?
-                          appointment.services.map((serviceId, index) => (
-                            <div key={index} className="mb-1">
-                              {serviceNames[serviceId] || serviceId || 'Unknown service'}
-                            </div>
-                          )) :
-                          <div className="text-gray-400">No services listed</div>
-                        }
+                        {(() => {
+                          try {
+                            if (!appointment.services || !Array.isArray(appointment.services)) {
+                              return <div className="text-gray-400">No services listed</div>;
+                            }
+                            
+                            return appointment.services.map((service, index) => {
+                              try {
+                                let serviceName = 'Unknown service';
+                                let servicePrice = null;
+                                
+                                if (typeof service === 'string') {
+                                  serviceName = serviceNames[service] || service || 'Unknown service';
+                                } else if (service && typeof service === 'object') {
+                                  serviceName = (service as any).name || 'Unknown service';
+                                  servicePrice = (service as any).price;
+                                }
+                                
+                                return (
+                                  <div key={index} className="mb-1">
+                                    {serviceName}
+                                    {servicePrice && (
+                                      <span className="text-gray-500 ml-2">${servicePrice}</span>
+                                    )}
+                                  </div>
+                                );
+                              } catch (error) {
+                                console.error('Error rendering service:', error, service);
+                                return (
+                                  <div key={index} className="mb-1 text-red-500">
+                                    Error displaying service
+                                  </div>
+                                );
+                              }
+                            });
+                          } catch (error) {
+                            console.error('Error rendering services:', error);
+                            return <div className="text-red-400">Error loading services</div>;
+                          }
+                        })()}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        appointment.status && statusColors[appointment.status] 
-                          ? statusColors[appointment.status] 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {appointment.status ? 
-                          appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1) : 
-                          'Unknown'
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                  appointment.status && statusColors[appointment.status] 
+                                    ? statusColors[appointment.status] 
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {appointment.status ? 
+                                    appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1) : 
+                                    'Unknown'
+                                  }
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button
+                                  onClick={() => openEditModal(appointment)}
+                                  className="text-green-600 hover:text-green-900 mr-3"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedAppointment(appointment);
+                                    setEditMode(false);
+                                    setShowModal(true);
+                                  }}
+                                  className="text-blue-600 hover:text-blue-900"
+                                >
+                                  Manage
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        } catch (error) {
+                          console.error('Error rendering appointment row:', error, appointment);
+                          return (
+                            <tr key={appointment.id || 'error'} className="hover:bg-red-50">
+                              <td colSpan={6} className="px-6 py-4 text-center text-red-500">
+                                Error displaying appointment
+                              </td>
+                            </tr>
+                          );
                         }
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => openEditModal(appointment)}
-                        className="text-green-600 hover:text-green-900 mr-3"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedAppointment(appointment);
-                          setEditMode(false);
-                          setShowModal(true);
-                        }}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        Manage
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            } catch (error) {
+              console.error('Error rendering table view:', error);
+              return (
+                <div className="text-center py-12">
+                  <div className="text-red-500 mb-4">Error loading table view</div>
+                  <button 
+                    onClick={() => setViewMode('calendar')}
+                    className="text-blue-600 hover:text-blue-900"
+                  >
+                    Switch to Calendar View
+                  </button>
+                </div>
+              );
+            }
+          })()
         )}
       </div>
 

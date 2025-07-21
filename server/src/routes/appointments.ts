@@ -1,6 +1,6 @@
 import express from 'express';
 import { Appointment, Client } from '../models/index';
-import { auth } from '../middleware/auth';
+import { auth } from '../middleware/authMySQL';
 
 const router = express.Router();
 

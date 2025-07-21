@@ -50,7 +50,7 @@ const ClientManagement: React.FC = () => {
         ...(searchTerm && { search: searchTerm })
       });
 
-      const apiUrl = `${import.meta.env.VITE_API_URL}/clients-from-appointments.php?${params}`;
+      const apiUrl = `${import.meta.env.VITE_API_URL}/clients?${params}`;
       console.log('Fetching clients from:', apiUrl);
       console.log('Environment API URL:', import.meta.env.VITE_API_URL);
 
@@ -61,7 +61,7 @@ const ClientManagement: React.FC = () => {
       // Fallback to appointments API if clients API fails
       if (!response.ok) {
         console.log('Clients API failed, trying appointments API as fallback...');
-        const fallbackUrl = `${import.meta.env.VITE_API_URL}/appointments.php`;
+        const fallbackUrl = `${import.meta.env.VITE_API_URL}/appointments`;
         response = await fetch(fallbackUrl);
         
         if (response.ok) {
@@ -265,8 +265,8 @@ const ClientManagement: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       const url = editMode 
-        ? `${import.meta.env.VITE_API_URL}/clients-from-appointments.php?id=${selectedClient?.id}`
-        : `${import.meta.env.VITE_API_URL}/clients-from-appointments.php`;
+        ? `${import.meta.env.VITE_API_URL}/clients?id=${selectedClient?.id}`
+        : `${import.meta.env.VITE_API_URL}/clients`;
       
       // Prepare client data with formatted phone number
       const clientData = {
@@ -305,7 +305,7 @@ const ClientManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/clients-from-appointments.php?id=${clientId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/clients?id=${clientId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

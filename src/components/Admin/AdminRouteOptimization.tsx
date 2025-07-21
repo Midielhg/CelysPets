@@ -52,7 +52,7 @@ const AdminRouteOptimization: React.FC = () => {
 
   const fetchAppointments = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments.php?date=${selectedDate}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments?date=${selectedDate}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -76,7 +76,7 @@ const AdminRouteOptimization: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/route-optimization.php`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/route-optimization`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
