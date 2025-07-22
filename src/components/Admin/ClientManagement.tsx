@@ -370,8 +370,11 @@ const ClientManagement: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Client Management</h1>
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-amber-900 mb-2">Client Management</h1>
+            <p className="text-amber-700">Manage client information and pet details</p>
+          </div>
           <button
             onClick={openAddModal}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"

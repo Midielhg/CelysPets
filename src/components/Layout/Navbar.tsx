@@ -62,20 +62,12 @@ const Navbar: React.FC = () => {
                   </Link>
                 )}
                 {user.role === 'admin' && (
-                  <>
-                    <Link 
-                      to="/admin" 
-                      className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300"
-                    >
-                      Admin
-                    </Link>
-                    <Link 
-                      to="/admin/routes" 
-                      className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300"
-                    >
-                      🗺️ Routes
-                    </Link>
-                  </>
+                  <Link 
+                    to="/admin" 
+                    className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300"
+                  >
+                    Admin
+                  </Link>
                 )}
                 <button
                   onClick={logout}

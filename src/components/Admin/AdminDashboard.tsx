@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import AppointmentManagement from './AppointmentManagement';
 import ClientManagement from './ClientManagement';
-import RouteOptimization from '../RouteOptimization/RouteOptimization';
+import AdminRouteOptimization from './AdminRouteOptimization';
 
 type AdminView = 'dashboard' | 'appointments' | 'clients' | 'routes';
 
@@ -15,7 +15,7 @@ const AdminDashboard: React.FC = () => {
       case 'clients':
         return <ClientManagement />;
       case 'routes':
-        return <RouteOptimization />;
+        return <AdminRouteOptimization />;
       default:
         return renderDashboard();
     }

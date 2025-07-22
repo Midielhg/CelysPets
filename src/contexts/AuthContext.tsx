@@ -41,13 +41,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     // Check for saved token and validate it
-    const token = localStorage.getItem('token');
-    if (token) {
-      // TODO: Validate token with backend
+    const validateToken = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setUser(data.user);
+          } else {
+            // Token is invalid, remove it
+            localStorage.removeItem('token');
+          }
+        } catch (error) {
+          // Token validation failed, remove it
+          localStorage.removeItem('token');
+        }
+      }
       setIsLoading(false);
-    } else {
-      setIsLoading(false);
-    }
+    };
+
+    validateToken();
   }, []);
 
   const login = async (email: string, password: string) => {

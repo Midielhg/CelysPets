@@ -536,10 +536,11 @@ const AppointmentManagement: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Appointment Management</h1>
+        <h1 className="text-3xl font-bold text-amber-900 mb-2">Appointment Management</h1>
+        <p className="text-amber-700">Manage and organize all pet grooming appointments</p>
         
         {/* View Toggle and Filter Buttons */}
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-4 mt-6">
           <div className="flex flex-wrap gap-2">
             {[
               { key: 'all', label: 'All Appointments' },

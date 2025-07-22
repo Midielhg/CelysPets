@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 
 const Login: React.FC = () => {
   const { user, login } = useAuth();
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -13,9 +14,15 @@ const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Redirect if already logged in
-  if (user) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +31,7 @@ const Login: React.FC = () => {
     try {
       await login(formData.email, formData.password);
       showToast('Logged in successfully!', 'success');
+      // Navigation will be handled by useEffect after user state updates
     } catch (error) {
       showToast('Invalid email or password', 'error');
     } finally {

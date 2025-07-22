@@ -66,9 +66,28 @@ router.post('/', async (req, res) => {
 // Get all appointments (no auth required for now - can add later)
 router.get('/', async (req, res) => {
   try {
-    console.log('Fetching all appointments...');
+    const { date } = req.query;
+    console.log('Fetching appointments with query:', { date });
+    
+    let whereClause = {};
+    
+    // If date filter is provided, filter by date
+    if (date) {
+      const targetDate = new Date(date as string);
+      const nextDay = new Date(targetDate);
+      nextDay.setDate(targetDate.getDate() + 1);
+      
+      whereClause = {
+        date: {
+          [require('sequelize').Op.gte]: targetDate,
+          [require('sequelize').Op.lt]: nextDay
+        }
+      };
+      console.log('Filtering by date range:', { from: targetDate, to: nextDay });
+    }
     
     const appointments = await Appointment.findAll({
+      where: whereClause,
       include: [{ 
         model: Client, 
         as: 'client' 
