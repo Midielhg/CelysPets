@@ -1,5 +1,5 @@
 import express from 'express';
-import { Appointment, Client } from '../models/index';
+import { Appointment, Client, User } from '../models/index';
 import { auth } from '../middleware/authMySQL';
 
 const router = express.Router();
@@ -7,7 +7,7 @@ const router = express.Router();
 // Create appointment (public endpoint for booking)
 router.post('/', async (req, res) => {
   try {
-    const { client: clientData, services, date, time, notes } = req.body;
+    const { client: clientData, services, date, time, notes, groomerId } = req.body;
 
     console.log('Creating appointment with data:', { clientData, services, date, time });
 
@@ -40,6 +40,7 @@ router.post('/', async (req, res) => {
     // Create appointment
     const appointment = await Appointment.create({
       clientId: client.id,
+      groomerId: groomerId || null,
       services: services,
       date: new Date(date),
       time: time,
@@ -50,7 +51,15 @@ router.post('/', async (req, res) => {
 
     // Fetch the created appointment with client data
     const createdAppointment = await Appointment.findByPk(appointment.id, {
-      include: [{ model: Client, as: 'client' }]
+      include: [
+        { model: Client, as: 'client' },
+        {
+          model: User,
+          as: 'groomer',
+          attributes: ['id', 'name', 'email'],
+          required: false
+        }
+      ]
     });
 
     res.status(201).json({
@@ -88,10 +97,18 @@ router.get('/', async (req, res) => {
     
     const appointments = await Appointment.findAll({
       where: whereClause,
-      include: [{ 
-        model: Client, 
-        as: 'client' 
-      }],
+      include: [
+        { 
+          model: Client, 
+          as: 'client' 
+        },
+        {
+          model: User,
+          as: 'groomer',
+          attributes: ['id', 'name', 'email'],
+          required: false
+        }
+      ],
       order: [['date', 'ASC'], ['time', 'ASC']]
     });
     
@@ -103,11 +120,111 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get appointments for a specific groomer (must come before /:id route)
+router.get('/groomer/:groomerId', auth, async (req, res) => {
+  try {
+    const { groomerId } = req.params;
+    const { date } = req.query;
+
+    let whereClause: any = { groomerId };
+
+    // Filter by date if provided
+    if (date) {
+      const targetDate = new Date(date as string);
+      const nextDay = new Date(targetDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      
+      whereClause.date = {
+        [require('sequelize').Op.gte]: targetDate,
+        [require('sequelize').Op.lt]: nextDay
+      };
+    }
+
+    const appointments = await Appointment.findAll({
+      where: whereClause,
+      include: [
+        { 
+          model: Client, 
+          as: 'client' 
+        },
+        {
+          model: User,
+          as: 'groomer',
+          attributes: ['id', 'name', 'email'],
+          required: false
+        }
+      ],
+      order: [['date', 'ASC'], ['time', 'ASC']]
+    });
+
+    res.json(appointments);
+  } catch (error) {
+    console.error('Error fetching groomer appointments:', error);
+    res.status(500).json({ message: 'Failed to fetch groomer appointments' });
+  }
+});
+
+// Get my appointments (for authenticated groomers) - must come before /:id route
+router.get('/my-appointments', auth, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    
+    if (user.role !== 'groomer' && user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only groomers can access this endpoint' });
+    }
+
+    const { date } = req.query;
+    let whereClause: any = { groomerId: user.id };
+
+    // Filter by date if provided
+    if (date) {
+      const targetDate = new Date(date as string);
+      const nextDay = new Date(targetDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      
+      whereClause.date = {
+        [require('sequelize').Op.gte]: targetDate,
+        [require('sequelize').Op.lt]: nextDay
+      };
+    }
+
+    const appointments = await Appointment.findAll({
+      where: whereClause,
+      include: [
+        { 
+          model: Client, 
+          as: 'client' 
+        },
+        {
+          model: User,
+          as: 'groomer',
+          attributes: ['id', 'name', 'email'],
+          required: false
+        }
+      ],
+      order: [['date', 'ASC'], ['time', 'ASC']]
+    });
+
+    res.json(appointments);
+  } catch (error) {
+    console.error('Error fetching my appointments:', error);
+    res.status(500).json({ message: 'Failed to fetch appointments' });
+  }
+});
+
 // Get appointment by ID
 router.get('/:id', async (req, res) => {
   try {
     const appointment = await Appointment.findByPk(req.params.id, {
-      include: [{ model: Client, as: 'client' }]
+      include: [
+        { model: Client, as: 'client' },
+        {
+          model: User,
+          as: 'groomer',
+          attributes: ['id', 'name', 'email'],
+          required: false
+        }
+      ]
     });
     
     if (!appointment) {
@@ -138,7 +255,15 @@ router.patch('/:id', async (req, res) => {
 
     // Fetch updated appointment with client data
     const updatedAppointment = await Appointment.findByPk(req.params.id, {
-      include: [{ model: Client, as: 'client' }]
+      include: [
+        { model: Client, as: 'client' },
+        {
+          model: User,
+          as: 'groomer',
+          attributes: ['id', 'name', 'email'],
+          required: false
+        }
+      ]
     });
 
     res.json(updatedAppointment);
@@ -151,7 +276,7 @@ router.patch('/:id', async (req, res) => {
 // Full appointment update (admin only)
 router.put('/:id', async (req, res) => {
   try {
-    const { client: clientData, services, date, time, status, notes } = req.body;
+    const { client: clientData, services, date, time, status, notes, groomerId } = req.body;
     
     console.log('Updating appointment with data:', { clientData, services, date, time, status });
 
@@ -182,13 +307,22 @@ router.put('/:id', async (req, res) => {
     if (time !== undefined) updateData.time = time;
     if (status !== undefined) updateData.status = status;
     if (notes !== undefined) updateData.notes = notes;
+    if (groomerId !== undefined) updateData.groomerId = groomerId;
     if (services !== undefined) updateData.totalAmount = calculateTotal(services);
 
     await appointment.update(updateData);
 
     // Fetch updated appointment with client data
     const updatedAppointment = await Appointment.findByPk(req.params.id, {
-      include: [{ model: Client, as: 'client' }]
+      include: [
+        { model: Client, as: 'client' },
+        {
+          model: User,
+          as: 'groomer',
+          attributes: ['id', 'name', 'email'],
+          required: false
+        }
+      ]
     });
 
     res.json({

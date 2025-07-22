@@ -18,6 +18,9 @@ import appointmentsRouter from './routes/appointments';
 import authRouter from './routes/auth';
 import routeOptimizationRouter from './routes/routeOptimization';
 import clientsRouter from './routes/clients';
+import groomersRouter from './routes/groomers';
+import usersRouter from './routes/users';
+import setupRouter from './routes/setup';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -86,6 +89,9 @@ app.use('/api/appointments', appointmentsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/route-optimization', routeOptimizationRouter);
 app.use('/api/clients', clientsRouter);
+app.use('/api/groomers', groomersRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/setup', setupRouter);
 
 // Root endpoint
 app.get('/', (req, res) => {

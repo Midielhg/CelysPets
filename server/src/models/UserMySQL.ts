@@ -14,7 +14,7 @@ interface UserAttributes {
   email: string;
   password: string;
   name: string;
-  role: 'client' | 'admin';
+  role: 'client' | 'admin' | 'groomer';
   businessSettings?: BusinessSettings;
   googleTokens?: {
     accessToken?: string;
@@ -33,7 +33,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   public email!: string;
   public password!: string;
   public name!: string;
-  public role!: 'client' | 'admin';
+  public role!: 'client' | 'admin' | 'groomer';
   public businessSettings?: BusinessSettings;
   public googleTokens?: {
     accessToken?: string;
@@ -68,7 +68,7 @@ User.init(
       allowNull: false,
     },
     role: {
-      type: DataTypes.ENUM('client', 'admin'),
+      type: DataTypes.ENUM('client', 'admin', 'groomer'),
       allowNull: false,
       defaultValue: 'client',
     },

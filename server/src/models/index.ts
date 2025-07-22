@@ -13,6 +13,17 @@ Appointment.belongsTo(Client, {
   as: 'client'
 });
 
+// Groomer (User) associations
+User.hasMany(Appointment, {
+  foreignKey: 'groomerId',
+  as: 'assignments'
+});
+
+Appointment.belongsTo(User, {
+  foreignKey: 'groomerId',
+  as: 'groomer'
+});
+
 // Export models for easier importing
 export {
   Client,

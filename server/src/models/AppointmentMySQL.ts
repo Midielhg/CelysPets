@@ -5,6 +5,7 @@ import sequelize from '../config/database';
 interface AppointmentAttributes {
   id: number;
   clientId: number; // Foreign key to Client
+  groomerId?: number; // Foreign key to User (groomer)
   services: string[];
   date: Date;
   time: string;
@@ -22,6 +23,7 @@ interface AppointmentCreationAttributes extends Optional<AppointmentAttributes, 
 class Appointment extends Model<AppointmentAttributes, AppointmentCreationAttributes> implements AppointmentAttributes {
   public id!: number;
   public clientId!: number;
+  public groomerId?: number;
   public services!: string[];
   public date!: Date;
   public time!: string;
@@ -45,6 +47,14 @@ Appointment.init(
       allowNull: false,
       references: {
         model: 'clients',
+        key: 'id',
+      },
+    },
+    groomerId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'users',
         key: 'id',
       },
     },

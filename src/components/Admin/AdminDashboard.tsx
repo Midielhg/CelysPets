@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import AppointmentManagement from './AppointmentManagement';
 import ClientManagement from './ClientManagement';
 import AdminRouteOptimization from './AdminRouteOptimization';
+import UserManagement from './UserManagement';
 
-type AdminView = 'dashboard' | 'appointments' | 'clients' | 'routes';
+type AdminView = 'dashboard' | 'appointments' | 'clients' | 'routes' | 'users';
 
 const AdminDashboard: React.FC = () => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
@@ -16,6 +17,8 @@ const AdminDashboard: React.FC = () => {
         return <ClientManagement />;
       case 'routes':
         return <AdminRouteOptimization />;
+      case 'users':
+        return <UserManagement />;
       default:
         return renderDashboard();
     }
@@ -83,7 +86,7 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
+      <div className="grid md:grid-cols-4 gap-6 mb-8">
         <button 
           onClick={() => setCurrentView('appointments')}
           className="bg-blue-600 text-white p-6 rounded-lg hover:bg-blue-700 transition-colors text-left"
@@ -121,6 +124,19 @@ const AdminDashboard: React.FC = () => {
             <span className="font-semibold">Client Management</span>
           </div>
           <p className="text-purple-100 text-sm">Manage client profiles and pet information</p>
+        </button>
+
+        <button 
+          onClick={() => setCurrentView('users')}
+          className="bg-amber-600 text-white p-6 rounded-lg hover:bg-amber-700 transition-colors text-left"
+        >
+          <div className="flex items-center mb-2">
+            <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+            </svg>
+            <span className="font-semibold">User Management</span>
+          </div>
+          <p className="text-amber-100 text-sm">Manage user accounts, roles, and permissions</p>
         </button>
       </div>
 
@@ -243,7 +259,8 @@ const AdminDashboard: React.FC = () => {
               { key: 'dashboard', label: 'Overview', icon: '📊' },
               { key: 'appointments', label: 'Appointments', icon: '📅' },
               { key: 'clients', label: 'Clients', icon: '👥' },
-              { key: 'routes', label: 'Routes', icon: '🗺️' }
+              { key: 'routes', label: 'Routes', icon: '🗺️' },
+              { key: 'users', label: 'Users', icon: '👤' }
             ].map(({ key, label, icon }) => (
               <button
                 key={key}
