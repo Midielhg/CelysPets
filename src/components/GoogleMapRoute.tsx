@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 
 interface RouteStop {
   appointment: {
-    id: number;
+    _id: string;
     client: {
       name: string;
       address: string;

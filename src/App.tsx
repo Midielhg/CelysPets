@@ -15,7 +15,7 @@ function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <Router basename="/dev">
+        <Router>
           <div className="min-h-screen bg-transparent">
             <Navbar />
             <main>

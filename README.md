@@ -1,3 +1,9 @@
+to create the production build run 
+npm run build -- --mode production
+rm -rf simple-static-deploy
+mkdir -p simple-static-deploy
+cp -r dist/* simple-static-deploy/
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

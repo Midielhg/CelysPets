@@ -3,7 +3,7 @@ import { useToast } from '../../contexts/ToastContext';
 import GoogleMapRoute from '../GoogleMapRoute';
 
 interface Appointment {
-  id: number;
+  _id: string;
   client: {
     name: string;
     address: string;
@@ -94,7 +94,7 @@ const AdminRouteOptimization: React.FC = () => {
         body: JSON.stringify({
           startLocation,
           appointments: appointments.map(apt => ({
-            id: apt.id,
+            id: apt._id,
             address: apt.client.address,
             time: apt.time
           }))
@@ -214,7 +214,7 @@ const AdminRouteOptimization: React.FC = () => {
           const optimizedTime = currentTime.toTimeString().slice(0, 5);
 
           // Update appointment via API
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments/${stop.appointment.id}`, {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments/${stop.appointment._id}`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -229,7 +229,7 @@ const AdminRouteOptimization: React.FC = () => {
             successCount++;
           } else {
             failCount++;
-            console.error(`Failed to update appointment ${stop.appointment.id}`);
+            console.error(`Failed to update appointment ${stop.appointment._id}`);
           }
 
           // Add service duration (assume 1 hour per appointment)
@@ -237,7 +237,7 @@ const AdminRouteOptimization: React.FC = () => {
 
         } catch (error) {
           failCount++;
-          console.error(`Error updating appointment ${stop.appointment.id}:`, error);
+          console.error(`Error updating appointment ${stop.appointment._id}:`, error);
         }
       }
 
@@ -402,7 +402,7 @@ const AdminRouteOptimization: React.FC = () => {
                       {optimizedRoute.stops.map((stop, index) => {
                         try {
                           return (
-                            <div key={stop.appointment.id} className="flex items-center p-4 bg-amber-50 rounded-lg border-l-4 border-amber-500">
+                            <div key={stop.appointment._id} className="flex items-center p-4 bg-amber-50 rounded-lg border-l-4 border-amber-500">
                               <div className="flex-shrink-0 w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center font-bold">
                                 {index + 1}
                               </div>
