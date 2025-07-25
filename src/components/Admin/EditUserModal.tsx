@@ -6,8 +6,8 @@ interface User {
   name: string;
   email: string;
   role: 'client' | 'admin' | 'groomer';
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface EditUserModalProps {
@@ -74,7 +74,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
         updateData.password = formData.password;
       }
 
-      const response = await fetch(`/api/users/${user.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${user.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -244,8 +244,8 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
             <div className="text-xs text-amber-800">
               <strong>User Information:</strong><br />
-              Created: {new Date(user.createdAt).toLocaleDateString()}<br />
-              Last Updated: {new Date(user.updatedAt).toLocaleDateString()}
+              Created: {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}<br />
+              Last Updated: {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : 'N/A'}
             </div>
           </div>
 

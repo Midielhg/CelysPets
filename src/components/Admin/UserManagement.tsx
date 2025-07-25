@@ -9,26 +9,26 @@ interface User {
   name: string;
   email: string;
   role: 'client' | 'admin' | 'groomer';
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface UserStats {
-  totals: {
-    users: number;
-    clients: number;
-    groomers: number;
+  overview: {
     admins: number;
+    clients: number;
+    users: number;
   };
   recentUsers: User[];
+  totalUsers: number;
 }
 
 interface Pagination {
-  currentPage: number;
+  page: number;
+  limit: number;
+  total: number;
   totalPages: number;
-  totalUsers: number;
-  hasNext: boolean;
-  hasPrev: boolean;
+  hasMore: boolean;
 }
 
 const UserManagement: React.FC = () => {
@@ -63,7 +63,7 @@ const UserManagement: React.FC = () => {
         ...(role !== 'all' && { role })
       });
 
-      const response = await fetch(`/api/users?${params}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/users?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -88,7 +88,7 @@ const UserManagement: React.FC = () => {
   const fetchUserStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/users/stats/overview', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/stats/overview`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -156,7 +156,7 @@ const UserManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/users/bulk-update-roles', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/bulk-update-roles`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -257,7 +257,7 @@ const UserManagement: React.FC = () => {
               <Users className="w-8 h-8 text-gray-600" />
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats.totals.users}</p>
+                <p className="text-2xl font-bold text-gray-900">{userStats.overview.users}</p>
               </div>
             </div>
           </div>
@@ -266,7 +266,7 @@ const UserManagement: React.FC = () => {
               <UserCheck className="w-8 h-8 text-green-600" />
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Clients</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats.totals.clients}</p>
+                <p className="text-2xl font-bold text-gray-900">{userStats.overview.clients}</p>
               </div>
             </div>
           </div>
@@ -275,7 +275,7 @@ const UserManagement: React.FC = () => {
               <UserCog className="w-8 h-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Groomers</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats.totals.groomers}</p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
               </div>
             </div>
           </div>
@@ -284,7 +284,7 @@ const UserManagement: React.FC = () => {
               <Shield className="w-8 h-8 text-red-600" />
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Admins</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats.totals.admins}</p>
+                <p className="text-2xl font-bold text-gray-900">{userStats.overview.admins}</p>
               </div>
             </div>
           </div>
@@ -417,7 +417,7 @@ const UserManagement: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {new Date(user.createdAt).toLocaleDateString()}
+                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
@@ -447,22 +447,22 @@ const UserManagement: React.FC = () => {
         {pagination && pagination.totalPages > 1 && (
           <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between">
             <div className="text-sm text-gray-500">
-              Showing {users.length} of {pagination.totalUsers} users
+              Showing {users.length} of {pagination.total} users
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(prev => prev - 1)}
-                disabled={!pagination.hasPrev}
+                disabled={currentPage <= 1}
                 className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
               <span className="px-3 py-1 text-sm text-gray-600">
-                Page {pagination.currentPage} of {pagination.totalPages}
+                Page {pagination.page} of {pagination.totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(prev => prev + 1)}
-                disabled={!pagination.hasNext}
+                disabled={currentPage >= pagination.totalPages}
                 className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
