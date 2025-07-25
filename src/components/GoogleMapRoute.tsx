@@ -41,7 +41,7 @@ declare global {
 const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({ 
   route, 
   startLocation, 
-  startCoordinates = { lat: 25.7617, lng: -80.1918 } // Default to Miami
+  startCoordinates // Will be calculated if not provided
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -68,10 +68,35 @@ const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({
     const initializeMap = () => {
       if (!mapRef.current || !window.google) return;
 
+      // Geocode the start location if coordinates aren't provided
+      const geocoder = new window.google.maps.Geocoder();
+      
+      if (startCoordinates) {
+        // Use provided coordinates
+        createMap(startCoordinates);
+      } else {
+        // Geocode the start location
+        geocoder.geocode({ address: startLocation }, (results: any, status: any) => {
+          if (status === 'OK' && results[0]) {
+            const location = results[0].geometry.location;
+            const coords = { lat: location.lat(), lng: location.lng() };
+            createMap(coords);
+          } else {
+            // Fallback to Miami if geocoding fails
+            console.warn('Geocoding failed for start location:', startLocation);
+            createMap({ lat: 25.7617, lng: -80.1918 });
+          }
+        });
+      }
+    };
+
+    const createMap = (mapCenter: { lat: number; lng: number }) => {
+      if (!mapRef.current || !window.google) return;
+
       // Create map
       const map = new window.google.maps.Map(mapRef.current, {
         zoom: 11,
-        center: startCoordinates,
+        center: mapCenter,
         mapTypeId: window.google.maps.MapTypeId.ROADMAP,
         styles: [
           {
@@ -84,22 +109,28 @@ const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({
 
       mapInstanceRef.current = map;
 
+      // Add start location marker
+      new window.google.maps.Marker({
+        position: mapCenter,
+        map: map,
+        title: `Start: ${startLocation}`,
+        icon: {
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="12" fill="#10b981" stroke="#065f46" stroke-width="2"/>
+              <text x="16" y="20" text-anchor="middle" fill="white" font-size="12" font-weight="bold">🏠</text>
+            </svg>
+          `),
+          scaledSize: new window.google.maps.Size(32, 32),
+          anchor: new window.google.maps.Point(16, 16)
+        }
+      });
+
       // Create DirectionsService and DirectionsRenderer
       const directionsService = new window.google.maps.DirectionsService();
       const directionsRenderer = new window.google.maps.DirectionsRenderer({
         draggable: false,
-        markerOptions: {
-          icon: {
-            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-              <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="16" cy="16" r="12" fill="#f59e0b" stroke="#d97706" stroke-width="2"/>
-                <text x="16" y="20" text-anchor="middle" fill="white" font-size="12" font-weight="bold">📍</text>
-              </svg>
-            `),
-            scaledSize: new window.google.maps.Size(32, 32),
-            anchor: new window.google.maps.Point(16, 16)
-          }
-        },
+        suppressMarkers: true, // We'll create custom markers
         polylineOptions: {
           strokeColor: '#f59e0b',
           strokeWeight: 4,
@@ -121,7 +152,7 @@ const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({
       
       // Calculate and display route
       directionsService.route({
-        origin: startLocation,
+        origin: mapCenter,
         destination: destination.coordinates ? 
           new window.google.maps.LatLng(destination.coordinates.lat, destination.coordinates.lng) : 
           destination.address,
@@ -179,40 +210,6 @@ const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({
             }
           });
           
-          // Add start location marker
-          const startMarker = new window.google.maps.Marker({
-            position: startCoordinates,
-            map: map,
-            title: `Start: ${startLocation}`,
-            icon: {
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="20" cy="20" r="18" fill="#10b981" stroke="#059669" stroke-width="2"/>
-                  <text x="20" y="26" text-anchor="middle" fill="white" font-size="16" font-weight="bold">🏠</text>
-                </svg>
-              `),
-              scaledSize: new window.google.maps.Size(40, 40),
-              anchor: new window.google.maps.Point(20, 20)
-            }
-          });
-
-          const startInfoWindow = new window.google.maps.InfoWindow({
-            content: `
-              <div style="padding: 8px; min-width: 150px;">
-                <h3 style="margin: 0 0 8px 0; color: #10b981; font-size: 16px;">
-                  🏠 Starting Location
-                </h3>
-                <p style="margin: 4px 0; color: #374151; font-size: 14px;">
-                  ${startLocation}
-                </p>
-              </div>
-            `
-          });
-
-          startMarker.addListener('click', () => {
-            startInfoWindow.open(map, startMarker);
-          });
-
         } else {
           console.error('Directions request failed due to ' + status);
         }
