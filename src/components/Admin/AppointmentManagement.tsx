@@ -126,8 +126,8 @@ const AppointmentManagement: React.FC = () => {
 
   const fetchAppointments = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments`, {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:5001/api/appointments', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -151,8 +151,8 @@ const AppointmentManagement: React.FC = () => {
 
   const updateAppointmentStatus = async (appointmentId: string, newStatus: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const url = `${import.meta.env.VITE_API_URL}/appointments/${appointmentId}`;
+      const token = localStorage.getItem('auth_token');
+      const url = `http://localhost:5001/api/appointments/${appointmentId}`;
       
       console.log('Updating appointment status:', { 
         appointmentId, 
@@ -224,8 +224,8 @@ const AppointmentManagement: React.FC = () => {
       const newTime = moment(start).format('h:mm A');
       
       // Update the appointment via API
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments/${appointment.id}`, {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:5001/api/appointments/${appointment.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -268,8 +268,8 @@ const AppointmentManagement: React.FC = () => {
       const newTime = moment(start).format('h:mm A');
       
       // Update the appointment via API
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments/${appointment.id}`, {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:5001/api/appointments/${appointment.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -310,8 +310,8 @@ const AppointmentManagement: React.FC = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments/${appointmentId}`, {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:5001/api/appointments/${appointmentId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -380,7 +380,7 @@ const AppointmentManagement: React.FC = () => {
     const isCreating = !selectedAppointment;
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       
       // Prepare data for appointment update/creation (excluding pets modifications)
       const appointmentData = {
@@ -399,8 +399,8 @@ const AppointmentManagement: React.FC = () => {
       };
 
       const url = isCreating 
-        ? `${import.meta.env.VITE_API_URL}/appointments`
-        : `${import.meta.env.VITE_API_URL}/appointments/${selectedAppointment.id}`;
+        ? 'http://localhost:5001/api/appointments'
+        : `http://localhost:5001/api/appointments/${selectedAppointment.id}`;
 
       const response = await fetch(url, {
         method: isCreating ? 'POST' : 'PUT',

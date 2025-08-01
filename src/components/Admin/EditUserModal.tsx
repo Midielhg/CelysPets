@@ -62,7 +62,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
     setError(null);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const updateData: any = {
         name: formData.name,
         email: formData.email,
@@ -74,7 +74,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
         updateData.password = formData.password;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${user.id}`, {
+      const response = await fetch(`http://localhost:5001/api/users/${user.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

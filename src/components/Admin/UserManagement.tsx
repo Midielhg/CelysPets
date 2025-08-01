@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Edit, Trash2, Users, UserCheck, UserCog, Shield } from 'lucide-react';
 import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
@@ -14,13 +14,13 @@ interface User {
 }
 
 interface UserStats {
-  overview: {
+  totals: {
     admins: number;
     clients: number;
+    groomers: number;
     users: number;
   };
   recentUsers: User[];
-  totalUsers: number;
 }
 
 interface Pagination {
@@ -52,10 +52,10 @@ const UserManagement: React.FC = () => {
   // Selected users for bulk operations
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
 
-  const fetchUsers = async (page = 1, search = '', role = 'all') => {
+  const fetchUsers = useCallback(async (page = 1, search = '', role = 'all') => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '10',
@@ -63,7 +63,7 @@ const UserManagement: React.FC = () => {
         ...(role !== 'all' && { role })
       });
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/users?${params}`, {
+      const response = await fetch(`http://localhost:5001/api/users?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -83,12 +83,12 @@ const UserManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Empty dependency array since we don't want this to recreate on every render
 
-  const fetchUserStats = async () => {
+  const fetchUserStats = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/stats/overview`, {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:5001/api/users/stats/overview`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -104,12 +104,12 @@ const UserManagement: React.FC = () => {
     } catch (err) {
       console.error('Failed to fetch user stats:', err);
     }
-  };
+  }, []); // Empty dependency array
 
   useEffect(() => {
     fetchUsers(currentPage, searchTerm, roleFilter);
     fetchUserStats();
-  }, [currentPage, searchTerm, roleFilter]);
+  }, [currentPage, searchTerm, roleFilter, fetchUsers, fetchUserStats]);
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
@@ -155,8 +155,8 @@ const UserManagement: React.FC = () => {
     if (selectedUserIds.length === 0) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/bulk-update-roles`, {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:5001/api/users/bulk-update-roles`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -257,7 +257,7 @@ const UserManagement: React.FC = () => {
               <Users className="w-8 h-8 text-gray-600" />
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats.overview.users}</p>
+                <p className="text-2xl font-bold text-gray-900">{userStats.totals.users}</p>
               </div>
             </div>
           </div>
@@ -266,7 +266,7 @@ const UserManagement: React.FC = () => {
               <UserCheck className="w-8 h-8 text-green-600" />
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Clients</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats.overview.clients}</p>
+                                <p className="text-2xl font-bold text-gray-900">{userStats.totals.clients}</p>
               </div>
             </div>
           </div>
@@ -275,7 +275,7 @@ const UserManagement: React.FC = () => {
               <UserCog className="w-8 h-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Groomers</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-2xl font-bold text-gray-900">{userStats.totals.groomers}</p>
               </div>
             </div>
           </div>
@@ -284,7 +284,7 @@ const UserManagement: React.FC = () => {
               <Shield className="w-8 h-8 text-red-600" />
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Admins</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats.overview.admins}</p>
+                <p className="text-2xl font-bold text-gray-900">{userStats.totals.admins}</p>
               </div>
             </div>
           </div>

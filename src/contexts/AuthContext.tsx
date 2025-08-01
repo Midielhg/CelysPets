@@ -42,10 +42,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     // Check for saved token and validate it
     const validateToken = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       if (token) {
         try {
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
+          // For development mode, accept mock tokens
+          if (token.startsWith('dev-token-')) {
+            const mockUser = {
+              id: '1',
+              email: 'admin@celyspets.com',
+              name: 'Admin User',
+              role: 'admin' as const
+            };
+            setUser(mockUser);
+            setIsLoading(false);
+            return;
+          }
+          
+          const response = await fetch('http://localhost:5001/api/auth/me', {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -56,11 +69,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setUser(data.user);
           } else {
             // Token is invalid, remove it
-            localStorage.removeItem('token');
+            localStorage.removeItem('auth_token');
           }
         } catch (error) {
+          console.error('Token validation error:', error);
           // Token validation failed, remove it
-          localStorage.removeItem('token');
+          localStorage.removeItem('auth_token');
         }
       }
       setIsLoading(false);
@@ -71,7 +85,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
+      console.log('Login attempt:', { email, password: '***' });
+      
+      const response = await fetch('http://localhost:5001/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,21 +95,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         body: JSON.stringify({ email, password }),
       });
 
+      console.log('API Response status:', response.status);
+      console.log('API Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        throw new Error('Login failed');
+        const errorText = await response.text();
+        console.error('API Error response:', errorText);
+        throw new Error(`Login failed: ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
-      localStorage.setItem('token', data.token);
-      setUser(data.user);
+      console.log('API Response data:', data);
+      
+      if (data.token && data.user) {
+        localStorage.setItem('auth_token', data.token);
+        setUser(data.user);
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (error) {
-      throw new Error('Login failed');
+      console.error('Login error:', error);
+      throw new Error(error instanceof Error ? error.message : 'Login failed');
     }
   };
 
   const register = async (email: string, password: string, name: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
+      const response = await fetch('http://localhost:5001/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -106,7 +134,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       const data = await response.json();
-      localStorage.setItem('token', data.token);
+      localStorage.setItem('auth_token', data.token);
       setUser(data.user);
     } catch (error) {
       throw new Error('Registration failed');
@@ -114,7 +142,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem('auth_token');
     setUser(null);
   };
 

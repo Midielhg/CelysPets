@@ -3,7 +3,7 @@ import { useToast } from '../../contexts/ToastContext';
 import GoogleMapRoute from '../GoogleMapRoute';
 
 interface Appointment {
-  _id: string;
+  id: string;
   client: {
     name: string;
     address: string;
@@ -58,12 +58,7 @@ const RouteOptimization: React.FC = () => {
 
   const fetchAppointments = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await fetch(`http://localhost:5001/api/appointments?date=${selectedDate}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch appointments');
@@ -71,14 +66,12 @@ const RouteOptimization: React.FC = () => {
 
       const data = await response.json();
       
-      // Filter appointments for selected date
-      const filteredAppointments = data.filter((apt: Appointment) => {
-        // The apt.date should already be in YYYY-MM-DD format, so we can compare directly
-        return apt.date === selectedDate && apt.status !== 'cancelled';
-      });
+      // Filter for active appointments only (backend already filters by date)
+      const filteredAppointments = data.filter((apt: Appointment) => apt.status !== 'cancelled');
 
       setAppointments(filteredAppointments);
     } catch (error) {
+      console.error('Error fetching appointments:', error);
       showToast('Failed to fetch appointments', 'error');
     }
   };
@@ -97,8 +90,8 @@ const RouteOptimization: React.FC = () => {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/route-optimization`, {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:5001/api/route-optimization`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,7 +100,7 @@ const RouteOptimization: React.FC = () => {
         body: JSON.stringify({
           startLocation,
           appointments: appointments.map(apt => ({
-            id: apt._id,
+            id: apt.id,
             address: apt.client.address,
             time: apt.time
           }))
@@ -276,7 +269,7 @@ const RouteOptimization: React.FC = () => {
               {appointments.length} appointment{appointments.length !== 1 ? 's' : ''} found
               <div className="mt-2 space-y-1">
                 {appointments.map((apt) => (
-                  <div key={apt._id} className="flex justify-between">
+                  <div key={apt.id} className="flex justify-between">
                     <span>{apt.time} - {apt.client.name}</span>
                     <span className="text-gray-500">{apt.client.address}</span>
                   </div>
@@ -364,7 +357,7 @@ const RouteOptimization: React.FC = () => {
 
             {/* Route Stops */}
             {optimizedRoute.stops.map((stop, index) => (
-              <div key={stop.appointment._id} className="flex items-center p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+              <div key={stop.appointment.id} className="flex items-center p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
                 <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">
                   {index + 1}
                 </div>

@@ -35,6 +35,8 @@ const allowedOrigins = [
   'http://localhost:5173', // Local development
   'http://localhost:5174', // Alternative local port  
   'http://localhost:5175', // Alternative local port
+  'http://localhost:5176', // Alternative local port
+  'http://localhost:5177', // Alternative local port
   'http://localhost:3000', // Alternative local port
   'https://your-domain.com', // Replace with your actual domain
   'https://www.your-domain.com', // Replace with your actual domain

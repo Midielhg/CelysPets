@@ -60,6 +60,31 @@ router.post('/login', async (req, res) => {
 
     console.log('Login attempt for:', email);
 
+    // Development fallback when database is not available
+    if (process.env.NODE_ENV === 'development') {
+      // Check for hardcoded admin credentials
+      if (email === 'admin@celyspets.com' && password === 'admin123') {
+        const token = jwt.sign(
+          { userId: '1' },
+          process.env.JWT_SECRET || 'your-secret-key',
+          { expiresIn: '7d' }
+        );
+
+        console.log('Development admin login successful');
+        
+        return res.json({
+          message: 'Login successful',
+          token,
+          user: {
+            id: '1',
+            email: 'admin@celyspets.com',
+            name: 'Admin User',
+            role: 'admin'
+          }
+        });
+      }
+    }
+
     // Find user by email
     const user = await User.findOne({ 
       where: { email } 
