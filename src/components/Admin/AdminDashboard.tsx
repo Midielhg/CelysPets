@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import AppointmentManagement from './AppointmentManagement';
 import ClientManagement from './ClientManagement';
-import AdminRouteOptimization from './AdminRouteOptimization';
 import UserManagement from './UserManagement';
 
-type AdminView = 'dashboard' | 'appointments' | 'clients' | 'routes' | 'users';
+type AdminView = 'dashboard' | 'appointments' | 'clients' | 'users';
 
 const AdminDashboard: React.FC = () => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
@@ -15,8 +14,6 @@ const AdminDashboard: React.FC = () => {
         return <AppointmentManagement />;
       case 'clients':
         return <ClientManagement />;
-      case 'routes':
-        return <AdminRouteOptimization />;
       case 'users':
         return <UserManagement />;
       default:
@@ -86,7 +83,7 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid md:grid-cols-4 gap-6 mb-8">
+      <div className="grid md:grid-cols-3 gap-6 mb-8">
         <button 
           onClick={() => setCurrentView('appointments')}
           className="bg-blue-600 text-white p-6 rounded-lg hover:bg-blue-700 transition-colors text-left"
@@ -97,20 +94,7 @@ const AdminDashboard: React.FC = () => {
             </svg>
             <span className="font-semibold">Manage Appointments</span>
           </div>
-          <p className="text-blue-100 text-sm">View, edit, and organize today's schedule</p>
-        </button>
-
-        <button 
-          onClick={() => setCurrentView('routes')}
-          className="bg-green-600 text-white p-6 rounded-lg hover:bg-green-700 transition-colors text-left"
-        >
-          <div className="flex items-center mb-2">
-            <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            </svg>
-            <span className="font-semibold">Route Optimization</span>
-          </div>
-          <p className="text-green-100 text-sm">Optimize your daily route for efficiency</p>
+          <p className="text-blue-100 text-sm">View, edit, organize schedule & optimize routes</p>
         </button>
 
         <button 
