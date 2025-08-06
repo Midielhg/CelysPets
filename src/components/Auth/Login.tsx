@@ -93,10 +93,7 @@ const Login: React.FC = () => {
           </p>
         </div>
 
-        <div className="mt-4 p-4 bg-amber-100/50 rounded-xl border border-amber-200">
-          <p className="text-sm text-amber-800 mb-2">Demo Credentials:</p>
-          <p className="text-xs text-amber-700">Admin: admin@celyspets.com / admin123</p>
-        </div>
+
       </div>
     </div>
   );
