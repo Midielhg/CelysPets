@@ -21,6 +21,7 @@ import clientsRouter from './routes/clients';
 import groomersRouter from './routes/groomers';
 import usersRouter from './routes/users';
 import setupRouter from './routes/setup';
+import dashboardRouter from './routes/dashboard';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -94,6 +95,7 @@ app.use('/api/clients', clientsRouter);
 app.use('/api/groomers', groomersRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/setup', setupRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 // Root endpoint
 app.get('/', (req, res) => {
