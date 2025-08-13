@@ -5,8 +5,9 @@ import RecentActivity from './RecentActivity';
 import AppointmentManagement from './AppointmentManagement';
 import ClientManagement from './ClientManagement';
 import UserManagement from './UserManagement';
+import PricingManagement from './PricingManagement';
 
-type AdminView = 'dashboard' | 'appointments' | 'clients' | 'users';
+type AdminView = 'dashboard' | 'appointments' | 'clients' | 'users' | 'pricing';
 
 const AdminDashboard: React.FC = () => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
@@ -19,6 +20,8 @@ const AdminDashboard: React.FC = () => {
         return <ClientManagement />;
       case 'users':
         return <UserManagement />;
+      case 'pricing':
+        return <PricingManagement />;
       default:
         return renderDashboard();
     }
@@ -109,6 +112,7 @@ const AdminDashboard: React.FC = () => {
               { key: 'dashboard', label: 'Overview', icon: '📊' },
               { key: 'appointments', label: 'Appointments', icon: '📅' },
               { key: 'clients', label: 'Clients', icon: '👥' },
+              { key: 'pricing', label: 'Pricing', icon: '💲' },
               { key: 'users', label: 'Users', icon: '👤' }
             ].map(({ key, label, icon }) => (
               <button

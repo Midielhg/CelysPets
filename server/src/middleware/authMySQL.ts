@@ -23,6 +23,31 @@ export const auth = async (req: AuthRequest, res: Response, next: NextFunction) 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
     console.log('Token decoded successfully, userId:', decoded.userId);
     
+    // For development, handle hardcoded user IDs
+    if (process.env.NODE_ENV === 'development') {
+      if (decoded.userId === '1') {
+        // Mock admin user
+        req.user = {
+          id: '1',
+          email: 'admin@celyspets.com',
+          name: 'Admin User',
+          role: 'admin'
+        };
+        console.log('Development admin user authenticated');
+        return next();
+      } else if (decoded.userId === '2') {
+        // Mock client user
+        req.user = {
+          id: '2',
+          email: 'client@celyspets.com',
+          name: 'Test Client',
+          role: 'client'
+        };
+        console.log('Development client user authenticated');
+        return next();
+      }
+    }
+    
     const user = await User.findByPk(decoded.userId); // MySQL/Sequelize method
 
     if (!user) {

@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/UserMySQL';
+import { Client } from '../models/ClientMySQL';
 
 const router = express.Router();
 
@@ -29,6 +30,18 @@ router.post('/register', async (req, res) => {
       name,
       role: 'client'
     });
+
+    // If user is a client, also create a client record
+    if (user.role === 'client') {
+      await Client.create({
+        name: user.name,
+        email: user.email,
+        phone: '', // Will be updated when user updates profile
+        address: '', // Will be updated when user updates profile
+        pets: [],
+        notes: ''
+      });
+    }
 
     // Create JWT token
     const token = jwt.sign(
@@ -60,29 +73,26 @@ router.post('/login', async (req, res) => {
 
     console.log('Login attempt for:', email);
 
-    // Development fallback when database is not available
-    if (process.env.NODE_ENV === 'development') {
-      // Check for hardcoded admin credentials
-      if (email === 'admin@celyspets.com' && password === 'admin123') {
-        const token = jwt.sign(
-          { userId: '1' },
-          process.env.JWT_SECRET || 'your-secret-key',
-          { expiresIn: '7d' }
-        );
+    // Development fallback for admin when database is not available
+    if (process.env.NODE_ENV === 'development' && email === 'admin@celyspets.com' && password === 'admin123') {
+      const token = jwt.sign(
+        { userId: '1' },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+      );
 
-        console.log('Development admin login successful');
-        
-        return res.json({
-          message: 'Login successful',
-          token,
-          user: {
-            id: '1',
-            email: 'admin@celyspets.com',
-            name: 'Admin User',
-            role: 'admin'
-          }
-        });
-      }
+      console.log('Development admin login successful');
+      
+      return res.json({
+        message: 'Login successful',
+        token,
+        user: {
+          id: '1',
+          email: 'admin@celyspets.com',
+          name: 'Admin User',
+          role: 'admin'
+        }
+      });
     }
 
     // Find user by email

@@ -22,6 +22,8 @@ import groomersRouter from './routes/groomers';
 import usersRouter from './routes/users';
 import setupRouter from './routes/setup';
 import dashboardRouter from './routes/dashboard';
+import pricingRouter from './routes/pricing';
+import clientRouter from './routes/client';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -96,6 +98,8 @@ app.use('/api/groomers', groomersRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/setup', setupRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/pricing', pricingRouter);
+app.use('/api/client', clientRouter);
 
 // Root endpoint
 app.get('/', (req, res) => {

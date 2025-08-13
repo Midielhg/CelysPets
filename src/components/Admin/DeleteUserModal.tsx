@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, AlertTriangle, User } from 'lucide-react';
+import { AlertTriangle, User } from 'lucide-react';
 
 interface User {
   id: number;
@@ -35,7 +35,7 @@ const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
     setError(null);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`/api/users/${user.id}`, {
         method: 'DELETE',
         headers: {
@@ -66,22 +66,22 @@ const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center">
-            <AlertTriangle className="w-6 h-6 text-red-600 mr-2" />
-            <h2 className="text-lg font-semibold text-gray-900">Delete User</h2>
-          </div>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
+    <div className="fixed inset-0 backdrop-blur-sm bg-white/20 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center">
+              <AlertTriangle className="w-6 h-6 text-red-600 mr-2" />
+              <h2 className="text-xl font-bold text-amber-900">Delete User</h2>
+            </div>
+            <button
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
+            >
+              ×
+            </button>
+          </div>
+
           <div className="mb-4">
             <div className="flex items-center p-4 bg-red-50 border border-red-200 rounded-lg">
               <User className="w-8 h-8 text-red-600 mr-3" />

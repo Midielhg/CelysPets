@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiUrl } from '../config/api';
 import type { ReactNode } from 'react';
 
 interface User {
   id: string;
   email: string;
   name: string;
-  role: 'client' | 'admin';
+  role: 'client' | 'admin' | 'groomer';
   businessSettings?: {
     businessName: string;
     serviceArea: string[];
@@ -49,16 +50,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (token.startsWith('dev-token-')) {
             const mockUser = {
               id: '1',
-              email: 'admin@celyspets.com',
-              name: 'Admin User',
-              role: 'admin' as const
+              email: 'client@celyspets.com',
+              name: 'Test Client',
+              role: 'client' as const
             };
             setUser(mockUser);
             setIsLoading(false);
             return;
           }
           
-          const response = await fetch('http://localhost:5001/api/auth/me', {
+          const response = await fetch(apiUrl('/auth/me'), {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -87,7 +88,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('Login attempt:', { email, password: '***' });
       
-      const response = await fetch('http://localhost:5001/api/auth/login', {
+  const response = await fetch(apiUrl('/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,7 +122,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (email: string, password: string, name: string) => {
     try {
-      const response = await fetch('http://localhost:5001/api/auth/register', {
+  const response = await fetch(apiUrl('/auth/register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

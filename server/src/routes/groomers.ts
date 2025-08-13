@@ -176,4 +176,83 @@ router.get('/profile', auth, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Get groomer's appointments (for groomer dashboard)
+router.get('/appointments', auth, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user.role !== 'groomer' && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only groomers can access this endpoint' });
+    }
+
+    const { Appointment, Client } = require('../models');
+    
+    const appointments = await Appointment.findAll({
+      where: { groomerId: req.user.id },
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          attributes: ['name', 'phone', 'address']
+        }
+      ],
+      order: [['date', 'ASC'], ['time', 'ASC']]
+    });
+
+    // Transform the data to match our frontend interface
+    const transformedAppointments = appointments.map((apt: any) => ({
+      id: apt.id,
+      date: apt.date,
+      time: apt.time,
+      service: apt.service,
+      clientName: apt.client?.name || 'Unknown Client',
+      clientPhone: apt.client?.phone || '',
+      clientAddress: apt.client?.address || '',
+      petName: apt.petName,
+      petBreed: apt.petBreed || 'Unknown Breed',
+      petSpecies: apt.petSpecies || 'dog',
+      status: apt.status,
+      price: apt.totalPrice || 0,
+      notes: apt.notes,
+      estimatedDuration: apt.estimatedDuration || 60
+    }));
+
+    res.json(transformedAppointments);
+  } catch (error) {
+    console.error('Error fetching groomer appointments:', error);
+    res.status(500).json({ message: 'Failed to fetch appointments' });
+  }
+});
+
+// Update appointment status (for groomers)
+router.patch('/appointments/:id/status', auth, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user.role !== 'groomer' && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only groomers can update appointment status' });
+    }
+
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ['pending', 'confirmed', 'in-progress', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const { Appointment } = require('../models');
+    const appointment = await Appointment.findOne({
+      where: { id, groomerId: req.user.id }
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    await appointment.update({ status });
+
+    res.json({ message: 'Appointment status updated successfully', appointment });
+  } catch (error) {
+    console.error('Error updating appointment status:', error);
+    res.status(500).json({ message: 'Failed to update appointment status' });
+  }
+});
+
 export default router;

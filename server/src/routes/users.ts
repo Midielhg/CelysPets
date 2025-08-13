@@ -64,6 +64,22 @@ router.get('/', auth, requireAdmin, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Get all groomers (for appointment assignment)
+router.get('/groomers', auth, async (req: AuthRequest, res: Response) => {
+  try {
+    const groomers = await User.findAll({
+      where: { role: 'groomer' },
+      attributes: ['id', 'name', 'email'],
+      order: [['name', 'ASC']]
+    });
+
+    res.json(groomers);
+  } catch (error) {
+    console.error('Error fetching groomers:', error);
+    res.status(500).json({ error: 'Failed to fetch groomers' });
+  }
+});
+
 // Get user by ID (admin only)
 router.get('/:id', auth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {

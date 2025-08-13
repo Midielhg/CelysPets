@@ -376,7 +376,7 @@ const ClientManagement: React.FC = () => {
           </div>
           <button
             onClick={openAddModal}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-6 py-3 rounded-full hover:from-rose-600 hover:to-rose-700 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold"
           >
             + Add New Client
           </button>
@@ -628,12 +628,24 @@ const ClientManagement: React.FC = () => {
 
       {/* Client Detail/Edit Modal */}
       {showModal && selectedClient && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-5 border shadow-lg rounded-md bg-white w-4/5 max-w-4xl">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {editMode ? 'Edit Client' : 'Client Details'}
-              </h3>
+        <div className="fixed inset-0 backdrop-blur-sm bg-white/20 overflow-y-auto h-full w-full z-50 p-4">
+          <div className="relative top-10 mx-auto rounded-2xl shadow-2xl bg-white w-4/5 max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-amber-900">
+                  {editMode ? 'Edit Client' : 'Client Details'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowModal(false);
+                    setSelectedClient(null);
+                    setEditMode(false);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
+                >
+                  ×
+                </button>
+              </div>
               
               {!editMode ? (
                 /* View Mode */
@@ -848,7 +860,7 @@ const ClientManagement: React.FC = () => {
                     </button>
                     <button
                       onClick={saveClient}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                      className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-4 py-2 rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all duration-200"
                     >
                       Save Changes
                     </button>
@@ -862,10 +874,18 @@ const ClientManagement: React.FC = () => {
 
       {/* Add Client Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-5 border shadow-lg rounded-md bg-white w-4/5 max-w-4xl">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Client</h3>
+        <div className="fixed inset-0 backdrop-blur-sm bg-white/20 overflow-y-auto h-full w-full z-50 p-4">
+          <div className="relative top-10 mx-auto rounded-2xl shadow-2xl bg-white w-4/5 max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-amber-900">Add New Client</h3>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
+                >
+                  ×
+                </button>
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
@@ -1065,7 +1085,7 @@ const ClientManagement: React.FC = () => {
                 </button>
                 <button
                   onClick={saveClient}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                  className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-4 py-2 rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all duration-200"
                 >
                   Add Client
                 </button>

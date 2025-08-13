@@ -1,8 +1,91 @@
 import express from 'express';
 import { Appointment, Client, User } from '../models/index';
+import { AdditionalService } from '../models/AdditionalServiceMySQL';
 import { auth } from '../middleware/authMySQL';
+import { Op } from 'sequelize';
 
 const router = express.Router();
+
+// Search clients for appointment creation (admin only)
+router.get('/search-clients', auth, async (req, res) => {
+  try {
+    const { q: query } = req.query;
+    
+    if (!query) {
+      return res.json([]);
+    }
+
+    const clients = await Client.findAll({
+      where: {
+        [Op.or]: [
+          { name: { [Op.like]: `%${query}%` } },
+          { email: { [Op.like]: `%${query}%` } },
+          { phone: { [Op.like]: `%${query}%` } }
+        ]
+      },
+      limit: 10,
+      order: [['name', 'ASC']]
+    });
+
+    res.json(clients);
+  } catch (error) {
+    console.error('Error searching clients:', error);
+    res.status(500).json({ error: 'Failed to search clients' });
+  }
+});
+
+// Create new client (admin only)
+router.post('/create-client', auth, async (req, res) => {
+  try {
+    const { name, email, phone, address, pets } = req.body;
+
+    // Check if client already exists
+    const existingClient = await Client.findOne({ where: { email } });
+    if (existingClient) {
+      return res.status(400).json({ error: 'Client with this email already exists' });
+    }
+
+    const newClient = await Client.create({
+      name,
+      email,
+      phone,
+      address,
+      pets: pets || [],
+      notes: ''
+    });
+
+    res.status(201).json(newClient);
+  } catch (error) {
+    console.error('Error creating client:', error);
+    res.status(500).json({ error: 'Failed to create client' });
+  }
+});
+
+// Update client (admin only)
+router.put('/update-client/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone, address, pets } = req.body;
+
+    const client = await Client.findByPk(id);
+    if (!client) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    await client.update({
+      name,
+      email,
+      phone,
+      address,
+      pets: pets || []
+    });
+
+    res.json(client);
+  } catch (error) {
+    console.error('Error updating client:', error);
+    res.status(500).json({ error: 'Failed to update client' });
+  }
+});
 
 // Create appointment (public endpoint for booking)
 router.post('/', async (req, res) => {
@@ -46,7 +129,7 @@ router.post('/', async (req, res) => {
       time: time,
       status: 'pending',
       notes: notes || null,
-      totalAmount: calculateTotal(services)
+      totalAmount: await calculateTotal(services)
     });
 
     // Fetch the created appointment with client data
@@ -331,7 +414,7 @@ router.put('/:id', async (req, res) => {
     if (status !== undefined) updateData.status = status;
     if (notes !== undefined) updateData.notes = notes;
     if (groomerId !== undefined) updateData.groomerId = groomerId;
-    if (services !== undefined) updateData.totalAmount = calculateTotal(services);
+  if (services !== undefined) updateData.totalAmount = await calculateTotal(services);
 
     await appointment.update(updateData);
 
@@ -375,23 +458,21 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Helper function to calculate total cost
-function calculateTotal(services: any[]): number {
-  const servicePrices: { [key: string]: number } = {
-    'full-groom': 65,
-    'bath-brush': 45,
-    'nail-trim': 25,
-    'teeth-cleaning': 35,
-    'flea-treatment': 40
-  };
-
-  if (Array.isArray(services)) {
-    return services.reduce((total, service) => {
-      const serviceId = typeof service === 'string' ? service : service.id || service.name;
-      return total + (servicePrices[serviceId] || 0);
-    }, 0);
+async function calculateTotal(services: any[]): Promise<number> {
+  // Look up additional services from DB when possible
+  if (!Array.isArray(services)) return 0;
+  let total = 0;
+  for (const srv of services) {
+    const id = typeof srv === 'string' ? srv : srv.id || srv.code || srv.name;
+    // Special case: full-groom-by-breed can pass an object like { id:'full-groom', breedPrice: 95 }
+    if (typeof srv === 'object' && srv.id === 'full-groom' && typeof srv.breedPrice === 'number') {
+      total += srv.breedPrice;
+      continue;
+    }
+    const found = await AdditionalService.findOne({ where: { code: id } });
+    if (found) total += Number(found.price);
   }
-
-  return 0;
+  return total;
 }
 
 export default router;

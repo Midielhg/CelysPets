@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Edit, Trash2, Users, UserCheck, UserCog, Shield } from 'lucide-react';
+import { Search, Edit, Trash2, Users, UserCheck, UserCog, Shield } from 'lucide-react';
 import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
 import DeleteUserModal from './DeleteUserModal';
@@ -241,10 +241,9 @@ const UserManagement: React.FC = () => {
           </div>
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+            className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-6 py-3 rounded-full hover:from-rose-600 hover:to-rose-700 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Add User
+            + Add User
           </button>
         </div>
       </div>
@@ -484,10 +483,9 @@ const UserManagement: React.FC = () => {
           {!searchTerm && roleFilter === 'all' && (
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+              className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-6 py-3 rounded-full hover:from-rose-600 hover:to-rose-700 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Add First User
+              + Add First User
             </button>
           )}
         </div>

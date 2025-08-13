@@ -1,6 +1,9 @@
 import { Client } from './ClientMySQL';
 import { Appointment } from './AppointmentMySQL';
 import { User } from './UserMySQL';
+import { Breed } from './BreedMySQL';
+import { AdditionalService } from './AdditionalServiceMySQL';
+import Pet from './PetMySQL';
 
 // Set up associations
 Client.hasMany(Appointment, {
@@ -24,9 +27,23 @@ Appointment.belongsTo(User, {
   as: 'groomer'
 });
 
+// Pet associations
+User.hasMany(Pet, {
+  foreignKey: 'ownerId',
+  as: 'pets'
+});
+
+Pet.belongsTo(User, {
+  foreignKey: 'ownerId',
+  as: 'owner'
+});
+
 // Export models for easier importing
 export {
   Client,
   Appointment,
-  User
+  User,
+  Breed,
+  AdditionalService,
+  Pet
 };

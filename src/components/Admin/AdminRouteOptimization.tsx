@@ -63,7 +63,7 @@ const AdminRouteOptimization: React.FC = () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/appointments?date=${selectedDate}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
       
@@ -89,7 +89,7 @@ const AdminRouteOptimization: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
           startLocation,
@@ -218,7 +218,7 @@ const AdminRouteOptimization: React.FC = () => {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
             },
             body: JSON.stringify({
               time: optimizedTime
@@ -376,7 +376,7 @@ const AdminRouteOptimization: React.FC = () => {
           {/* Map or List View */}
           {viewMode === 'map' ? (
             <GoogleMapRoute 
-              route={optimizedRoute} 
+              route={optimizedRoute as any} 
               startLocation={startLocation}
             />
           ) : (
@@ -399,10 +399,10 @@ const AdminRouteOptimization: React.FC = () => {
                       </div>
 
                       {/* Route Stops */}
-                      {optimizedRoute.stops.map((stop, index) => {
+          {optimizedRoute.stops.map((stop, index) => {
                         try {
                           return (
-                            <div key={stop.appointment._id} className="flex items-center p-4 bg-amber-50 rounded-lg border-l-4 border-amber-500">
+            <div key={(stop.appointment as any)._id || (stop.appointment as any).id || index} className="flex items-center p-4 bg-amber-50 rounded-lg border-l-4 border-amber-500">
                               <div className="flex-shrink-0 w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center font-bold">
                                 {index + 1}
                               </div>

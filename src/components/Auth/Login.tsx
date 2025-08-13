@@ -93,6 +93,33 @@ const Login: React.FC = () => {
           </p>
         </div>
 
+        {/* Development credentials helper */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <h3 className="text-sm font-medium text-blue-800 mb-2">Development Credentials:</h3>
+            <div className="space-y-2 text-xs text-blue-700">
+              <div>
+                <strong>Client:</strong> client@celyspets.com / client123
+                <button 
+                  onClick={() => setFormData({ email: 'client@celyspets.com', password: 'client123' })}
+                  className="ml-2 text-blue-600 hover:text-blue-800 underline"
+                >
+                  Use
+                </button>
+              </div>
+              <div>
+                <strong>Admin:</strong> admin@celyspets.com / admin123
+                <button 
+                  onClick={() => setFormData({ email: 'admin@celyspets.com', password: 'admin123' })}
+                  className="ml-2 text-blue-600 hover:text-blue-800 underline"
+                >
+                  Use
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
 
       </div>
     </div>

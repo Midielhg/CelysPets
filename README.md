@@ -4,6 +4,11 @@ rm -rf simple-static-deploy
 mkdir -p simple-static-deploy
 cp -r dist/* simple-static-deploy/
 
+To start the servers and front end run these two commands on different terminals
+cd server && npm run dev
+cd "/Users/midielhenriquez/Library/Mobile Documents/com~apple~CloudDocs/Documents/Investments/CelysPets Inc/dev" && npm run dev:client
+
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

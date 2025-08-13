@@ -9,6 +9,10 @@ import Register from './components/Auth/Register';
 import Dashboard from './components/Dashboard/Dashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import RouteOptimization from './components/RouteOptimization/RouteOptimization';
+import PetManagement from './components/Client/PetManagement';
+import ClientAppointments from './components/Client/ClientAppointments';
+import ClientProfile from './components/Client/ClientProfile';
+import PetDetails from './components/Client/PetDetails';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 
 function App() {
@@ -43,11 +47,53 @@ function App() {
                 <Route 
                   path="/routes" 
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requiredRole="admin">
                       <RouteOptimization />
                     </ProtectedRoute>
                   } 
-                />                </Routes>
+                />
+                <Route 
+                  path="/groomer" 
+                  element={
+                    <ProtectedRoute requiredRole="groomer">
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/pets" 
+                  element={
+                    <ProtectedRoute requiredRole="client">
+                      <PetManagement />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/pets/:id" 
+                  element={
+                    <ProtectedRoute requiredRole="client">
+                      <PetDetails />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/appointments" 
+                  element={
+                    <ProtectedRoute requiredRole="client">
+                      <ClientAppointments />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/profile" 
+                  element={
+                    <ProtectedRoute requiredRole="client">
+                      <ClientProfile />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route path="/booking" element={<BookingPage />} />
+              </Routes>
             </main>
           </div>
         </Router>
