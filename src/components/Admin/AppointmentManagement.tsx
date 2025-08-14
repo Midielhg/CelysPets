@@ -103,10 +103,10 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 bg-white/70 backdrop-blur-sm rounded-b-2xl">
       {/* Summary and Input */}
       <div className="grid md:grid-cols-2 gap-6 mb-6">
-        <div className="bg-gray-50 rounded-lg p-4">
+        <div className="bg-amber-50 rounded-lg p-4">
           <h4 className="font-semibold text-gray-900 mb-2">
             Appointments for {new Date(selectedDate + 'T12:00:00').toLocaleDateString()}
           </h4>
@@ -131,7 +131,7 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-amber-800 mb-2">
               Starting Location
             </label>
             <input
@@ -139,14 +139,14 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
               value={startLocation}
               onChange={(e) => setStartLocation(e.target.value)}
               placeholder="Enter your starting address..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-400"
             />
           </div>
 
           <button
             onClick={optimizeRoute}
             disabled={loading || dayAppointments.length === 0}
-            className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:bg-gray-400 transition-colors flex items-center justify-center"
+            className="w-full bg-gradient-to-r from-rose-500 to-pink-500 text-white px-4 py-2 rounded-lg hover:from-rose-600 hover:to-pink-600 disabled:bg-gray-400 transition-all duration-200 flex items-center justify-center font-medium"
           >
             {loading ? (
               <>
@@ -175,7 +175,7 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
             <h4 className="text-lg font-semibold text-gray-900">Optimized Route</h4>
             <button
               onClick={handleUpdateAppointments}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center"
+              className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-200 flex items-center font-medium"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -185,23 +185,23 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
           </div>
           
           <div className="grid md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-blue-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">
+            <div className="bg-amber-50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-amber-600">
                 {optimizedRoute.totalDistance.toFixed(1)} mi
               </div>
-              <div className="text-sm text-blue-600">Total Distance</div>
+              <div className="text-sm text-amber-600">Total Distance</div>
             </div>
-            <div className="bg-green-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">
+            <div className="bg-rose-50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-rose-600">
                 {Math.round(optimizedRoute.totalDuration)} min
               </div>
-              <div className="text-sm text-green-600">Estimated Time</div>
+              <div className="text-sm text-rose-600">Estimated Time</div>
             </div>
-            <div className="bg-yellow-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-yellow-600">
+            <div className="bg-amber-50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-amber-600">
                 ${optimizedRoute.estimatedFuelCost.toFixed(2)}
               </div>
-              <div className="text-sm text-yellow-600">Fuel Cost</div>
+              <div className="text-sm text-amber-600">Fuel Cost</div>
             </div>
           </div>
 
@@ -215,8 +215,8 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
 
           <div className="space-y-3">
             {/* Starting Point */}
-            <div className="flex items-center p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
-              <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold">
+            <div className="flex items-center p-3 bg-rose-50 rounded-lg border-l-4 border-rose-500">
+              <div className="flex-shrink-0 w-8 h-8 bg-rose-500 text-white rounded-full flex items-center justify-center font-bold">
                 S
               </div>
               <div className="ml-4">
@@ -227,8 +227,8 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
 
             {/* Route Stops */}
             {optimizedRoute.stops.map((stop: any, index: number) => (
-              <div key={stop.appointment.id} className="flex items-center p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">
+              <div key={stop.appointment.id} className="flex items-center p-3 bg-amber-50 rounded-lg border-l-4 border-amber-500">
+                <div className="flex-shrink-0 w-8 h-8 bg-amber-500 text-white rounded-full flex items-center justify-center font-bold">
                   {index + 1}
                 </div>
                 <div className="ml-4 flex-1">
@@ -245,7 +245,7 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
                       <div className="text-sm text-gray-500">
                         Phone: {stop.appointment.client?.phone}
                       </div>
-                      <div className="text-sm text-blue-600">
+                      <div className="text-sm text-amber-600">
                         Services: {Array.isArray(stop.appointment.services) 
                           ? stop.appointment.services.join(', ') 
                           : 'No services listed'}
@@ -901,49 +901,51 @@ const AppointmentManagement: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Appointment Management</h1>
-        <p className="text-lg text-gray-600">Manage and organize all pet grooming appointments</p>
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-3xl font-bold text-amber-900 mb-4">Appointment Management</h2>
+        <p className="text-amber-700">Manage and organize all pet grooming appointments for your business.</p>
+      </div>
         
         {/* View Toggle and Filter Buttons */}
-        <div className="flex justify-between items-center mb-4 mt-6">
-          <div className="flex flex-wrap gap-3">
-            {[
-              { key: 'all', label: 'All Appointments', icon: '📊' },
-              { key: 'today', label: 'Today', icon: '📅' },
-              { key: 'pending', label: 'Pending', icon: '⏳' },
-              { key: 'confirmed', label: 'Confirmed', icon: '✅' },
-              { key: 'completed', label: 'Completed', icon: '🎉' }
-            ].map(({ key, label, icon }) => (
+        <div className="bg-gradient-to-br from-cream-50 to-amber-50 rounded-2xl shadow-xl p-6 border border-amber-200/50">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-wrap gap-3">
+              {[
+                { key: 'all', label: 'All Appointments', icon: '📊' },
+                { key: 'today', label: 'Today', icon: '📅' },
+                { key: 'pending', label: 'Pending', icon: '⏳' },
+                { key: 'confirmed', label: 'Confirmed', icon: '✅' },
+                { key: 'completed', label: 'Completed', icon: '🎉' }
+              ].map(({ key, label, icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setFilter(key as any)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 text-sm ${
+                    filter === key
+                      ? 'bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-md'
+                      : 'bg-white/70 backdrop-blur-sm text-amber-800 hover:bg-amber-100 border border-amber-200 hover:border-amber-300'
+                  }`}
+                >
+                  <span className="mr-1">{icon}</span>{label}
+                </button>
+              ))}
+            </div>
+            
+            {/* Add Appointment and View Toggle */}
+            <div className="flex items-center gap-3">
               <button
-                key={key}
-                onClick={() => setFilter(key as any)}
-                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                  filter === key
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <span className="mr-1">{icon}</span>{label}
-              </button>
-            ))}
-          </div>
-          
-          {/* Add Appointment and View Toggle */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                const now = new Date();
-                const newAppointment = {
-                  client: {
-                    name: '',
-                    email: '',
-                    phone: '',
-                    address: '',
-                    pets: []
-                  },
-                  services: [],
+                onClick={() => {
+                  const now = new Date();
+                  const newAppointment = {
+                    client: {
+                      name: '',
+                      email: '',
+                      phone: '',
+                      address: '',
+                      pets: []
+                    },
+                    services: [],
                   date: now.toISOString().split('T')[0],
                   time: now.toTimeString().split(' ')[0].substring(0, 5),
                   status: 'pending' as Appointment['status'],
@@ -958,28 +960,28 @@ const AppointmentManagement: React.FC = () => {
                 setEditMode(true);
                 setShowModal(true);
               }}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold"
+              className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-6 py-3 rounded-full hover:from-rose-600 hover:to-rose-700 hover:shadow-lg transition-all duration-300 font-semibold"
             >
               + Add Appointment
             </button>
             
-            <div className="flex bg-gray-100 rounded-lg p-1">
+            <div className="flex bg-amber-50 rounded-full p-1 border border-amber-200">
               <button
                 onClick={() => setViewMode('calendar')}
-                className={`px-4 py-2 rounded text-sm font-medium transition-all duration-200 ${
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 min-w-[90px] ${
                   viewMode === 'calendar'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-white shadow-sm'
+                    : 'text-amber-800 hover:text-amber-900 hover:bg-amber-100'
                 }`}
               >
                 📅 Calendar
               </button>
               <button
                 onClick={() => setViewMode('table')}
-                className={`px-4 py-2 rounded text-sm font-medium transition-all duration-200 ${
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 min-w-[90px] ${
                   viewMode === 'table'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-white shadow-sm'
+                    : 'text-amber-800 hover:text-amber-900 hover:bg-amber-100'
                 }`}
               >
                 📋 Table
@@ -990,12 +992,12 @@ const AppointmentManagement: React.FC = () => {
       </div>
 
       {/* Main Content - Calendar or Table View */}
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+      <div className="bg-gradient-to-br from-cream-50 to-amber-50 rounded-2xl shadow-xl overflow-hidden border border-amber-200/50">
         {filteredAppointments.length === 0 ? (
           <div className="text-center py-16 px-8">
             <div className="text-6xl mb-6">📅</div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">No appointments found</h3>
-            <p className="text-gray-700 text-lg mb-8">Appointments will appear here when customers book services</p>
+            <h3 className="text-2xl font-bold text-amber-900 mb-4">No appointments found</h3>
+            <p className="text-amber-700 text-lg mb-8">Appointments will appear here when customers book services</p>
             <button
               onClick={() => {
                 const now = new Date();
@@ -1022,7 +1024,7 @@ const AppointmentManagement: React.FC = () => {
                 setEditMode(true);
                 setShowModal(true);
               }}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold"
+              className="bg-gradient-to-r from-amber-200 to-orange-200 text-amber-900 px-6 py-2 rounded-full hover:shadow-md hover:from-amber-300 hover:to-orange-300 transition-all duration-300 font-medium text-sm min-w-[140px]"
             >
               + Book Your First Appointment
             </button>
@@ -1035,11 +1037,11 @@ const AppointmentManagement: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <button
                   onClick={handleToday}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-lg hover:from-amber-500 hover:to-orange-500 transition-all duration-300 font-medium text-sm min-w-[80px]"
                 >
                   Today
                 </button>
-                <span className="text-lg font-semibold text-gray-700">
+                <span className="text-lg font-semibold text-amber-800">
                   {moment(calendarDate).format('MMMM YYYY')}
                 </span>
               </div>
@@ -1121,34 +1123,34 @@ const AppointmentManagement: React.FC = () => {
             try {
               return (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                  <table className="min-w-full divide-y divide-amber-200">
+                    <thead className="bg-gradient-to-r from-amber-100 to-rose-100">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-amber-800 uppercase tracking-wider">
                           Date & Time
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-amber-800 uppercase tracking-wider">
                           Client
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-amber-800 uppercase tracking-wider">
                           Pet(s)
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-amber-800 uppercase tracking-wider">
                           Services
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-amber-800 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-amber-800 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white/50 divide-y divide-amber-200">
                       {filteredAppointments.map((appointment) => {
                         try {
                           return (
-                            <tr key={appointment.id} className="hover:bg-gray-50">
+                            <tr key={appointment.id} className="hover:bg-amber-50/50 transition-colors duration-200">
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm font-medium text-gray-900">
                                   {appointment.date ? formatDate(appointment.date) : 'No date'}
@@ -1242,7 +1244,7 @@ const AppointmentManagement: React.FC = () => {
                                 <div className="flex gap-2">
                                   <button
                                     onClick={() => openEditModal(appointment)}
-                                    className="bg-gradient-to-r from-amber-400 to-rose-400 text-white px-4 py-2 rounded-xl hover:from-amber-500 hover:to-rose-500 transition-all duration-300 font-semibold transform hover:scale-105"
+                                    className="bg-gradient-to-r from-rose-500 to-pink-500 text-white px-3 py-1.5 rounded-lg hover:from-rose-600 hover:to-pink-600 transition-all duration-200 font-medium text-sm"
                                   >
                                     ✏️ Edit
                                   </button>
@@ -1252,7 +1254,7 @@ const AppointmentManagement: React.FC = () => {
                                       setEditMode(false);
                                       setShowModal(true);
                                     }}
-                                    className="bg-gradient-to-r from-blue-400 to-purple-400 text-white px-4 py-2 rounded-xl hover:from-blue-500 hover:to-purple-500 transition-all duration-300 font-semibold transform hover:scale-105"
+                                    className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3 py-1.5 rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-200 font-medium text-sm"
                                   >
                                     🔧 Manage
                                   </button>
@@ -1295,13 +1297,13 @@ const AppointmentManagement: React.FC = () => {
 
       {/* Route Optimization Section - Only show in calendar view and when there are appointments */}
       {viewMode === 'calendar' && filteredAppointments.length > 0 && (
-        <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-            <h3 className="text-lg font-bold text-gray-900 flex items-center">
-              <div className="text-lg mr-2">🗺️</div>
+        <div className="mt-8 bg-gradient-to-br from-cream-50 to-amber-50 rounded-2xl shadow-xl border border-amber-200/50">
+          <div className="px-6 py-4 bg-gradient-to-r from-amber-100 to-rose-100 rounded-t-2xl border-b border-amber-200">
+            <h3 className="text-xl font-semibold text-amber-900 flex items-center">
+              <div className="text-lg mr-3">🗺️</div>
               Route Optimization for {moment(calendarDate).format('MMMM D, YYYY')}
             </h3>
-            <p className="text-gray-600 mt-1">Optimize your daily route for maximum efficiency</p>
+            <p className="text-amber-700 mt-1 text-sm">Optimize your daily route for maximum efficiency</p>
           </div>
           <RouteOptimizationSection 
             selectedDate={moment(calendarDate).format('YYYY-MM-DD')}
@@ -1316,76 +1318,63 @@ const AppointmentManagement: React.FC = () => {
 
       {/* Redesigned Modal for Managing/Editing/Adding Appointment */}
       {showModal && (selectedAppointment || isAddingNew) && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-black/30 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-          <div className={`relative mx-auto rounded-lg shadow-lg bg-white border border-gray-200 ${editMode ? 'w-full max-w-6xl' : 'w-full max-w-3xl'} max-h-[95vh] overflow-hidden flex flex-col`}>
-            
-            {/* Header */}
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">
-                    {isAddingNew ? 'Add New Appointment' : editMode ? 'Edit Appointment' : 'Manage Appointment'}
-                  </h3>
-                  <p className="text-gray-600 mt-1">
-                    {isAddingNew ? 'Create a new grooming appointment' : editMode ? 'Update appointment details' : 'Quick actions and status updates'}
-                  </p>
-                </div>
+        <div className="fixed inset-0 backdrop-blur-sm bg-white/20 flex items-center justify-center z-50 p-4">
+          <div className={`bg-white rounded-2xl shadow-2xl ${editMode ? 'max-w-5xl w-full' : 'max-w-2xl w-full'} max-h-[90vh] overflow-y-auto`}>
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-amber-900">
+                  {isAddingNew ? 'Book New Appointment' : editMode ? 'Edit Appointment' : 'Manage Appointment'}
+                </h3>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all duration-200"
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  ×
                 </button>
               </div>
-            </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              
               {!editMode && selectedAppointment && !isAddingNew ? (
                 <>
                   {/* Manage Mode - Quick Status Update */}
-                  <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 space-y-4">
+                  <div className="space-y-6">
                     <div className="grid md:grid-cols-2 gap-6">
                       {/* Appointment Summary */}
                       <div className="space-y-4">
-                        <h4 className="text-2xl font-semibold text-amber-900 mb-4">Appointment Details</h4>
+                        <h4 className="text-lg font-semibold text-amber-900 mb-4">Appointment Details</h4>
                         
-                        <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
+                        <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
                           <div className="flex items-center mb-3">
-                            <div className="text-2xl mr-3">👤</div>
+                            <div className="text-lg mr-3">👤</div>
                             <div>
-                              <p className="text-lg font-semibold text-amber-900">
+                              <p className="text-base font-semibold text-amber-900">
                                 {selectedAppointment.client?.name || 'Unknown client'}
                               </p>
-                              <p className="text-amber-700">{selectedAppointment.client?.email}</p>
-                              <p className="text-amber-700">{selectedAppointment.client?.phone}</p>
+                              <p className="text-sm text-amber-700">{selectedAppointment.client?.email}</p>
+                              <p className="text-sm text-amber-700">{selectedAppointment.client?.phone}</p>
                             </div>
                           </div>
                         </div>
 
-                        <div className="bg-rose-50 rounded-xl p-4 border border-rose-200">
+                        <div className="bg-rose-50 rounded-lg p-4 border border-rose-200">
                           <div className="flex items-center mb-3">
-                            <div className="text-2xl mr-3">📅</div>
+                            <div className="text-lg mr-3">📅</div>
                             <div>
-                              <p className="text-lg font-semibold text-rose-900">
+                              <p className="text-base font-semibold text-rose-900">
                                 {selectedAppointment.date ? formatDate(selectedAppointment.date) : 'No date'}
                               </p>
-                              <p className="text-rose-700">
+                              <p className="text-sm text-rose-700">
                                 {selectedAppointment.time ? formatTime(selectedAppointment.time) : 'No time'}
                               </p>
                             </div>
                           </div>
                         </div>
 
-                        <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                        <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center">
-                              <div className="text-2xl mr-3">📊</div>
+                              <div className="text-lg mr-3">📊</div>
                               <div>
-                                <p className="text-sm font-medium text-blue-900">Current Status</p>
+                                <p className="text-sm font-medium text-amber-900">Current Status</p>
                                 <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${
                                   selectedAppointment.status && statusColors[selectedAppointment.status] 
                                     ? statusColors[selectedAppointment.status] 
@@ -1404,21 +1393,21 @@ const AppointmentManagement: React.FC = () => {
 
                       {/* Status Update Section */}
                       <div className="space-y-4">
-                        <h4 className="text-2xl font-semibold text-amber-900 mb-4">Update Status</h4>
+                        <h4 className="text-lg font-semibold text-amber-900 mb-4">Update Status</h4>
                         
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                           {['pending', 'confirmed', 'in-progress', 'completed', 'cancelled'].map((status) => (
                             <button
                               key={status}
                               onClick={() => updateAppointmentStatus(selectedAppointment.id, status)}
-                              className={`w-full text-left px-6 py-4 rounded-xl text-base font-medium transition-all duration-300 transform hover:scale-[1.02] ${
+                              className={`w-full text-left px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
                                 selectedAppointment.status === status
-                                  ? 'bg-gradient-to-r from-amber-400 to-rose-400 text-white shadow-lg border-2 border-amber-300'
-                                  : 'bg-white/70 backdrop-blur-sm text-amber-900 hover:bg-amber-50 border border-amber-200 hover:border-amber-300 hover:shadow-md'
+                                  ? 'bg-rose-500 text-white'
+                                  : 'bg-gray-50 text-amber-900 hover:bg-amber-50 border border-amber-200'
                               }`}
                             >
                               <div className="flex items-center">
-                                <div className="text-xl mr-3">
+                                <div className="text-base mr-2">
                                   {status === 'pending' && '⏳'}
                                   {status === 'confirmed' && '✅'}
                                   {status === 'in-progress' && '🚀'}
@@ -1434,43 +1423,39 @@ const AppointmentManagement: React.FC = () => {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="border-t border-gray-200 pt-4">
-                      <div className="flex flex-col sm:flex-row gap-3 justify-between">
-                        <button
-                          onClick={() => deleteAppointment(selectedAppointment.id)}
-                          className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors font-medium"
-                        >
-                          Delete
-                        </button>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => openEditModal(selectedAppointment)}
-                            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors font-medium"
-                          >
-                            Full Edit
-                          </button>
-                          <button
-                            onClick={() => setShowModal(false)}
-                            className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors font-medium"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
+                    <div className="flex space-x-3 pt-4">
+                      <button
+                        onClick={() => deleteAppointment(selectedAppointment.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium text-sm"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={() => openEditModal(selectedAppointment)}
+                        className="flex-1 bg-gradient-to-r from-rose-500 to-rose-600 text-white px-4 py-2 rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all duration-200 font-medium"
+                      >
+                        Full Edit
+                      </button>
+                      <button
+                        onClick={() => setShowModal(false)}
+                        className="px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors duration-200"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
                 </>
               ) : (
                 <>
                   {/* Edit Mode - Full Form */}
-                  <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 space-y-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                       
                       {/* Client Information - Left Column */}
-                      <div className="lg:col-span-2 space-y-8">
+                      <div className="lg:col-span-2 space-y-6">
                         <div>
-                          <h4 className="text-2xl font-semibold text-amber-900 mb-6 flex items-center">
-                            <div className="text-2xl mr-3">👤</div>
+                          <h4 className="text-lg font-semibold text-amber-900 mb-4 flex items-center">
+                            <div className="text-lg mr-3">👤</div>
                             Client Information
                           </h4>
                           
@@ -1646,18 +1631,18 @@ const AppointmentManagement: React.FC = () => {
 
                     {/* Action Buttons */}
                     <div className="border-t border-amber-200 pt-6">
-                      <div className="flex flex-col sm:flex-row gap-4 justify-between">
+                      <div className="flex space-x-3 pt-4">
                         <button
                           onClick={cancelEdit}
-                          className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors font-medium"
+                          className="flex-1 px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors duration-200"
                         >
                           Cancel
                         </button>
                         <button
                           onClick={saveAppointmentChanges}
-                          className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium"
+                          className="flex-1 px-4 py-2 bg-gradient-to-r from-rose-500 to-rose-600 text-white rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all duration-200"
                         >
-                          {isAddingNew ? 'Create Appointment' : 'Save Changes'}
+                          {isAddingNew ? 'Book Appointment' : 'Save Changes'}
                         </button>
                       </div>
                     </div>
