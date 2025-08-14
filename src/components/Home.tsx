@@ -75,63 +75,114 @@ const Home: React.FC = () => {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Service 1 */}
-            <div className="group rounded-3xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-orange-100/50" style={{backgroundColor: 'rgba(250, 247, 240, 0.6)'}}>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Service 1 - Full Service Grooming */}
+            <Link to="/book" className="group rounded-3xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-orange-100/50 flex flex-col h-full cursor-pointer" style={{backgroundColor: 'rgba(250, 247, 240, 0.6)'}}>
               <div className="w-16 h-16 bg-gradient-to-br from-rose-300 to-orange-300 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 border border-orange-200/50">
                 <span className="text-3xl">✨</span>
               </div>
-              <h3 className="text-2xl font-bold mb-4 text-amber-900">Full Service Spa</h3>
-              <p className="text-amber-700 mb-6 leading-relaxed">
+              <h3 className="text-2xl font-bold mb-4 text-amber-900">Full Service Grooming</h3>
+              <p className="text-amber-700 mb-6 leading-relaxed flex-grow">
                 Complete luxury treatment including wash, cut, nail trim, ear cleaning, and aromatherapy. 
-                Your pet deserves the royal treatment!
+                Your pet deserves the royal treatment with our comprehensive grooming experience!
               </p>
-              <div className="text-2xl font-bold text-rose-500 mb-4">From $85</div>
-              <ul className="text-sm text-amber-600 space-y-2">
+              <ul className="text-sm text-amber-600 space-y-2 mb-6">
                 <li>✓ Premium organic shampoo</li>
-                <li>✓ Professional styling</li>
+                <li>✓ Professional styling & cut</li>
                 <li>✓ Nail care & ear cleaning</li>
                 <li>✓ Aromatherapy finish</li>
               </ul>
-            </div>
+            </Link>
 
-            {/* Service 2 */}
-            <div className="group rounded-3xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-orange-100/50" style={{backgroundColor: 'rgba(250, 247, 240, 0.6)'}}>
+            {/* Service 2 - De-Shedding Treatment */}
+            <Link to="/book" className="group rounded-3xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-orange-100/50 flex flex-col h-full cursor-pointer" style={{backgroundColor: 'rgba(250, 247, 240, 0.6)'}}>
               <div className="w-16 h-16 bg-gradient-to-br from-orange-200 to-amber-300 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 border border-orange-200/50">
-                <span className="text-3xl">🛁</span>
+                <span className="text-3xl">🌪️</span>
               </div>
-              <h3 className="text-2xl font-bold mb-4 text-amber-900">Bath & Refresh</h3>
-              <p className="text-amber-700 mb-6 leading-relaxed">
-                Rejuvenating bath with premium products and thorough brushing. 
-                Perfect for maintaining your pet's cleanliness and health.
+              <h3 className="text-2xl font-bold mb-4 text-amber-900">De-Shedding Treatment</h3>
+              <p className="text-amber-700 mb-6 leading-relaxed flex-grow">
+                Specialized treatment to reduce excessive shedding and maintain a healthy coat. 
+                Perfect for pets with heavy seasonal shedding or double coats.
               </p>
-              <div className="text-2xl font-bold text-orange-500 mb-4">From $55</div>
-              <ul className="text-sm text-amber-600 space-y-2">
-                <li>✓ Deep cleaning bath</li>
-                <li>✓ Thorough brushing</li>
-                <li>✓ Basic nail trim</li>
-                <li>✓ Conditioning treatment</li>
+              <ul className="text-sm text-amber-600 space-y-2 mb-6">
+                <li>✓ Professional de-shedding tools</li>
+                <li>✓ Deep coat conditioning</li>
+                <li>✓ Reduces future shedding</li>
+                <li>✓ Promotes healthy skin</li>
               </ul>
-            </div>
+            </Link>
 
-            {/* Service 3 */}
-            <div className="group rounded-3xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-orange-100/50" style={{backgroundColor: 'rgba(250, 247, 240, 0.6)'}}>
+            {/* Service 3 - Teeth Cleaning */}
+            <Link to="/book" className="group rounded-3xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-orange-100/50 flex flex-col h-full cursor-pointer" style={{backgroundColor: 'rgba(250, 247, 240, 0.6)'}}>
               <div className="w-16 h-16 bg-gradient-to-br from-amber-200 to-rose-300 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 border border-orange-200/50">
-                <span className="text-3xl">💅</span>
+                <span className="text-3xl">🦷</span>
               </div>
-              <h3 className="text-2xl font-bold mb-4 text-amber-900">Express Touch-Up</h3>
-              <p className="text-amber-700 mb-6 leading-relaxed">
-                Quick maintenance service for busy schedules. Nail trimming, 
-                ear cleaning, and basic grooming essentials.
+              <h3 className="text-2xl font-bold mb-4 text-amber-900">Teeth Cleaning</h3>
+              <p className="text-amber-700 mb-6 leading-relaxed flex-grow">
+                Gentle dental care to maintain your pet's oral health and fresh breath. 
+                Regular teeth cleaning prevents dental disease and promotes overall wellness.
               </p>
-              <div className="text-2xl font-bold text-amber-500 mb-4">From $35</div>
-              <ul className="text-sm text-amber-600 space-y-2">
-                <li>✓ Professional nail trim</li>
-                <li>✓ Ear cleaning</li>
-                <li>✓ Quick brush & tidy</li>
-                <li>✓ Health check</li>
+              <ul className="text-sm text-amber-600 space-y-2 mb-6">
+                <li>✓ Safe dental cleaning techniques</li>
+                <li>✓ Tartar & plaque removal</li>
+                <li>✓ Fresh breath guarantee</li>
+                <li>✓ Oral health assessment</li>
               </ul>
-            </div>
+            </Link>
+
+            {/* Service 4 - Flea & Tick Treatment */}
+            <Link to="/book" className="group rounded-3xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-orange-100/50 flex flex-col h-full cursor-pointer" style={{backgroundColor: 'rgba(250, 247, 240, 0.6)'}}>
+              <div className="w-16 h-16 bg-gradient-to-br from-rose-200 to-orange-300 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 border border-orange-200/50">
+                <span className="text-3xl">🛡️</span>
+              </div>
+              <h3 className="text-2xl font-bold mb-4 text-amber-900">Flea & Tick Treatment</h3>
+              <p className="text-amber-700 mb-6 leading-relaxed flex-grow">
+                Comprehensive pest control treatment to eliminate and prevent flea and tick infestations. 
+                Safe, effective solutions for your pet's comfort and protection.
+              </p>
+              <ul className="text-sm text-amber-600 space-y-2 mb-6">
+                <li>✓ Effective pest elimination</li>
+                <li>✓ Safe, pet-friendly products</li>
+                <li>✓ Prevention guidance</li>
+                <li>✓ Immediate relief</li>
+              </ul>
+            </Link>
+
+            {/* Service 5 - De-Matting */}
+            <Link to="/book" className="group rounded-3xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-orange-100/50 flex flex-col h-full cursor-pointer" style={{backgroundColor: 'rgba(250, 247, 240, 0.6)'}}>
+              <div className="w-16 h-16 bg-gradient-to-br from-amber-300 to-rose-200 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 border border-orange-200/50">
+                <span className="text-3xl">✂️</span>
+              </div>
+              <h3 className="text-2xl font-bold mb-4 text-amber-900">De-Matting Service</h3>
+              <p className="text-amber-700 mb-6 leading-relaxed flex-grow">
+                Gentle removal of mats and tangles that can cause discomfort and skin issues. 
+                Our skilled groomers use specialized techniques to restore your pet's coat health.
+              </p>
+              <ul className="text-sm text-amber-600 space-y-2 mb-6">
+                <li>✓ Gentle mat removal techniques</li>
+                <li>✓ Specialized de-matting tools</li>
+                <li>✓ Comfort-focused approach</li>
+                <li>✓ Coat restoration</li>
+              </ul>
+            </Link>
+
+            {/* Service 6 - Special Shampoos */}
+            <Link to="/book" className="group rounded-3xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-orange-100/50 flex flex-col h-full cursor-pointer" style={{backgroundColor: 'rgba(250, 247, 240, 0.6)'}}>
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-300 to-amber-200 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 border border-orange-200/50">
+                <span className="text-3xl">🧴</span>
+              </div>
+              <h3 className="text-2xl font-bold mb-4 text-amber-900">Special Shampoos</h3>
+              <p className="text-amber-700 mb-6 leading-relaxed flex-grow">
+                Premium specialized shampoos for pets with specific needs including sensitive skin, 
+                allergies, whitening, or medicated treatments prescribed by veterinarians.
+              </p>
+              <ul className="text-sm text-amber-600 space-y-2 mb-6">
+                <li>✓ Hypoallergenic formulas</li>
+                <li>✓ Whitening treatments</li>
+                <li>✓ Medicated options</li>
+                <li>✓ Sensitive skin care</li>
+              </ul>
+            </Link>
           </div>
         </div>
       </div>
@@ -201,12 +252,9 @@ const Home: React.FC = () => {
           </Link>
           
           <div className="mt-12 text-center">
-            <div className="text-amber-700 mb-6">Follow us for daily pet care tips!</div>
             <div className="flex justify-center space-x-4">
               <a href="#" className="w-12 h-12 bg-gradient-to-br from-amber-200 to-orange-200 rounded-full flex items-center justify-center text-2xl hover:scale-110 hover:shadow-lg transition-all duration-300 border border-amber-300/50">📘</a>
               <a href="#" className="w-12 h-12 bg-gradient-to-br from-orange-200 to-rose-200 rounded-full flex items-center justify-center text-2xl hover:scale-110 hover:shadow-lg transition-all duration-300 border border-amber-300/50">📷</a>
-              <a href="#" className="w-12 h-12 bg-gradient-to-br from-rose-200 to-amber-200 rounded-full flex items-center justify-center text-2xl hover:scale-110 hover:shadow-lg transition-all duration-300 border border-amber-300/50">🐦</a>
-              <a href="#" className="w-12 h-12 bg-gradient-to-br from-amber-200 to-orange-300 rounded-full flex items-center justify-center text-2xl hover:scale-110 hover:shadow-lg transition-all duration-300 border border-amber-300/50">💼</a>
             </div>
           </div>
         </div>

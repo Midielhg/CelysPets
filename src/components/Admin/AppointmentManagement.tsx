@@ -103,10 +103,10 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
   };
 
   return (
-    <div className="p-6 bg-white/70 backdrop-blur-sm rounded-b-2xl">
+    <div className="p-6">
       {/* Summary and Input */}
       <div className="grid md:grid-cols-2 gap-6 mb-6">
-        <div className="bg-amber-50 rounded-lg p-4">
+        <div className="bg-gray-50 rounded-lg p-4">
           <h4 className="font-semibold text-gray-900 mb-2">
             Appointments for {new Date(selectedDate + 'T12:00:00').toLocaleDateString()}
           </h4>
@@ -131,7 +131,7 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-amber-800 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Starting Location
             </label>
             <input
@@ -139,14 +139,14 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
               value={startLocation}
               onChange={(e) => setStartLocation(e.target.value)}
               placeholder="Enter your starting address..."
-              className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-400"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <button
             onClick={optimizeRoute}
             disabled={loading || dayAppointments.length === 0}
-            className="w-full bg-gradient-to-r from-rose-500 to-pink-500 text-white px-4 py-2 rounded-lg hover:from-rose-600 hover:to-pink-600 disabled:bg-gray-400 transition-all duration-200 flex items-center justify-center font-medium"
+            className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:bg-gray-400 transition-colors flex items-center justify-center"
           >
             {loading ? (
               <>
@@ -175,7 +175,7 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
             <h4 className="text-lg font-semibold text-gray-900">Optimized Route</h4>
             <button
               onClick={handleUpdateAppointments}
-              className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-200 flex items-center font-medium"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -185,23 +185,23 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
           </div>
           
           <div className="grid md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-amber-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-amber-600">
+            <div className="bg-blue-50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600">
                 {optimizedRoute.totalDistance.toFixed(1)} mi
               </div>
-              <div className="text-sm text-amber-600">Total Distance</div>
+              <div className="text-sm text-blue-600">Total Distance</div>
             </div>
-            <div className="bg-rose-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-rose-600">
+            <div className="bg-green-50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-green-600">
                 {Math.round(optimizedRoute.totalDuration)} min
               </div>
-              <div className="text-sm text-rose-600">Estimated Time</div>
+              <div className="text-sm text-green-600">Estimated Time</div>
             </div>
-            <div className="bg-amber-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-amber-600">
+            <div className="bg-yellow-50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-yellow-600">
                 ${optimizedRoute.estimatedFuelCost.toFixed(2)}
               </div>
-              <div className="text-sm text-amber-600">Fuel Cost</div>
+              <div className="text-sm text-yellow-600">Fuel Cost</div>
             </div>
           </div>
 
@@ -215,8 +215,8 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
 
           <div className="space-y-3">
             {/* Starting Point */}
-            <div className="flex items-center p-3 bg-rose-50 rounded-lg border-l-4 border-rose-500">
-              <div className="flex-shrink-0 w-8 h-8 bg-rose-500 text-white rounded-full flex items-center justify-center font-bold">
+            <div className="flex items-center p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
+              <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold">
                 S
               </div>
               <div className="ml-4">
@@ -227,8 +227,8 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
 
             {/* Route Stops */}
             {optimizedRoute.stops.map((stop: any, index: number) => (
-              <div key={stop.appointment.id} className="flex items-center p-3 bg-amber-50 rounded-lg border-l-4 border-amber-500">
-                <div className="flex-shrink-0 w-8 h-8 bg-amber-500 text-white rounded-full flex items-center justify-center font-bold">
+              <div key={stop.appointment.id} className="flex items-center p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">
                   {index + 1}
                 </div>
                 <div className="ml-4 flex-1">
@@ -245,7 +245,7 @@ const RouteOptimizationSection: React.FC<RouteOptimizationSectionProps> = ({
                       <div className="text-sm text-gray-500">
                         Phone: {stop.appointment.client?.phone}
                       </div>
-                      <div className="text-sm text-amber-600">
+                      <div className="text-sm text-blue-600">
                         Services: {Array.isArray(stop.appointment.services) 
                           ? stop.appointment.services.join(', ') 
                           : 'No services listed'}
@@ -328,6 +328,21 @@ const AppointmentManagement: React.FC = () => {
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  };
+
+  // Helper function to convert 12-hour format to 24-hour format
+  const convertTo24Hour = (time12h: string) => {
+    if (!time12h.includes('AM') && !time12h.includes('PM')) return time12h;
+    
+    const [time, modifier] = time12h.split(' ');
+    let [hours, minutes] = time.split(':');
+    if (hours === '12') {
+      hours = '00';
+    }
+    if (modifier === 'PM') {
+      hours = String(parseInt(hours, 10) + 12);
+    }
+    return `${hours}:${minutes}`;
   };
 
   // Convert appointments to calendar events
@@ -901,103 +916,37 @@ const AppointmentManagement: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-bold text-amber-900 mb-4">Appointment Management</h2>
-        <p className="text-amber-700">Manage and organize all pet grooming appointments for your business.</p>
-      </div>
+    <div className="max-w-7xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-amber-900 mb-2">Appointment Management</h1>
+        <p className="text-amber-700">Manage and organize all pet grooming appointments</p>
         
         {/* View Toggle and Filter Buttons */}
-        <div className="bg-gradient-to-br from-cream-50 to-amber-50 rounded-2xl shadow-xl p-6 border border-amber-200/50">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex flex-wrap gap-3">
-              {[
-                { key: 'all', label: 'All Appointments', icon: '📊' },
-                { key: 'today', label: 'Today', icon: '📅' },
-                { key: 'pending', label: 'Pending', icon: '⏳' },
-                { key: 'confirmed', label: 'Confirmed', icon: '✅' },
-                { key: 'completed', label: 'Completed', icon: '🎉' }
-              ].map(({ key, label, icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setFilter(key as any)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 text-sm ${
-                    filter === key
-                      ? 'bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-md'
-                      : 'bg-white/70 backdrop-blur-sm text-amber-800 hover:bg-amber-100 border border-amber-200 hover:border-amber-300'
-                  }`}
-                >
-                  <span className="mr-1">{icon}</span>{label}
-                </button>
-              ))}
-            </div>
-            
-            {/* Add Appointment and View Toggle */}
-            <div className="flex items-center gap-3">
+        <div className="flex justify-between items-center mb-4 mt-6">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { key: 'all', label: 'All Appointments' },
+              { key: 'today', label: 'Today' },
+              { key: 'pending', label: 'Pending' },
+              { key: 'confirmed', label: 'Confirmed' },
+              { key: 'completed', label: 'Completed' }
+            ].map(({ key, label }) => (
               <button
-                onClick={() => {
-                  const now = new Date();
-                  const newAppointment = {
-                    client: {
-                      name: '',
-                      email: '',
-                      phone: '',
-                      address: '',
-                      pets: []
-                    },
-                    services: [],
-                  date: now.toISOString().split('T')[0],
-                  time: now.toTimeString().split(' ')[0].substring(0, 5),
-                  status: 'pending' as Appointment['status'],
-                  notes: '',
-                  groomerId: null,
-                  estimatedDuration: '60'
-                };
-                setEditForm(newAppointment);
-                setSelectedAppointment(null);
-                setSelectedClient(null); // Reset selected client for new appointment
-                setIsAddingNew(true);
-                setEditMode(true);
-                setShowModal(true);
-              }}
-              className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-6 py-3 rounded-full hover:from-rose-600 hover:to-rose-700 hover:shadow-lg transition-all duration-300 font-semibold"
-            >
-              + Add Appointment
-            </button>
-            
-            <div className="flex bg-amber-50 rounded-full p-1 border border-amber-200">
-              <button
-                onClick={() => setViewMode('calendar')}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 min-w-[90px] ${
-                  viewMode === 'calendar'
-                    ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-white shadow-sm'
-                    : 'text-amber-800 hover:text-amber-900 hover:bg-amber-100'
+                key={key}
+                onClick={() => setFilter(key as any)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  filter === key
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                📅 Calendar
+                {label}
               </button>
-              <button
-                onClick={() => setViewMode('table')}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 min-w-[90px] ${
-                  viewMode === 'table'
-                    ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-white shadow-sm'
-                    : 'text-amber-800 hover:text-amber-900 hover:bg-amber-100'
-                }`}
-              >
-                📋 Table
-              </button>
-            </div>
+            ))}
           </div>
-        </div>
-      </div>
-
-      {/* Main Content - Calendar or Table View */}
-      <div className="bg-gradient-to-br from-cream-50 to-amber-50 rounded-2xl shadow-xl overflow-hidden border border-amber-200/50">
-        {filteredAppointments.length === 0 ? (
-          <div className="text-center py-16 px-8">
-            <div className="text-6xl mb-6">📅</div>
-            <h3 className="text-2xl font-bold text-amber-900 mb-4">No appointments found</h3>
-            <p className="text-amber-700 text-lg mb-8">Appointments will appear here when customers book services</p>
+          
+          {/* Add Appointment and View Toggle */}
+          <div className="flex items-center gap-3">
             <button
               onClick={() => {
                 const now = new Date();
@@ -1019,15 +968,51 @@ const AppointmentManagement: React.FC = () => {
                 };
                 setEditForm(newAppointment);
                 setSelectedAppointment(null);
-                setSelectedClient(null);
+                setSelectedClient(null); // Reset selected client for new appointment
                 setIsAddingNew(true);
                 setEditMode(true);
                 setShowModal(true);
               }}
-              className="bg-gradient-to-r from-amber-200 to-orange-200 text-amber-900 px-6 py-2 rounded-full hover:shadow-md hover:from-amber-300 hover:to-orange-300 transition-all duration-300 font-medium text-sm min-w-[140px]"
+              className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-6 py-3 rounded-full hover:from-rose-600 hover:to-rose-700 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold"
             >
-              + Book Your First Appointment
+              + Add Appointment
             </button>
+            
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'calendar'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                📅 Calendar
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'table'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                📋 Table
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content - Calendar or Table View */}
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+        {filteredAppointments.length === 0 ? (
+          <div className="text-center py-12">
+            <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <p className="text-gray-500 text-lg">No appointments found</p>
+            <p className="text-gray-400">Appointments will appear here when customers book services</p>
           </div>
         ) : viewMode === 'calendar' ? (
           /* Calendar View */
@@ -1037,11 +1022,11 @@ const AppointmentManagement: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <button
                   onClick={handleToday}
-                  className="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-lg hover:from-amber-500 hover:to-orange-500 transition-all duration-300 font-medium text-sm min-w-[80px]"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                 >
                   Today
                 </button>
-                <span className="text-lg font-semibold text-amber-800">
+                <span className="text-lg font-semibold text-gray-700">
                   {moment(calendarDate).format('MMMM YYYY')}
                 </span>
               </div>
@@ -1123,34 +1108,34 @@ const AppointmentManagement: React.FC = () => {
             try {
               return (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-amber-200">
-                    <thead className="bg-gradient-to-r from-amber-100 to-rose-100">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-amber-800 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Date & Time
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-amber-800 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Client
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-amber-800 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Pet(s)
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-amber-800 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Services
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-amber-800 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-amber-800 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white/50 divide-y divide-amber-200">
+                    <tbody className="bg-white divide-y divide-gray-200">
                       {filteredAppointments.map((appointment) => {
                         try {
                           return (
-                            <tr key={appointment.id} className="hover:bg-amber-50/50 transition-colors duration-200">
+                            <tr key={appointment.id} className="hover:bg-gray-50">
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm font-medium text-gray-900">
                                   {appointment.date ? formatDate(appointment.date) : 'No date'}
@@ -1241,24 +1226,22 @@ const AppointmentManagement: React.FC = () => {
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => openEditModal(appointment)}
-                                    className="bg-gradient-to-r from-rose-500 to-pink-500 text-white px-3 py-1.5 rounded-lg hover:from-rose-600 hover:to-pink-600 transition-all duration-200 font-medium text-sm"
-                                  >
-                                    ✏️ Edit
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedAppointment(appointment);
-                                      setEditMode(false);
-                                      setShowModal(true);
-                                    }}
-                                    className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3 py-1.5 rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-200 font-medium text-sm"
-                                  >
-                                    🔧 Manage
-                                  </button>
-                                </div>
+                                <button
+                                  onClick={() => openEditModal(appointment)}
+                                  className="text-green-600 hover:text-green-900 mr-3"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedAppointment(appointment);
+                                    setEditMode(false);
+                                    setShowModal(true);
+                                  }}
+                                  className="text-blue-600 hover:text-blue-900"
+                                >
+                                  Manage
+                                </button>
                               </td>
                             </tr>
                           );
@@ -1297,13 +1280,14 @@ const AppointmentManagement: React.FC = () => {
 
       {/* Route Optimization Section - Only show in calendar view and when there are appointments */}
       {viewMode === 'calendar' && filteredAppointments.length > 0 && (
-        <div className="mt-8 bg-gradient-to-br from-cream-50 to-amber-50 rounded-2xl shadow-xl border border-amber-200/50">
-          <div className="px-6 py-4 bg-gradient-to-r from-amber-100 to-rose-100 rounded-t-2xl border-b border-amber-200">
-            <h3 className="text-xl font-semibold text-amber-900 flex items-center">
-              <div className="text-lg mr-3">🗺️</div>
+        <div className="mt-6 bg-white rounded-lg shadow-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
               Route Optimization for {moment(calendarDate).format('MMMM D, YYYY')}
             </h3>
-            <p className="text-amber-700 mt-1 text-sm">Optimize your daily route for maximum efficiency</p>
           </div>
           <RouteOptimizationSection 
             selectedDate={moment(calendarDate).format('YYYY-MM-DD')}
@@ -1318,127 +1302,97 @@ const AppointmentManagement: React.FC = () => {
 
       {/* Redesigned Modal for Managing/Editing/Adding Appointment */}
       {showModal && (selectedAppointment || isAddingNew) && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/20 flex items-center justify-center z-50 p-4">
-          <div className={`bg-white rounded-2xl shadow-2xl ${editMode ? 'max-w-5xl w-full' : 'max-w-2xl w-full'} max-h-[90vh] overflow-y-auto`}>
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-amber-900">
-                  {isAddingNew ? 'Book New Appointment' : editMode ? 'Edit Appointment' : 'Manage Appointment'}
-                </h3>
+        <div className="fixed inset-0 backdrop-blur-sm bg-black/30 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+          <div className={`relative mx-auto rounded-2xl shadow-2xl bg-white ${editMode ? 'w-full max-w-5xl' : 'w-full max-w-2xl'} max-h-[95vh] overflow-hidden flex flex-col`}>
+            
+            {/* Header */}
+            <div className="px-8 py-6 bg-gradient-to-r from-rose-500 to-pink-600 text-white">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-2xl font-bold">
+                    {isAddingNew ? '📋 Add New Appointment' : editMode ? '✏️ Edit Appointment' : '🔧 Manage Appointment'}
+                  </h3>
+                  <p className="text-rose-100 mt-1">
+                    {isAddingNew ? 'Create a new grooming appointment' : editMode ? 'Update appointment details' : 'Quick actions and status updates'}
+                  </p>
+                </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
+                  className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
                 >
-                  ×
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
+            </div>
 
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto">
+              
               {!editMode && selectedAppointment && !isAddingNew ? (
                 <>
                   {/* Manage Mode - Quick Status Update */}
-                  <div className="space-y-6">
-                    <div className="grid md:grid-cols-2 gap-6">
-                      {/* Appointment Summary */}
-                      <div className="space-y-4">
-                        <h4 className="text-lg font-semibold text-amber-900 mb-4">Appointment Details</h4>
-                        
-                        <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-                          <div className="flex items-center mb-3">
-                            <div className="text-lg mr-3">👤</div>
-                            <div>
-                              <p className="text-base font-semibold text-amber-900">
-                                {selectedAppointment.client?.name || 'Unknown client'}
-                              </p>
-                              <p className="text-sm text-amber-700">{selectedAppointment.client?.email}</p>
-                              <p className="text-sm text-amber-700">{selectedAppointment.client?.phone}</p>
-                            </div>
-                          </div>
-                        </div>
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 mb-2">
+                      <strong>Client:</strong> {selectedAppointment.client?.name || 'Unknown client'}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-2">
+                      <strong>Date:</strong> {selectedAppointment.date ? formatDate(selectedAppointment.date) : 'No date'} at {selectedAppointment.time ? formatTime(selectedAppointment.time) : 'No time'}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      <strong>Current Status:</strong> 
+                      <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        selectedAppointment.status && statusColors[selectedAppointment.status] 
+                          ? statusColors[selectedAppointment.status] 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {selectedAppointment.status ? 
+                          selectedAppointment.status.charAt(0).toUpperCase() + selectedAppointment.status.slice(1) : 
+                          'Unknown'
+                        }
+                      </span>
+                    </p>
+                  </div>
 
-                        <div className="bg-rose-50 rounded-lg p-4 border border-rose-200">
-                          <div className="flex items-center mb-3">
-                            <div className="text-lg mr-3">📅</div>
-                            <div>
-                              <p className="text-base font-semibold text-rose-900">
-                                {selectedAppointment.date ? formatDate(selectedAppointment.date) : 'No date'}
-                              </p>
-                              <p className="text-sm text-rose-700">
-                                {selectedAppointment.time ? formatTime(selectedAppointment.time) : 'No time'}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center">
-                              <div className="text-lg mr-3">📊</div>
-                              <div>
-                                <p className="text-sm font-medium text-amber-900">Current Status</p>
-                                <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${
-                                  selectedAppointment.status && statusColors[selectedAppointment.status] 
-                                    ? statusColors[selectedAppointment.status] 
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {selectedAppointment.status ? 
-                                    selectedAppointment.status.charAt(0).toUpperCase() + selectedAppointment.status.slice(1).replace('-', ' ') : 
-                                    'Unknown'
-                                  }
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Status Update Section */}
-                      <div className="space-y-4">
-                        <h4 className="text-lg font-semibold text-amber-900 mb-4">Update Status</h4>
-                        
-                        <div className="space-y-2">
-                          {['pending', 'confirmed', 'in-progress', 'completed', 'cancelled'].map((status) => (
-                            <button
-                              key={status}
-                              onClick={() => updateAppointmentStatus(selectedAppointment.id, status)}
-                              className={`w-full text-left px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                                selectedAppointment.status === status
-                                  ? 'bg-rose-500 text-white'
-                                  : 'bg-gray-50 text-amber-900 hover:bg-amber-50 border border-amber-200'
-                              }`}
-                            >
-                              <div className="flex items-center">
-                                <div className="text-base mr-2">
-                                  {status === 'pending' && '⏳'}
-                                  {status === 'confirmed' && '✅'}
-                                  {status === 'in-progress' && '🚀'}
-                                  {status === 'completed' && '🎉'}
-                                  {status === 'cancelled' && '❌'}
-                                </div>
-                                {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Update Status:
+                    </label>
+                    <div className="space-y-2">
+                      {['pending', 'confirmed', 'in-progress', 'completed', 'cancelled'].map((status) => (
+                        <button
+                          key={status}
+                          onClick={() => updateAppointmentStatus(selectedAppointment.id, status)}
+                          className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            selectedAppointment.status === status
+                              ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                              : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
+                        </button>
+                      ))}
                     </div>
+                  </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex space-x-3 pt-4">
-                      <button
-                        onClick={() => deleteAppointment(selectedAppointment.id)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium text-sm"
-                      >
-                        Delete
-                      </button>
+                  <div className="flex justify-between">
+                    <button
+                      onClick={() => deleteAppointment(selectedAppointment.id)}
+                      className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+                    >
+                      Delete
+                    </button>
+                    <div className="space-x-2">
                       <button
                         onClick={() => openEditModal(selectedAppointment)}
-                        className="flex-1 bg-gradient-to-r from-rose-500 to-rose-600 text-white px-4 py-2 rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all duration-200 font-medium"
+                        className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
                       >
                         Full Edit
                       </button>
                       <button
                         onClick={() => setShowModal(false)}
-                        className="px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors duration-200"
+                        className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
                       >
                         Cancel
                       </button>
@@ -1448,204 +1402,136 @@ const AppointmentManagement: React.FC = () => {
               ) : (
                 <>
                   {/* Edit Mode - Full Form */}
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Client Information */}
+                    <div className="space-y-4">
+                      <h4 className="text-md font-medium text-gray-900">Client Information</h4>
                       
-                      {/* Client Information - Left Column */}
-                      <div className="lg:col-span-2 space-y-6">
-                        <div>
-                          <h4 className="text-lg font-semibold text-amber-900 mb-4 flex items-center">
-                            <div className="text-lg mr-3">👤</div>
-                            Client Information
-                          </h4>
-                          
-                          <ClientSearch
-                            onClientSelect={(client) => {
-                              setSelectedClient(client);
-                              setEditForm(prev => ({
-                                ...prev,
-                                client: {
-                                  name: client.name,
-                                  email: client.email,
-                                  phone: client.phone,
-                                  address: client.address,
-                                  pets: client.pets || []
-                                }
-                              }));
-                            }}
-                            onClientUpdate={(updatedClient) => {
-                              setSelectedClient(updatedClient);
-                              setEditForm(prev => ({
-                                ...prev,
-                                client: {
-                                  name: updatedClient.name,
-                                  email: updatedClient.email,
-                                  phone: updatedClient.phone,
-                                  address: updatedClient.address,
-                                  pets: updatedClient.pets || []
-                                }
-                              }));
-                            }}
-                            selectedClient={selectedClient}
-                          />
-                        </div>
-
-                        {/* Services Section */}
-                        <div>
-                          <h4 className="text-2xl font-semibold text-amber-900 mb-6 flex items-center">
-                            <div className="text-2xl mr-3">✨</div>
-                            Services
-                          </h4>
-                          
-                          <div className="bg-amber-50 rounded-xl p-6 border border-amber-200">
-                            <div className="grid md:grid-cols-2 gap-4">
-                              {Object.entries(serviceNames).map(([serviceId, serviceName]) => (
-                                <label key={serviceId} className="flex items-center p-4 bg-white/70 backdrop-blur-sm rounded-xl border border-amber-200 hover:border-amber-300 hover:shadow-md transition-all duration-300 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={editForm.services.includes(serviceId)}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setEditForm(prev => ({
-                                          ...prev,
-                                          services: [...prev.services, serviceId]
-                                        }));
-                                      } else {
-                                        setEditForm(prev => ({
-                                          ...prev,
-                                          services: prev.services.filter(s => s !== serviceId)
-                                        }));
-                                      }
-                                    }}
-                                    className="mr-3 h-5 w-5 text-rose-500 border-amber-300 rounded focus:ring-rose-400 focus:ring-2"
-                                  />
-                                  <span className="text-amber-900 font-medium">{serviceName}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Additional Notes */}
-                        <div>
-                          <h4 className="text-2xl font-semibold text-amber-900 mb-6 flex items-center">
-                            <div className="text-2xl mr-3">📝</div>
-                            Additional Notes
-                          </h4>
-                          
-                          <textarea
-                            value={editForm.notes}
-                            onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
-                            rows={4}
-                            placeholder="Any special instructions or notes for this appointment..."
-                            className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm text-amber-900"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Appointment Details - Right Column */}
-                      <div className="space-y-6">
-                        <h4 className="text-2xl font-semibold text-amber-900 mb-6 flex items-center">
-                          <div className="text-2xl mr-3">📅</div>
-                          Scheduling
-                        </h4>
-                        
-                        <div className="space-y-6">
-                          <div>
-                            <label className="block text-sm font-medium text-amber-800 mb-2">
-                              Appointment Date *
-                            </label>
-                            <input
-                              type="date"
-                              value={editForm.date}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, date: e.target.value }))}
-                              className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-amber-800 mb-2">
-                              Appointment Time *
-                            </label>
-                            <input
-                              type="text"
-                              value={editForm.time}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, time: e.target.value }))}
-                              placeholder="e.g., 10:00 AM"
-                              className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-amber-800 mb-2">
-                              Status
-                            </label>
-                            <select
-                              value={editForm.status}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, status: e.target.value as Appointment['status'] }))}
-                              className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                            >
-                              <option value="pending">⏳ Pending</option>
-                              <option value="confirmed">✅ Confirmed</option>
-                              <option value="in-progress">🚀 In Progress</option>
-                              <option value="completed">🎉 Completed</option>
-                              <option value="cancelled">❌ Cancelled</option>
-                            </select>
-                          </div>
-
-                          {/* Groomer Assignment */}
-                          <div>
-                            <label className="block text-sm font-medium text-amber-800 mb-2">
-                              Assign Groomer
-                            </label>
-                            <select
-                              value={editForm.groomerId || ''}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, groomerId: e.target.value || null }))}
-                              className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                            >
-                              <option value="">Select a groomer</option>
-                              {groomers.map(groomer => (
-                                <option key={groomer.id} value={groomer.id}>
-                                  {groomer.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-amber-800 mb-2">
-                              Estimated Duration (minutes)
-                            </label>
-                            <input
-                              type="number"
-                              value={editForm.estimatedDuration}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, estimatedDuration: e.target.value }))}
-                              min="30"
-                              step="15"
-                              className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                            />
-                          </div>
-                        </div>
-                      </div>
+                      <ClientSearch
+                        onClientSelect={(client) => {
+                          setSelectedClient(client);
+                          setEditForm(prev => ({
+                            ...prev,
+                            client: {
+                              name: client.name,
+                              email: client.email,
+                              phone: client.phone,
+                              address: client.address,
+                              pets: client.pets || []
+                            }
+                          }));
+                        }}
+                        onClientUpdate={(updatedClient) => {
+                          setSelectedClient(updatedClient);
+                          setEditForm(prev => ({
+                            ...prev,
+                            client: {
+                              name: updatedClient.name,
+                              email: updatedClient.email,
+                              phone: updatedClient.phone,
+                              address: updatedClient.address,
+                              pets: updatedClient.pets || []
+                            }
+                          }));
+                        }}
+                        selectedClient={selectedClient}
+                      />
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="border-t border-amber-200 pt-6">
-                      <div className="flex space-x-3 pt-4">
-                        <button
-                          onClick={cancelEdit}
-                          className="flex-1 px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors duration-200"
+                    {/* Appointment Details */}
+                    <div className="space-y-4">
+                      <h4 className="text-md font-medium text-gray-900">Appointment Details</h4>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                        <input
+                          type="date"
+                          value={editForm.date}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, date: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                        <input
+                          type="text"
+                          value={editForm.time}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, time: e.target.value }))}
+                          placeholder="e.g., 10:00 AM"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select
+                          value={editForm.status}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, status: e.target.value as Appointment['status'] }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={saveAppointmentChanges}
-                          className="flex-1 px-4 py-2 bg-gradient-to-r from-rose-500 to-rose-600 text-white rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all duration-200"
-                        >
-                          {isAddingNew ? 'Book Appointment' : 'Save Changes'}
-                        </button>
+                          <option value="pending">Pending</option>
+                          <option value="confirmed">Confirmed</option>
+                          <option value="in-progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Services</label>
+                        <div className="space-y-2">
+                          {Object.entries(serviceNames).map(([serviceId, serviceName]) => (
+                            <label key={serviceId} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={editForm.services.includes(serviceId)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setEditForm(prev => ({
+                                      ...prev,
+                                      services: [...prev.services, serviceId]
+                                    }));
+                                  } else {
+                                    setEditForm(prev => ({
+                                      ...prev,
+                                      services: prev.services.filter(s => s !== serviceId)
+                                    }));
+                                  }
+                                }}
+                                className="mr-2"
+                              />
+                              <span className="text-sm">{serviceName}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                        <textarea
+                          value={editForm.notes}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
                       </div>
                     </div>
+                  </div>
+
+                  <div className="flex justify-between mt-6 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={cancelEdit}
+                      className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={saveAppointmentChanges}
+                      className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-4 py-2 rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all duration-200"
+                    >
+                      Save Changes
+                    </button>
                   </div>
                 </>
               )}

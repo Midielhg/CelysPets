@@ -35,28 +35,15 @@ const ClientManagement: React.FC = () => {
     showSuggestions: false
   });
 
-  // Debounce search to improve performance
-  const [searchDebounceTimer, setSearchDebounceTimer] = useState<NodeJS.Timeout | null>(null);
-
   const itemsPerPage = 12;
 
   useEffect(() => {
     fetchClients();
-  }, [currentPage]); // Removed searchTerm dependency as it's handled by debounce
-
-  // Cleanup search timer on unmount
-  useEffect(() => {
-    return () => {
-      if (searchDebounceTimer) {
-        clearTimeout(searchDebounceTimer);
-      }
-    };
-  }, [searchDebounceTimer]);
+  }, [currentPage, searchTerm]);
 
   const fetchClients = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('auth_token');
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: itemsPerPage.toString(),
@@ -65,14 +52,8 @@ const ClientManagement: React.FC = () => {
 
       const apiUrl = `http://localhost:5001/api/clients?${params}`;
       console.log('Fetching clients from:', apiUrl);
-      console.log('Search term:', searchTerm);
 
-      let response = await fetch(apiUrl, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        }
-      });
+      let response = await fetch(apiUrl);
       console.log('Response status:', response.status);
       console.log('Response ok:', response.ok);
 
@@ -80,12 +61,7 @@ const ClientManagement: React.FC = () => {
       if (!response.ok) {
         console.log('Clients API failed, trying appointments API as fallback...');
         const fallbackUrl = `http://localhost:5001/api/appointments`;
-        response = await fetch(fallbackUrl, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Bearer ${token}` })
-          }
-        });
+        response = await fetch(fallbackUrl);
         
         if (response.ok) {
           const appointmentsData = await response.json();
@@ -107,19 +83,7 @@ const ClientManagement: React.FC = () => {
             }
           });
           
-          let uniqueClients = Array.from(clientsMap.values());
-          
-          // Apply client-side search filtering if search term exists
-          if (searchTerm) {
-            const searchLower = searchTerm.toLowerCase();
-            uniqueClients = uniqueClients.filter(client => 
-              client.name?.toLowerCase().includes(searchLower) ||
-              client.email?.toLowerCase().includes(searchLower) ||
-              client.phone?.toLowerCase().includes(searchLower) ||
-              client.address?.toLowerCase().includes(searchLower)
-            );
-          }
-          
+          const uniqueClients = Array.from(clientsMap.values());
           setClients(uniqueClients);
           setTotalPages(Math.ceil(uniqueClients.length / itemsPerPage));
           setTotalClients(uniqueClients.length);
@@ -149,21 +113,8 @@ const ClientManagement: React.FC = () => {
   };
 
   const handleSearch = (term: string) => {
-    // Clear existing timer
-    if (searchDebounceTimer) {
-      clearTimeout(searchDebounceTimer);
-    }
-    
-    // Set search term immediately for UI responsiveness
     setSearchTerm(term);
     setCurrentPage(1);
-    
-    // Debounce the actual API call
-    const timer = setTimeout(() => {
-      fetchClients();
-    }, 300); // 300ms delay
-    
-    setSearchDebounceTimer(timer);
   };
 
   const openClientModal = (client: Client) => {
