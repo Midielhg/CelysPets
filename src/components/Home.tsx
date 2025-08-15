@@ -1,7 +1,27 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const Home: React.FC = () => {
+  useEffect(() => {
+    // Load EmbedSocial script for Instagram carousel
+    const script = document.createElement('script');
+    script.id = 'EmbedSocialHashtagScript';
+    script.src = 'https://embedsocial.com/cdn/ht.js';
+    
+    // Check if script already exists
+    if (!document.getElementById('EmbedSocialHashtagScript')) {
+      document.getElementsByTagName('head')[0].appendChild(script);
+    }
+    
+    return () => {
+      // Cleanup script on unmount
+      const existingScript = document.getElementById('EmbedSocialHashtagScript');
+      if (existingScript && existingScript.parentNode) {
+        existingScript.parentNode.removeChild(existingScript);
+      }
+    };
+  }, []);
+
   return (
     <div className="min-h-screen">
       {/* Hero Section with Gradient Background */}
@@ -235,6 +255,56 @@ const Home: React.FC = () => {
         </div>
       </div>
 
+      {/* Instagram Carousel Section */}
+      <div className="py-20 bg-gradient-to-br from-amber-50 to-rose-50">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl sm:text-5xl font-bold text-amber-900 mb-6">
+              Our Recent Work
+            </h2>
+            <p className="text-xl text-amber-700 max-w-2xl mx-auto mb-8">
+              See the amazing transformations and happy pets we've groomed
+            </p>
+          </div>
+          
+          {/* EmbedSocial Instagram Carousel */}
+          <div className="flex justify-center mb-12">
+            <div className="w-full max-w-6xl">
+              <div 
+                className="embedsocial-hashtag rounded-2xl p-6 shadow-lg border border-orange-200/50" 
+                style={{backgroundColor: 'rgba(250, 247, 240, 0.8)'}}
+                data-ref="6e28c1a5b836c9562ef633643bc981f5ae873946"
+              >
+                <a 
+                  className="feed-powered-by-es feed-powered-by-es-slider-img es-widget-branding" 
+                  href="https://embedsocial.com/social-media-aggregator/" 
+                  target="_blank" 
+                  title="Instagram widget"
+                  rel="noopener noreferrer"
+                > 
+                  <img 
+                    src="https://embedsocial.com/cdn/icon/embedsocial-logo.webp" 
+                    alt="EmbedSocial"
+                  /> 
+                  <div className="es-widget-branding-text">Instagram widget</div> 
+                </a> 
+              </div>
+            </div>
+          </div>
+
+          {/* CTA Section */}
+          <div className="text-center mt-12">
+            <p className="text-amber-700 mb-6 text-lg">Ready for your pet's transformation?</p>
+            <Link
+              to="/book"
+              className="inline-block bg-gradient-to-r from-amber-200 to-orange-200 text-amber-900 px-8 py-4 rounded-full text-lg font-bold hover:shadow-xl hover:from-amber-300 hover:to-orange-300 transform hover:scale-105 transition-all duration-300 border border-amber-300/50"
+            >
+              Book Your Pet's Transformation
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* CTA Section */}
       <div className="py-20 text-amber-900">
         <div className="max-w-4xl mx-auto text-center px-4">
@@ -252,9 +322,10 @@ const Home: React.FC = () => {
           </Link>
           
           <div className="mt-12 text-center">
+            <div className="text-amber-700 mb-6">Connect with us for daily pet care tips!</div>
             <div className="flex justify-center space-x-4">
-              <a href="#" className="w-12 h-12 bg-gradient-to-br from-amber-200 to-orange-200 rounded-full flex items-center justify-center text-2xl hover:scale-110 hover:shadow-lg transition-all duration-300 border border-amber-300/50">📘</a>
-              <a href="#" className="w-12 h-12 bg-gradient-to-br from-orange-200 to-rose-200 rounded-full flex items-center justify-center text-2xl hover:scale-110 hover:shadow-lg transition-all duration-300 border border-amber-300/50">📷</a>
+              <a href="#" className="w-12 h-12 bg-gradient-to-br from-amber-200 to-orange-200 rounded-full flex items-center justify-center text-2xl hover:scale-110 hover:shadow-lg transition-all duration-300 border border-amber-300/50">�</a>
+              <a href="#" className="w-12 h-12 bg-gradient-to-br from-orange-200 to-rose-200 rounded-full flex items-center justify-center text-2xl hover:scale-110 hover:shadow-lg transition-all duration-300 border border-amber-300/50">�</a>
             </div>
           </div>
         </div>

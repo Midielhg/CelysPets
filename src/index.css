@@ -21,4 +21,19 @@ body {
   background: transparent;
 }
 
+/* Instagram embed styles */
+.instagram-embed-container iframe {
+  width: 100% !important;
+  max-width: 100% !important;
+  border-radius: 12px;
+  border: none;
+  background: white;
+}
+
+.instagram-embed-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 /* Custom styles if needed */
