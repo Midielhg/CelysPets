@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { apiUrl, API_BASE_URL } from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 type Stats = {
@@ -20,57 +19,39 @@ export default function DashboardStats() {
   const token = useMemo(() => localStorage.getItem('auth_token') || '', [user]);
 
   const fetchStats = useCallback(async () => {
-    // Wait for auth to initialize and token to be available
-    if (isLoading || !token) {
-      setLoading(true);
-      return;
-    }
-
+    if (!token || !isLoading) return;
     let isMounted = true;
-      try {
-        setLoading(true);
-        setError(null);
-        // Try via proxy first, then fall back to direct backend URL in dev
-        const urls = [
-          apiUrl('/dashboard/stats'),
-          ...(API_BASE_URL.startsWith('http://localhost:5001')
-            ? []
-            : ['http://localhost:5001/api/dashboard/stats']),
-        ];
-
-        let lastErr: any = null;
-        for (const url of urls) {
-          try {
-            const res = await fetch(url, {
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-              credentials: 'include',
-            });
-            if (!res.ok) {
-              if (res.status === 401) throw new Error('Please log in to view stats');
-              const text = await res.text();
-              throw new Error(`HTTP ${res.status}: ${text}`);
-            }
-            const data = (await res.json()) as Stats;
-            if (isMounted) setStats(data);
-            lastErr = null;
-            break;
-          } catch (e) {
-            lastErr = e;
-          }
-        }
-        if (lastErr) throw lastErr;
-      } catch (e: any) {
-        if (isMounted) setError(e?.message || 'Failed to load stats');
-      } finally {
-        if (isMounted) setLoading(false);
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const url = 'http://localhost:5001/api/dashboard/stats';
+      const res = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!res.ok) {
+        if (res.status === 401) throw new Error('Please log in to view stats');
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
       }
+      
+      const data = (await res.json()) as Stats;
+      if (isMounted) setStats(data);
+    } catch (e: any) {
+      if (isMounted) setError(e?.message || 'Failed to load stats');
+    } finally {
+      if (isMounted) setLoading(false);
+    }
+    
     return () => {
       isMounted = false;
     };
-  }, [API_BASE_URL, apiUrl, isLoading, token]);
+  }, [isLoading, token]);
 
   useEffect(() => {
     fetchStats();

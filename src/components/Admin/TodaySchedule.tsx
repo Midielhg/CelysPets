@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { apiUrl, API_BASE_URL } from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface ClientInfo { name: string; address: string; }
@@ -33,31 +32,27 @@ export default function TodaySchedule() {
       }
       setLoading(true);
       setError(null);
-      const paths = [
-        apiUrl(`/appointments?date=${todayISO}`),
-        ...(API_BASE_URL.startsWith('http://localhost:5001') ? [] : [`http://localhost:5001/api/appointments?date=${todayISO}`])
-      ];
-      let lastErr: any = null;
-      for (const url of paths) {
-        try {
-          const res = await fetch(url, { credentials: 'include' });
-          if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-          const data = (await res.json()) as AppointmentItem[];
-          if (mounted) setItems(data);
-          lastErr = null;
-          break;
-        } catch (e) {
-          lastErr = e;
+      
+      // Use the same authentication method as AppointmentManagement
+      const token = localStorage.getItem('auth_token');
+      const url = `http://localhost:5001/api/appointments?date=${todayISO}`;
+      
+      const res = await fetch(url, { 
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      }
-      if (lastErr) throw lastErr;
+      });
+      
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+      const data = (await res.json()) as AppointmentItem[];
+      if (mounted) setItems(data);
     } catch (e: any) {
       if (mounted) setError(e?.message || 'Failed to load schedule');
     } finally {
       if (mounted) setLoading(false);
     }
     return () => { mounted = false };
-  }, [API_BASE_URL, apiUrl, isLoading, todayISO]);
+  }, [isLoading, todayISO]);
 
   useEffect(() => { fetchSchedule(); }, [fetchSchedule]);
 
