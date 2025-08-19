@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, momentLocalizer, Views } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import type { View } from 'react-big-calendar';
@@ -298,6 +298,8 @@ const AppointmentManagement: React.FC = () => {
   const [calendarView, setCalendarView] = useState<View>('week');
   const [groomers, setGroomers] = useState<Array<{id: string, name: string, email: string}>>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [breeds, setBreeds] = useState<Array<{id: number, name: string, species: string, fullGroomPrice: string}>>([]);
+  const [addons, setAddons] = useState<Array<{id: string, code: string, name: string, price: string, description: string}>>([]);
   const [editForm, setEditForm] = useState({
     client: {
       name: '',
@@ -307,6 +309,7 @@ const AppointmentManagement: React.FC = () => {
       pets: [] as Pet[]
     },
     services: [] as string[],
+    includeFullService: true,
     date: '',
     time: '',
     status: 'pending' as Appointment['status'],
@@ -384,13 +387,8 @@ const AppointmentManagement: React.FC = () => {
     });
   };
 
-  const serviceNames: { [key: string]: string } = {
-  'full-groom': 'Full Service Grooming',
-    'bath-brush': 'Bath & Brush',
-  'nail-trim': 'Nail Trim',
-  'teeth-cleaning': 'Teeth Cleaning',
-  'flea-treatment': 'Flea Treatment'
-  };
+  // Additional services will be dynamically loaded from the API via addons state
+  // This ensures that any changes made by admins in the pricing section are automatically reflected here
 
   const statusColors = {
     pending: 'bg-yellow-100 text-yellow-800',
@@ -403,6 +401,7 @@ const AppointmentManagement: React.FC = () => {
   useEffect(() => {
     fetchAppointments();
     fetchGroomers();
+    fetchBreedsAndAddons();
   }, []);
 
   const fetchGroomers = async () => {
@@ -436,6 +435,82 @@ const AppointmentManagement: React.FC = () => {
       ]);
     }
   };
+
+  const fetchBreedsAndAddons = async () => {
+    try {
+      // Fetch breeds
+      const breedsResponse = await fetch('http://localhost:5001/api/pricing/breeds');
+      if (breedsResponse.ok) {
+        const breedsData = await breedsResponse.json();
+        setBreeds(breedsData);
+      }
+
+      // Fetch additional services
+      const addonsResponse = await fetch('http://localhost:5001/api/pricing/additional-services');
+      if (addonsResponse.ok) {
+        const addonsData = await addonsResponse.json();
+        setAddons(addonsData);
+      }
+    } catch (error) {
+      console.error('Error fetching breeds and addons:', error);
+    }
+  };
+
+  // Pricing calculation functions (similar to BookingPage)
+  const getBreedById = (breedId: number | null) => {
+    if (!breedId) return null;
+    return breeds.find(breed => breed.id === breedId) || null;
+  };
+
+  const getBreedPrice = (pet: any) => {
+    if (!pet.breed) return 0;
+    const breed = breeds.find(b => b.name.toLowerCase() === pet.breed.toLowerCase());
+    return breed ? Number(breed.fullGroomPrice) : 0;
+  };
+
+  const getServicePrice = (serviceId: string) => {
+    const service = addons.find(addon => addon.code === serviceId);
+    return service ? Number(service.price) : 0;
+  };
+
+  // Helper function to get service name from addons data
+  const getServiceName = (serviceId: string) => {
+    const service = addons.find(addon => addon.code === serviceId);
+    return service ? service.name : serviceId || 'Unknown service';
+  };
+
+  const calculateAppointmentTotal = () => {
+    if (!editForm.client.pets || editForm.client.pets.length === 0) return 0;
+
+    // Base grooming price for all pets (only if full service is included)
+    const groomingTotal = editForm.includeFullService 
+      ? editForm.client.pets.reduce((sum, pet) => sum + getBreedPrice(pet), 0)
+      : 0;
+    
+    // Additional services (apply to all pets)
+    const additionalTotal = editForm.services.reduce((sum, serviceId) => {
+      const servicePrice = getServicePrice(serviceId);
+      const totalForService = servicePrice * editForm.client.pets.length;
+      return sum + totalForService;
+    }, 0);
+
+    console.log('Pricing Debug:', {
+      includeFullService: editForm.includeFullService,
+      selectedServices: editForm.services,
+      groomingTotal,
+      additionalTotal,
+      finalTotal: groomingTotal + additionalTotal,
+      pets: editForm.client.pets.length,
+      addons: addons.length
+    });
+
+    return groomingTotal + additionalTotal;
+  };
+
+  // Memoized total calculation to ensure reactivity
+  const appointmentTotal = useMemo(() => {
+    return calculateAppointmentTotal();
+  }, [editForm.services, editForm.includeFullService, editForm.client.pets, breeds, addons]);
 
   const fetchAppointments = async () => {
     try {
@@ -667,6 +742,7 @@ const AppointmentManagement: React.FC = () => {
         }))
       },
       services: appointment.services || [],
+      includeFullService: (appointment as any).includeFullService !== undefined ? (appointment as any).includeFullService : true,
       date: appointment.date || '', // Keep the date as-is since it should already be in YYYY-MM-DD format
       time: appointment.time || '',
       status: appointment.status || 'pending',
@@ -697,6 +773,10 @@ const AppointmentManagement: React.FC = () => {
       showToast('Appointment time is required', 'error');
       return;
     }
+    if (!editForm.includeFullService && editForm.services.length === 0) {
+      showToast('Please select at least one service (Full Service Grooming or Additional Services)', 'error');
+      return;
+    }
 
     const isCreating = !selectedAppointment;
 
@@ -713,6 +793,7 @@ const AppointmentManagement: React.FC = () => {
           // Don't include pets - they should be managed separately
         },
         services: editForm.services,
+        includeFullService: editForm.includeFullService,
         date: editForm.date,
         time: editForm.time,
         status: editForm.status,
@@ -797,6 +878,7 @@ const AppointmentManagement: React.FC = () => {
         pets: []
       },
       services: [],
+      includeFullService: true,
       date: startDate.format('YYYY-MM-DD'),
       time: startDate.format('HH:mm'),
       status: 'pending' as Appointment['status'],
@@ -959,6 +1041,7 @@ const AppointmentManagement: React.FC = () => {
                     pets: []
                   },
                   services: [],
+                  includeFullService: true,
                   date: now.toISOString().split('T')[0],
                   time: now.toTimeString().split(' ')[0].substring(0, 5),
                   status: 'pending' as Appointment['status'],
@@ -1050,6 +1133,7 @@ const AppointmentManagement: React.FC = () => {
               onSelectEvent={(event: any) => {
                 setSelectedAppointment(event.resource);
                 setEditMode(false);
+                setIsAddingNew(false);
                 setShowModal(true);
               }}
               onSelectSlot={handleSelectSlot}
@@ -1183,7 +1267,8 @@ const AppointmentManagement: React.FC = () => {
                                 let servicePrice = null;
                                 
                                 if (typeof service === 'string') {
-                                  serviceName = serviceNames[service] || service || 'Unknown service';
+                                  // Look up the service name from the addons data
+                                  serviceName = getServiceName(service);
                                 } else if (service && typeof service === 'object') {
                                   serviceName = (service as any).name || 'Unknown service';
                                   servicePrice = (service as any).price;
@@ -1300,25 +1385,26 @@ const AppointmentManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Redesigned Modal for Managing/Editing/Adding Appointment */}
+      {/* Modern Redesigned Modal for Managing/Editing/Adding Appointment */}
       {showModal && (selectedAppointment || isAddingNew) && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-black/30 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-          <div className={`relative mx-auto rounded-2xl shadow-2xl bg-white ${editMode ? 'w-full max-w-5xl' : 'w-full max-w-2xl'} max-h-[95vh] overflow-hidden flex flex-col`}>
+        <div className="fixed inset-0 backdrop-blur-md bg-black/40 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+          <div className={`relative mx-auto rounded-3xl shadow-2xl bg-white border border-amber-200/50 ${editMode || isAddingNew ? 'w-full max-w-6xl' : 'w-full max-w-2xl'} max-h-[95vh] overflow-hidden flex flex-col`}>
             
-            {/* Header */}
-            <div className="px-8 py-6 bg-gradient-to-r from-rose-500 to-pink-600 text-white">
-              <div className="flex justify-between items-center">
+            {/* Modern Header with Cream/Amber Gradient */}
+            <div className="px-8 py-6 bg-gradient-to-r from-amber-100 via-yellow-50 to-cream-50 border-b border-amber-200/30 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-50/40 to-transparent"></div>
+              <div className="relative flex justify-between items-center">
                 <div>
-                  <h3 className="text-2xl font-bold">
-                    {isAddingNew ? '📋 Add New Appointment' : editMode ? '✏️ Edit Appointment' : '🔧 Manage Appointment'}
+                  <h3 className="text-3xl font-bold tracking-tight text-amber-900">
+                    {isAddingNew ? '✨ New Appointment' : editMode ? '📝 Edit Appointment' : '⚙️ Manage Appointment'}
                   </h3>
-                  <p className="text-rose-100 mt-1">
-                    {isAddingNew ? 'Create a new grooming appointment' : editMode ? 'Update appointment details' : 'Quick actions and status updates'}
+                  <p className="text-amber-700 mt-2 text-sm opacity-90">
+                    {isAddingNew ? 'Schedule a new grooming service' : editMode ? 'Update appointment information' : 'Quick status updates and actions'}
                   </p>
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+                  className="text-amber-800 hover:bg-amber-200/30 rounded-full p-3 transition-all duration-300 hover:scale-110 hover:rotate-90"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1328,84 +1414,111 @@ const AppointmentManagement: React.FC = () => {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto bg-white">
               
               {!editMode && selectedAppointment && !isAddingNew ? (
-                <>
-                  {/* Manage Mode - Quick Status Update */}
-                  <div className="mb-4">
-                    <p className="text-sm text-gray-600 mb-2">
-                      <strong>Client:</strong> {selectedAppointment.client?.name || 'Unknown client'}
-                    </p>
-                    <p className="text-sm text-gray-600 mb-2">
-                      <strong>Date:</strong> {selectedAppointment.date ? formatDate(selectedAppointment.date) : 'No date'} at {selectedAppointment.time ? formatTime(selectedAppointment.time) : 'No time'}
-                    </p>
-                    <p className="text-sm text-gray-600 mb-4">
-                      <strong>Current Status:</strong> 
-                      <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        selectedAppointment.status && statusColors[selectedAppointment.status] 
-                          ? statusColors[selectedAppointment.status] 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {selectedAppointment.status ? 
-                          selectedAppointment.status.charAt(0).toUpperCase() + selectedAppointment.status.slice(1) : 
-                          'Unknown'
-                        }
-                      </span>
-                    </p>
-                  </div>
+                <React.Fragment>
+                  {/* Quick Management Mode - Clean Design */}
+                  <div className="p-8">
+                    {/* Client Info Card */}
+                    <div className="bg-amber-50 rounded-2xl p-6 border border-amber-200 shadow-sm mb-6">
+                      <h4 className="text-lg font-semibold text-amber-900 mb-4 flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        Appointment Details
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-amber-700 font-medium">Client</p>
+                          <p className="text-amber-900 font-semibold">{selectedAppointment.client?.name || 'Unknown client'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-amber-700 font-medium">Date & Time</p>
+                          <p className="text-amber-900 font-semibold">
+                            {selectedAppointment.date ? formatDate(selectedAppointment.date) : 'No date'} at {selectedAppointment.time ? formatTime(selectedAppointment.time) : 'No time'}
+                          </p>
+                        </div>
+                        <div className="md:col-span-2">
+                          <p className="text-sm text-amber-700 font-medium">Current Status</p>
+                          <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${
+                            selectedAppointment.status && statusColors[selectedAppointment.status] 
+                              ? statusColors[selectedAppointment.status] 
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {selectedAppointment.status ? 
+                              selectedAppointment.status.charAt(0).toUpperCase() + selectedAppointment.status.slice(1).replace('-', ' ') : 
+                              'Unknown'
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Update Status:
-                    </label>
-                    <div className="space-y-2">
-                      {['pending', 'confirmed', 'in-progress', 'completed', 'cancelled'].map((status) => (
+                    {/* Status Update Section */}
+                    <div className="bg-amber-50 rounded-2xl p-6 border border-amber-200 shadow-sm mb-6">
+                      <h4 className="text-lg font-semibold text-amber-900 mb-4 flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Update Status
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {['pending', 'confirmed', 'in-progress', 'completed', 'cancelled'].map((status) => (
+                          <button
+                            key={status}
+                            onClick={() => updateAppointmentStatus(selectedAppointment.id, status)}
+                            className={`px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 transform hover:scale-105 ${
+                              selectedAppointment.status === status
+                                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg'
+                                : 'bg-white border border-amber-200 text-amber-800 hover:bg-amber-100 hover:border-amber-300'
+                            }`}
+                          >
+                            {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-col sm:flex-row justify-between gap-4">
+                      <button
+                        onClick={() => deleteAppointment(selectedAppointment.id)}
+                        className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold flex items-center justify-center"
+                      >
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete Appointment
+                      </button>
+                      <div className="flex gap-3">
                         <button
-                          key={status}
-                          onClick={() => updateAppointmentStatus(selectedAppointment.id, status)}
-                          className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                            selectedAppointment.status === status
-                              ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                              : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                          }`}
+                          onClick={() => setShowModal(false)}
+                          className="px-6 py-3 bg-white border border-amber-200 text-amber-800 rounded-xl hover:bg-amber-50 hover:border-amber-300 transition-all duration-300 font-semibold"
                         >
-                          {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
+                          Cancel
                         </button>
-                      ))}
+                        <button
+                          onClick={() => openEditModal(selectedAppointment)}
+                          className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold flex items-center"
+                        >
+                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Full Edit
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="flex justify-between">
-                    <button
-                      onClick={() => deleteAppointment(selectedAppointment.id)}
-                      className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
-                    >
-                      Delete
-                    </button>
-                    <div className="space-x-2">
-                      <button
-                        onClick={() => openEditModal(selectedAppointment)}
-                        className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
-                      >
-                        Full Edit
-                      </button>
-                      <button
-                        onClick={() => setShowModal(false)}
-                        className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                </>
+                </React.Fragment>
               ) : (
-                <>
-                  {/* Edit Mode - Full Form */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Client Information */}
-                    <div className="space-y-4">
-                      <h4 className="text-md font-medium text-gray-900">Client Information</h4>
+                <React.Fragment>
+                  {/* Edit Mode - Redesigned to Match BookingPage */}
+                  <div className="p-8 bg-gradient-to-br from-cream-50 to-amber-50 space-y-8">
+                    
+                    {/* Client Information Section */}
+                    <div>
+                      <h2 className="text-2xl font-semibold text-amber-900 mb-6">Client Information</h2>
                       
                       <ClientSearch
                         onClientSelect={(client) => {
@@ -1438,102 +1551,289 @@ const AppointmentManagement: React.FC = () => {
                       />
                     </div>
 
-                    {/* Appointment Details */}
-                    <div className="space-y-4">
-                      <h4 className="text-md font-medium text-gray-900">Appointment Details</h4>
+                    {/* Appointment Details Section */}
+                    <div>
+                      <h2 className="text-2xl font-semibold text-amber-900 mb-6">Appointment Details</h2>
                       
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                        <input
-                          type="date"
-                          value={editForm.date}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, date: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-amber-800 mb-2">
+                            Date *
+                          </label>
+                          <input
+                            type="date"
+                            required
+                            value={editForm.date}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, date: e.target.value }))}
+                            className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                          />
+                        </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
-                        <input
-                          type="text"
-                          value={editForm.time}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, time: e.target.value }))}
-                          placeholder="e.g., 10:00 AM"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
+                        <div>
+                          <label className="block text-sm font-medium text-amber-800 mb-2">
+                            Time *
+                          </label>
+                          <select
+                            required
+                            value={editForm.time}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, time: e.target.value }))}
+                            className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                          >
+                            <option value="">Select a time</option>
+                            {['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'].map((time) => (
+                              <option key={time} value={time}>{time}</option>
+                            ))}
+                          </select>
+                        </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                        <select
-                          value={editForm.status}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, status: e.target.value as Appointment['status'] }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="in-progress">In Progress</option>
-                          <option value="completed">Completed</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                      </div>
+                        <div>
+                          <label className="block text-sm font-medium text-amber-800 mb-2">
+                            Status
+                          </label>
+                          <select
+                            value={editForm.status}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, status: e.target.value as Appointment['status'] }))}
+                            className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Services</label>
-                        <div className="space-y-2">
-                          {Object.entries(serviceNames).map(([serviceId, serviceName]) => (
-                            <label key={serviceId} className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={editForm.services.includes(serviceId)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setEditForm(prev => ({
-                                      ...prev,
-                                      services: [...prev.services, serviceId]
-                                    }));
-                                  } else {
-                                    setEditForm(prev => ({
-                                      ...prev,
-                                      services: prev.services.filter(s => s !== serviceId)
-                                    }));
-                                  }
-                                }}
-                                className="mr-2"
-                              />
-                              <span className="text-sm">{serviceName}</span>
-                            </label>
-                          ))}
+                        <div>
+                          <label className="block text-sm font-medium text-amber-800 mb-2">
+                            Estimated Duration (minutes)
+                          </label>
+                          <input
+                            type="number"
+                            value={editForm.estimatedDuration}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, estimatedDuration: e.target.value }))}
+                            className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                            placeholder="60"
+                          />
                         </div>
                       </div>
+                    </div>
 
+                    {/* Services Section */}
+                    <div>
+                      <h2 className="text-2xl font-semibold text-amber-900 mb-6">Services</h2>
+                      
+                      <div className="border border-amber-200 rounded-xl p-6 bg-white/50 backdrop-blur-sm">
+                        <div className="space-y-6">
+                          {/* Full Service Grooming Option */}
+                          <div className="border-b border-amber-200 pb-4">
+                            <div className="text-lg font-medium text-amber-800 mb-4">
+                              Primary Service
+                            </div>
+                            <div className="flex items-center space-x-3">
+                              <input
+                                type="checkbox"
+                                id="fullService"
+                                checked={editForm.includeFullService}
+                                onChange={(e) => {
+                                  setEditForm(prev => ({
+                                    ...prev,
+                                    includeFullService: e.target.checked
+                                  }));
+                                }}
+                                className="w-5 h-5 text-rose-500 border-amber-300 rounded focus:ring-rose-400"
+                              />
+                              <label 
+                                htmlFor="fullService"
+                                className="text-amber-800 font-medium cursor-pointer"
+                              >
+                                Full Service Grooming (Bath, Cut, Nail Trim, Ear Cleaning)
+                              </label>
+                            </div>
+                            <p className="text-sm text-amber-600 mt-2 ml-8">
+                              Uncheck this to offer only additional services below
+                            </p>
+                          </div>
+
+                          {/* Additional Services */}
+                          <div>
+                            <div className="text-lg font-medium text-amber-800 mb-4">
+                              Additional Services
+                            </div>
+                          
+                          <div className="grid md:grid-cols-2 gap-4">
+                            {addons.map((addon) => (
+                              <div key={addon.code} className="flex items-center space-x-3">
+                                <input
+                                  type="checkbox"
+                                  id={`service-${addon.code}`}
+                                  checked={editForm.services.includes(addon.code)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setEditForm(prev => ({
+                                        ...prev,
+                                        services: [...prev.services, addon.code]
+                                      }));
+                                    } else {
+                                      setEditForm(prev => ({
+                                        ...prev,
+                                        services: prev.services.filter(s => s !== addon.code)
+                                      }));
+                                    }
+                                  }}
+                                  className="w-5 h-5 text-rose-500 border-amber-300 rounded focus:ring-rose-400"
+                                />
+                                <label 
+                                  htmlFor={`service-${addon.code}`}
+                                  className="text-amber-800 font-medium cursor-pointer"
+                                >
+                                  {addon.name} - ${addon.price}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Additional Notes Section */}
+                    <div>
+                      <label className="block text-sm font-medium text-amber-800 mb-2">
+                        Additional Notes
+                      </label>
+                      <textarea
+                        rows={4}
+                        placeholder="Any additional information or special requests..."
+                        value={editForm.notes}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                        className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                      />
+                    </div>
+
+                    {/* Price Summary Section */}
+                    {editForm.client.pets && editForm.client.pets.length > 0 && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                        <textarea
-                          value={editForm.notes}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
-                          rows={3}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                        <h2 className="text-2xl font-semibold text-amber-900 mb-6">Price Summary</h2>
+                        
+                        <div className="bg-gradient-to-br from-amber-50 to-rose-50 rounded-2xl shadow-xl p-6 border border-amber-200/50">
+                          <h3 className="text-lg font-semibold text-amber-900 mb-4">Service Pricing</h3>
+                          
+                          {/* Grooming Services */}
+                          {editForm.includeFullService && (
+                            <div className="space-y-4 mb-6">
+                              <h4 className="text-md font-medium text-amber-800">Full Service Grooming</h4>
+                              {editForm.client.pets.map((pet, index) => {
+                                const price = getBreedPrice(pet);
+                                return (
+                                  <div key={index} className="flex justify-between items-center py-2 border-b border-amber-200/50">
+                                    <div>
+                                      <p className="text-sm font-medium text-amber-900">
+                                        {pet.name || `Pet #${index + 1}`}
+                                      </p>
+                                      <p className="text-xs text-amber-700">
+                                        {pet.breed || 'Breed not specified'}
+                                      </p>
+                                    </div>
+                                    <span className="text-lg font-semibold text-amber-900">
+                                      ${price.toFixed(2)}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Additional Services */}
+                          {editForm.services.length > 0 && (
+                            <div className="space-y-4 mb-6">
+                              <h4 className="text-md font-medium text-amber-800">Additional Services</h4>
+                              {editForm.services.map((serviceId) => {
+                                const service = addons.find(addon => addon.code === serviceId);
+                                const servicePrice = getServicePrice(serviceId);
+                                const totalServicePrice = servicePrice * editForm.client.pets.length;
+                                return service ? (
+                                  <div key={serviceId} className="flex justify-between items-center py-2 border-b border-amber-200/50">
+                                    <div>
+                                      <p className="text-sm font-medium text-amber-900">{service.name}</p>
+                                      <p className="text-xs text-amber-700">
+                                        ${servicePrice.toFixed(2)} × {editForm.client.pets.length} pet{editForm.client.pets.length > 1 ? 's' : ''}
+                                      </p>
+                                    </div>
+                                    <span className="text-lg font-semibold text-amber-900">
+                                      ${totalServicePrice.toFixed(2)}
+                                    </span>
+                                  </div>
+                                ) : null;
+                              })}
+                            </div>
+                          )}
+
+                          {/* Total */}
+                          <div className="border-t-2 border-amber-300 pt-4">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xl font-bold text-amber-900">Total Estimate</span>
+                              <span className="text-2xl font-bold text-rose-600">
+                                ${appointmentTotal.toFixed(2)}
+                              </span>
+                            </div>
+                            <p className="text-xs text-amber-700 mt-2 text-center">
+                              Final pricing may vary based on pet condition and specific requirements
+                            </p>
+                          </div>
+
+                          {/* Quick Pricing Reference */}
+                          <div className="mt-6 p-4 bg-white/60 rounded-xl border border-amber-200">
+                            <h5 className="text-sm font-semibold text-amber-800 mb-3">Quick Pricing Reference</h5>
+                            <div className="grid grid-cols-2 gap-2 text-xs text-amber-700">
+                              <div className="flex justify-between">
+                                <span>Small (0-15 lbs)</span>
+                                <span>$75</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Medium (16-40 lbs)</span>
+                                <span>$100</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Large (41-70 lbs)</span>
+                                <span>$125</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>X Large (71-90 lbs)</span>
+                                <span>$150</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>XX Large (91+ lbs)</span>
+                                <span>$175</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Cats</span>
+                                <span>$85</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="border-t border-amber-200 pt-6">
+                      <div className="flex flex-col sm:flex-row justify-between gap-4">
+                        <button
+                          onClick={cancelEdit}
+                          className="px-6 py-3 bg-gradient-to-r from-gray-300 to-gray-400 text-gray-700 rounded-xl hover:from-gray-400 hover:to-gray-500 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={saveAppointmentChanges}
+                          className="px-8 py-3 bg-gradient-to-r from-rose-500 to-rose-600 text-white rounded-xl hover:from-rose-600 hover:to-rose-700 hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-semibold"
+                        >
+                          {isAddingNew ? 'Create Appointment' : 'Save Changes'}
+                        </button>
+                      </div>
                       </div>
                     </div>
                   </div>
-
-                  <div className="flex justify-between mt-6 pt-4 border-t border-gray-200">
-                    <button
-                      onClick={cancelEdit}
-                      className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={saveAppointmentChanges}
-                      className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-4 py-2 rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all duration-200"
-                    >
-                      Save Changes
-                    </button>
-                  </div>
-                </>
+                </React.Fragment>
               )}
             </div>
           </div>

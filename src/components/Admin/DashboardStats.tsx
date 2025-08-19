@@ -19,7 +19,11 @@ export default function DashboardStats() {
   const token = useMemo(() => localStorage.getItem('auth_token') || '', [user]);
 
   const fetchStats = useCallback(async () => {
-    if (!token || !isLoading) return;
+    console.log('DashboardStats: fetchStats called', { token: !!token, isLoading, user: !!user });
+    if (!token || isLoading) {
+      console.log('DashboardStats: Skipping fetch - no token or still loading');
+      return;
+    }
     let isMounted = true;
     
     try {
@@ -41,6 +45,7 @@ export default function DashboardStats() {
       }
       
       const data = (await res.json()) as Stats;
+      console.log('DashboardStats: Received data:', data);
       if (isMounted) setStats(data);
     } catch (e: any) {
       if (isMounted) setError(e?.message || 'Failed to load stats');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../../contexts/ToastContext';
 import type { Pet, Client } from '../../types';
 
@@ -7,6 +7,7 @@ const ClientManagement: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalClients, setTotalClients] = useState(0);
@@ -37,9 +38,26 @@ const ClientManagement: React.FC = () => {
 
   const itemsPerPage = 12;
 
+  // Debounce search term to avoid excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500); // 500ms delay for debouncing
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    if (debouncedSearchTerm !== searchTerm) {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearchTerm]);
+
+  // Fetch clients when page or debounced search term changes
   useEffect(() => {
     fetchClients();
-  }, [currentPage, searchTerm]);
+  }, [currentPage, debouncedSearchTerm]);
 
   const fetchClients = async () => {
     try {
@@ -47,7 +65,7 @@ const ClientManagement: React.FC = () => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: itemsPerPage.toString(),
-        ...(searchTerm && { search: searchTerm })
+        ...(debouncedSearchTerm && { search: debouncedSearchTerm })
       });
 
       const apiUrl = `http://localhost:5001/api/clients?${params}`;
@@ -84,10 +102,32 @@ const ClientManagement: React.FC = () => {
           });
           
           const uniqueClients = Array.from(clientsMap.values());
-          setClients(uniqueClients);
-          setTotalPages(Math.ceil(uniqueClients.length / itemsPerPage));
-          setTotalClients(uniqueClients.length);
-          console.log('Fallback successful, extracted clients:', uniqueClients);
+          
+          // Apply client-side filtering if we have a search term
+          let filteredClients = uniqueClients;
+          if (debouncedSearchTerm) {
+            const searchLower = debouncedSearchTerm.toLowerCase();
+            filteredClients = uniqueClients.filter(client => 
+              client.name?.toLowerCase().includes(searchLower) ||
+              client.email?.toLowerCase().includes(searchLower) ||
+              client.phone?.toLowerCase().includes(searchLower) ||
+              client.address?.toLowerCase().includes(searchLower) ||
+              client.pets?.some((pet: any) => 
+                pet.name?.toLowerCase().includes(searchLower) ||
+                pet.breed?.toLowerCase().includes(searchLower)
+              )
+            );
+          }
+          
+          // Apply pagination to filtered results
+          const startIndex = (currentPage - 1) * itemsPerPage;
+          const endIndex = startIndex + itemsPerPage;
+          const paginatedClients = filteredClients.slice(startIndex, endIndex);
+          
+          setClients(paginatedClients);
+          setTotalPages(Math.ceil(filteredClients.length / itemsPerPage));
+          setTotalClients(filteredClients.length);
+          console.log('Fallback successful, extracted and filtered clients:', paginatedClients);
           return;
         }
       }
@@ -112,10 +152,10 @@ const ClientManagement: React.FC = () => {
     }
   };
 
-  const handleSearch = (term: string) => {
+  const handleSearch = useCallback((term: string) => {
     setSearchTerm(term);
-    setCurrentPage(1);
-  };
+    // The page reset will be handled by the useEffect above when debouncedSearchTerm changes
+  }, []);
 
   const openClientModal = (client: Client) => {
     setSelectedClient(client);
@@ -384,14 +424,45 @@ const ClientManagement: React.FC = () => {
         
         {/* Search and View Toggle */}
         <div className="flex justify-between items-center mb-6">
-          <div className="flex-1 max-w-md">
-            <input
-              type="text"
-              placeholder="Search clients by name, email, phone, or address..."
-              value={searchTerm}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          <div className="flex-1 max-w-md relative">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search clients by name, email, phone, or address..."
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="w-full px-4 py-3 pl-10 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
+              />
+              <svg 
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-amber-600" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              {searchTerm && (
+                <button
+                  onClick={() => handleSearch('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-600 hover:text-amber-800 transition-colors"
+                  title="Clear search"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+              {searchTerm && searchTerm !== debouncedSearchTerm && (
+                <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600"></div>
+                </div>
+              )}
+            </div>
+            {debouncedSearchTerm && (
+              <div className="mt-1 text-xs text-amber-600">
+                Searching for "{debouncedSearchTerm}"...
+              </div>
+            )}
           </div>
           
           <div className="flex bg-gray-100 rounded-lg p-1">
@@ -750,23 +821,28 @@ const ClientManagement: React.FC = () => {
                   
                   <div>
                     <div className="flex justify-between items-center mb-3">
-                      <label className="block text-sm font-medium text-gray-700">Pets</label>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Pets</label>
+                        {clientForm.pets.length > 2 && (
+                          <p className="text-xs text-gray-500 mt-1">Scroll down to see all pets</p>
+                        )}
+                      </div>
                       <button
                         onClick={addPet}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                       >
                         + Add Pet
                       </button>
                     </div>
                     
-                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                    <div className="space-y-3 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50/50">
                       {clientForm.pets.map((pet, index) => (
-                        <div key={index} className="bg-gray-50 p-3 rounded-lg">
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="text-sm font-medium">Pet {index + 1}</span>
+                        <div key={index} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                          <div className="flex justify-between items-start mb-3">
+                            <span className="text-sm font-semibold text-gray-700">Pet {index + 1}</span>
                             <button
                               onClick={() => removePet(index)}
-                              className="text-red-600 hover:text-red-800 text-sm"
+                              className="text-red-600 hover:text-red-800 text-sm font-medium"
                             >
                               Remove
                             </button>
@@ -1001,23 +1077,28 @@ const ClientManagement: React.FC = () => {
                 
                 <div>
                   <div className="flex justify-between items-center mb-3">
-                    <label className="block text-sm font-medium text-gray-700">Pets</label>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Pets</label>
+                      {clientForm.pets.length > 2 && (
+                        <p className="text-xs text-gray-500 mt-1">Scroll down to see all pets</p>
+                      )}
+                    </div>
                     <button
                       onClick={addPet}
-                      className="text-blue-600 hover:text-blue-800 text-sm"
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                     >
                       + Add Pet
                     </button>
                   </div>
                   
-                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                  <div className="space-y-3 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50/50">
                     {clientForm.pets.map((pet, index) => (
-                      <div key={index} className="bg-gray-50 p-3 rounded-lg">
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-sm font-medium">Pet {index + 1}</span>
+                      <div key={index} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                        <div className="flex justify-between items-start mb-3">
+                          <span className="text-sm font-semibold text-gray-700">Pet {index + 1}</span>
                           <button
                             onClick={() => removePet(index)}
-                            className="text-red-600 hover:text-red-800 text-sm"
+                            className="text-red-600 hover:text-red-800 text-sm font-medium"
                           >
                             Remove
                           </button>

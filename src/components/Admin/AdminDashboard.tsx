@@ -28,7 +28,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   const renderDashboard = () => (
-    <>
+    <div className="space-y-8">
       <div className="mb-8">
         <DashboardStats />
       </div>
@@ -79,7 +79,7 @@ const AdminDashboard: React.FC = () => {
         <TodaySchedule />
         <RecentActivity />
       </div>
-    </>
+    </div>
   );
 
   return (

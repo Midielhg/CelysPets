@@ -27,8 +27,7 @@ export default function TodaySchedule() {
     let mounted = true;
     try {
       if (isLoading) {
-        setLoading(true);
-        return;
+        return; // Wait for auth to finish loading
       }
       setLoading(true);
       setError(null);

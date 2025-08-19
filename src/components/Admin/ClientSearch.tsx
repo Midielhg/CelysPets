@@ -162,9 +162,9 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
   }, []);
 
   return (
-    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+    <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl p-6 border border-amber-100">
       <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-        <span className="bg-purple-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">🔍</span>
+        <span className="bg-amber-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">🔍</span>
         Client Search & Management
       </h4>
 
@@ -181,7 +181,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
               }
             }}
             placeholder="Search clients by name, email, or phone..."
-            className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
           />
           <svg
             className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
@@ -193,7 +193,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
           </svg>
           {isSearching && (
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-500"></div>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-amber-500"></div>
             </div>
           )}
         </div>
@@ -207,7 +207,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
                   <button
                     key={client.id}
                     onClick={() => handleClientSelect(client)}
-                    className="w-full text-left px-4 py-3 hover:bg-purple-50 border-b border-gray-100 last:border-b-0"
+                    className="w-full text-left px-4 py-3 hover:bg-amber-50 border-b border-gray-100 last:border-b-0"
                   >
                     <div className="font-medium text-gray-900">{client.name}</div>
                     <div className="text-sm text-gray-600">{client.email} • {client.phone}</div>
@@ -220,7 +220,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
                     setShowResults(false);
                     setNewClientForm(prev => ({ ...prev, name: searchQuery }));
                   }}
-                  className="w-full text-left px-4 py-3 text-purple-600 hover:bg-purple-50 border-t border-purple-200"
+                  className="w-full text-left px-4 py-3 text-amber-600 hover:bg-amber-50 border-t border-amber-200"
                 >
                   <div className="flex items-center">
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -237,7 +237,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
                   setShowResults(false);
                   setNewClientForm(prev => ({ ...prev, name: searchQuery }));
                 }}
-                className="w-full text-left px-4 py-3 text-purple-600 hover:bg-purple-50"
+                className="w-full text-left px-4 py-3 text-amber-600 hover:bg-amber-50"
               >
                 <div className="flex items-center">
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -253,7 +253,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
 
       {/* Selected Client Information */}
       {selectedClient && selectedClient.id && (
-        <div className="bg-white rounded-lg p-4 border border-purple-200 mb-6">
+        <div className="bg-white rounded-lg p-4 border border-amber-200 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h5 className="font-medium text-gray-900">Selected Client</h5>
             <button
@@ -276,7 +276,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
                 type="text"
                 value={selectedClient.name}
                 onChange={(e) => onClientUpdate({ ...selectedClient, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
             <div>
@@ -285,7 +285,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
                 type="email"
                 value={selectedClient.email}
                 onChange={(e) => onClientUpdate({ ...selectedClient, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
             <div>
@@ -294,13 +294,13 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
                 type="tel"
                 value={selectedClient.phone}
                 onChange={(e) => onClientUpdate({ ...selectedClient, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
             <div className="md:col-span-1">
               <button
                 onClick={updateClient}
-                className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md font-medium transition-colors"
+                className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-md font-medium transition-colors"
               >
                 Update Client
               </button>
@@ -313,7 +313,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
               value={selectedClient.address}
               onChange={(e) => onClientUpdate({ ...selectedClient, address: e.target.value })}
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
           </div>
 
@@ -326,7 +326,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
                   const newPets = [...selectedClient.pets, { name: '', breed: '', age: 0, weight: '', type: 'dog' as const }];
                   onClientUpdate({ ...selectedClient, pets: newPets });
                 }}
-                className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+                className="text-amber-600 hover:text-amber-800 text-sm font-medium"
               >
                 + Add Pet
               </button>
@@ -334,9 +334,9 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
             
             <div className="space-y-3">
               {selectedClient.pets.map((pet, index) => (
-                <div key={index} className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                <div key={index} className="bg-amber-50 rounded-lg p-3 border border-amber-200">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-purple-700">Pet #{index + 1}</span>
+                    <span className="text-sm font-medium text-amber-700">Pet #{index + 1}</span>
                     <button
                       onClick={() => {
                         const newPets = selectedClient.pets.filter((_, i) => i !== index);
@@ -357,7 +357,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
                         onClientUpdate({ ...selectedClient, pets: newPets });
                       }}
                       placeholder="Pet name"
-                      className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
                     />
                     <input
                       type="text"
@@ -368,7 +368,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
                         onClientUpdate({ ...selectedClient, pets: newPets });
                       }}
                       placeholder="Breed"
-                      className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
                     />
                     <select
                       value={pet.type || 'dog'}
@@ -377,7 +377,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
                         newPets[index] = { ...pet, type: e.target.value as 'dog' | 'cat' };
                         onClientUpdate({ ...selectedClient, pets: newPets });
                       }}
-                      className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
                     >
                       <option value="dog">Dog</option>
                       <option value="cat">Cat</option>
@@ -391,7 +391,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
                         onClientUpdate({ ...selectedClient, pets: newPets });
                       }}
                       placeholder="Age"
-                      className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
                     />
                   </div>
                 </div>
@@ -403,7 +403,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
 
       {/* Create New Client Form */}
       {showCreateForm && (
-        <div className="bg-white rounded-lg p-4 border border-purple-200">
+        <div className="bg-white rounded-lg p-4 border border-amber-200">
           <div className="flex items-center justify-between mb-4">
             <h5 className="font-medium text-gray-900">Create New Client</h5>
             <button
@@ -423,7 +423,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
                 type="text"
                 value={newClientForm.name}
                 onChange={(e) => setNewClientForm(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
             <div>
@@ -432,7 +432,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
                 type="email"
                 value={newClientForm.email}
                 onChange={(e) => setNewClientForm(prev => ({ ...prev, email: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
             <div>
@@ -441,7 +441,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
                 type="tel"
                 value={newClientForm.phone}
                 onChange={(e) => setNewClientForm(prev => ({ ...prev, phone: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
           </div>
@@ -452,7 +452,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
               value={newClientForm.address}
               onChange={(e) => setNewClientForm(prev => ({ ...prev, address: e.target.value }))}
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
           </div>
 
@@ -460,7 +460,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
             <button
               onClick={createNewClient}
               disabled={isCreating || !newClientForm.name || !newClientForm.email}
-              className="bg-purple-500 hover:bg-purple-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-md font-medium transition-colors"
+              className="bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-md font-medium transition-colors"
             >
               {isCreating ? 'Creating...' : 'Create Client'}
             </button>
