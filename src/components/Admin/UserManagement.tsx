@@ -3,6 +3,7 @@ import { Search, Edit, Trash2, Users, UserCheck, UserCog, Shield } from 'lucide-
 import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
 import DeleteUserModal from './DeleteUserModal';
+import { apiUrl } from '../../config/api';
 
 interface User {
   id: number;
@@ -63,7 +64,7 @@ const UserManagement: React.FC = () => {
         ...(role !== 'all' && { role })
       });
 
-      const response = await fetch(`http://localhost:5001/api/users?${params}`, {
+      const response = await fetch(apiUrl(`/users?${params}`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -88,7 +89,7 @@ const UserManagement: React.FC = () => {
   const fetchUserStats = useCallback(async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:5001/api/users/stats/overview`, {
+      const response = await fetch(apiUrl('/users/stats/overview'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -156,7 +157,7 @@ const UserManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:5001/api/users/bulk-update-roles`, {
+      const response = await fetch(apiUrl('/users/bulk-update-roles'), {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

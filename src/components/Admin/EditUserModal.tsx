@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Lock, Shield } from 'lucide-react';
+import { apiUrl } from '../../config/api';
 
 interface User {
   id: number;
@@ -74,7 +75,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
         updateData.password = formData.password;
       }
 
-      const response = await fetch(`http://localhost:5001/api/users/${user.id}`, {
+      const response = await fetch(apiUrl(`/users/${user.id}`), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

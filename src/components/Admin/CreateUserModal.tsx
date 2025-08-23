@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, Mail, Lock, Shield } from 'lucide-react';
+import { apiUrl } from '../../config/api';
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -40,7 +41,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:5001/api/users`, {
+      const response = await fetch(apiUrl('/users'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { apiUrl } from '../../config/api';
 
 interface ClientInfo { name: string; address: string; }
 interface AppointmentItem {
@@ -34,7 +35,7 @@ export default function TodaySchedule() {
       
       // Use the same authentication method as AppointmentManagement
       const token = localStorage.getItem('auth_token');
-      const url = `http://localhost:5001/api/appointments?date=${todayISO}`;
+      const url = apiUrl(`/appointments?date=${todayISO}`);
       
       const res = await fetch(url, { 
         headers: {

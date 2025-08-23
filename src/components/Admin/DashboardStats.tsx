@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { apiUrl } from '../../config/api';
 
 type Stats = {
   totalRevenue: number;
@@ -30,7 +31,7 @@ export default function DashboardStats() {
       setLoading(true);
       setError(null);
       
-      const url = 'http://localhost:5001/api/dashboard/stats';
+      const url = apiUrl('/dashboard/stats');
       const res = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../../contexts/ToastContext';
 import type { Pet, Client } from '../../types';
+import { apiUrl } from '../../config/api';
 
 const ClientManagement: React.FC = () => {
   const { showToast } = useToast();
@@ -68,17 +69,17 @@ const ClientManagement: React.FC = () => {
         ...(debouncedSearchTerm && { search: debouncedSearchTerm })
       });
 
-      const apiUrl = `http://localhost:5001/api/clients?${params}`;
-      console.log('Fetching clients from:', apiUrl);
+      const clientApiUrl = apiUrl(`/clients?${params}`);
+      console.log('Fetching clients from:', clientApiUrl);
 
-      let response = await fetch(apiUrl);
+      let response = await fetch(clientApiUrl);
       console.log('Response status:', response.status);
       console.log('Response ok:', response.ok);
 
       // Fallback to appointments API if clients API fails
       if (!response.ok) {
         console.log('Clients API failed, trying appointments API as fallback...');
-        const fallbackUrl = `http://localhost:5001/api/appointments`;
+        const fallbackUrl = apiUrl('/appointments');
         response = await fetch(fallbackUrl);
         
         if (response.ok) {

@@ -8,6 +8,7 @@ import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import './calendar-styles.css';
 import { useToast } from '../../contexts/ToastContext';
 import type { Pet, Appointment, Client } from '../../types';
+import { apiUrl } from '../../config/api';
 import GoogleMapRoute from '../GoogleMapRoute';
 import ClientSearch from './ClientSearch';
 
@@ -296,7 +297,6 @@ const AppointmentManagement: React.FC = () => {
   const [viewMode, setViewMode] = useState<'calendar' | 'table'>('calendar');
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [calendarView, setCalendarView] = useState<View>('week');
-  const [groomers, setGroomers] = useState<Array<{id: string, name: string, email: string}>>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [breeds, setBreeds] = useState<Array<{id: number, name: string, species: string, fullGroomPrice: string}>>([]);
   const [addons, setAddons] = useState<Array<{id: string, code: string, name: string, price: string, description: string}>>([]);
@@ -331,21 +331,6 @@ const AppointmentManagement: React.FC = () => {
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
-  };
-
-  // Helper function to convert 12-hour format to 24-hour format
-  const convertTo24Hour = (time12h: string) => {
-    if (!time12h.includes('AM') && !time12h.includes('PM')) return time12h;
-    
-    const [time, modifier] = time12h.split(' ');
-    let [hours, minutes] = time.split(':');
-    if (hours === '12') {
-      hours = '00';
-    }
-    if (modifier === 'PM') {
-      hours = String(parseInt(hours, 10) + 12);
-    }
-    return `${hours}:${minutes}`;
   };
 
   // Convert appointments to calendar events
@@ -400,41 +385,8 @@ const AppointmentManagement: React.FC = () => {
 
   useEffect(() => {
     fetchAppointments();
-    fetchGroomers();
     fetchBreedsAndAddons();
   }, []);
-
-  const fetchGroomers = async () => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:5001/api/users/groomers', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setGroomers(data);
-      } else {
-        console.error('Failed to fetch groomers');
-        // Set some mock groomers for now
-        setGroomers([
-          { id: '1', name: 'Sarah Johnson', email: 'sarah@celyspets.com' },
-          { id: '2', name: 'Mike Rodriguez', email: 'mike@celyspets.com' },
-          { id: '3', name: 'Emily Chen', email: 'emily@celyspets.com' }
-        ]);
-      }
-    } catch (error) {
-      console.error('Error fetching groomers:', error);
-      // Set some mock groomers for now
-      setGroomers([
-        { id: '1', name: 'Sarah Johnson', email: 'sarah@celyspets.com' },
-        { id: '2', name: 'Mike Rodriguez', email: 'mike@celyspets.com' },
-        { id: '3', name: 'Emily Chen', email: 'emily@celyspets.com' }
-      ]);
-    }
-  };
 
   const fetchBreedsAndAddons = async () => {
     try {
@@ -457,11 +409,6 @@ const AppointmentManagement: React.FC = () => {
   };
 
   // Pricing calculation functions (similar to BookingPage)
-  const getBreedById = (breedId: number | null) => {
-    if (!breedId) return null;
-    return breeds.find(breed => breed.id === breedId) || null;
-  };
-
   const getBreedPrice = (pet: any) => {
     if (!pet.breed) return 0;
     const breed = breeds.find(b => b.name.toLowerCase() === pet.breed.toLowerCase());
@@ -515,7 +462,7 @@ const AppointmentManagement: React.FC = () => {
   const fetchAppointments = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:5001/api/appointments', {
+      const response = await fetch(apiUrl('/appointments'), {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -540,7 +487,7 @@ const AppointmentManagement: React.FC = () => {
   const updateAppointmentStatus = async (appointmentId: string, newStatus: string) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const url = `http://localhost:5001/api/appointments/${appointmentId}`;
+      const url = apiUrl(`/appointments/${appointmentId}`);
       
       console.log('Updating appointment status:', { 
         appointmentId, 

@@ -1,8 +1,42 @@
-to create the production build run 
-npm run build -- --mode production
+## ✅ Production Deployment - LIVE
+
+**Status: DEPLOYED AND WORKING** 🎉
+
+### Live Application:
+- **Website**: https://celyspets.com
+- **API**: https://celyspets.com/api.php
+- **Admin Login**: admin@celyspets.com / admin123
+
+To create the production build and prepare for deployment:
+
+```bash
+# 1. Build the frontend
+npm run build
+
+# 2. Prepare deployment folder
 rm -rf simple-static-deploy
 mkdir -p simple-static-deploy
-cp -r dist/* simple-static-deploy/
+
+# 3. Copy frontend files
+cp dist/index.html dist/vite.svg simple-static-deploy/
+cp -r dist/assets simple-static-deploy/
+
+# 4. Copy API backend (with localhost database settings)
+cp celyspets-php-api.php simple-static-deploy/api.php
+```
+
+**Upload the `simple-static-deploy` folder contents to your hosting root directory.**
+
+### Testing & Debugging URLs:
+- **Health Check**: `https://celyspets.com/api.php` 
+- **Admin User Test**: `https://celyspets.com/api.php/test/admin`
+- **Reset Admin Password**: `POST https://celyspets.com/api.php/setup/reset-admin-password`
+- **Login**: `admin@celyspets.com` / `admin123`
+
+### Database Settings (Production):
+- **Host**: localhost
+- **Database**: celyspets_celypets  
+- **Username**: celyspets_celypets
 
 To start the servers and front end run these two commands on different terminals
 cd server && npm run dev
