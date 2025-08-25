@@ -198,7 +198,7 @@ const ClientProfile: React.FC = () => {
                     value={formData.phone}
                     onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                     className="w-full bg-white/70 backdrop-blur-sm border border-amber-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent"
-                    placeholder="(555) 123-4567"
+                    placeholder="(786) 222-3785"
                   />
                 ) : (
                   <div className="bg-white/50 rounded-lg p-3 border border-amber-200">

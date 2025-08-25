@@ -5,6 +5,27 @@ import { useAuth } from '../../contexts/AuthContext';
 import { apiUrl } from '../../config/api';
 import type { Breed, AdditionalService } from '../../types/pricing';
 
+// Validation functions
+const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const validatePhone = (phone: string): boolean => {
+  // Remove all non-digit characters
+  const cleanPhone = phone.replace(/\D/g, '');
+  // Check if it's a valid US phone number (10 digits)
+  return cleanPhone.length === 10;
+};
+
+const formatPhone = (phone: string): string => {
+  const cleanPhone = phone.replace(/\D/g, '');
+  if (cleanPhone.length === 10) {
+    return `(${cleanPhone.slice(0, 3)}) ${cleanPhone.slice(3, 6)}-${cleanPhone.slice(6)}`;
+  }
+  return phone;
+};
+
 interface Pet {
   name: string;
   type: 'dog' | 'cat';
@@ -34,6 +55,7 @@ interface BookingFormData {
   pets: Pet[];
   
   // Service Information
+  includeFullService: boolean; // New option to include full service
   additionalServices: string[];
   preferredDate: string;
   preferredTime: string;
@@ -52,6 +74,7 @@ const BookingPage: React.FC = () => {
     phone: '',
     address: '',
     pets: [], // Start with empty pets array
+    includeFullService: false, // Default to false - customer must choose
     additionalServices: [],
     preferredDate: '',
     preferredTime: '',
@@ -62,6 +85,64 @@ const BookingPage: React.FC = () => {
   const [breeds, setBreeds] = useState<Breed[]>([]);
   const [addons, setAddons] = useState<AdditionalService[]>([]);
   const [registeredPets, setRegisteredPets] = useState<RegisteredPet[]>([]);
+  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+
+  // Address autocomplete simulation (in production, use Google Places API)
+  const handleAddressChange = async (value: string) => {
+    setFormData(prev => ({ ...prev, address: value }));
+    
+    // Clear previous validation errors
+    setValidationErrors(prev => ({ ...prev, address: '' }));
+    
+    if (value.length > 3) {
+      // Simulate address suggestions (in production, use Google Places API)
+      const suggestions = [
+        `${value}, Miami, FL`,
+        `${value}, Fort Lauderdale, FL`,
+        `${value}, Hollywood, FL`,
+        `${value}, Aventura, FL`,
+        `${value}, Coral Gables, FL`
+      ];
+      setAddressSuggestions(suggestions);
+      setShowAddressSuggestions(true);
+    } else {
+      setShowAddressSuggestions(false);
+    }
+  };
+
+  const selectAddress = (address: string) => {
+    setFormData(prev => ({ ...prev, address }));
+    setShowAddressSuggestions(false);
+    setValidationErrors(prev => ({ ...prev, address: '' }));
+  };
+
+  // Validate form fields
+  const validateField = (field: string, value: string) => {
+    let error = '';
+    
+    switch (field) {
+      case 'email':
+        if (!validateEmail(value)) {
+          error = 'Please enter a valid email address';
+        }
+        break;
+      case 'phone':
+        if (!validatePhone(value)) {
+          error = 'Please enter a valid 10-digit phone number';
+        }
+        break;
+      case 'address':
+        if (value.length < 10) {
+          error = 'Please enter a complete address';
+        }
+        break;
+    }
+    
+    setValidationErrors(prev => ({ ...prev, [field]: error }));
+    return error === '';
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -175,8 +256,9 @@ const BookingPage: React.FC = () => {
   };
 
   const timeSlots = [
-    '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
-    '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'
+    'Morning (8:00 AM - 12:00 PM)',
+    'Afternoon (12:00 PM - 5:00 PM)',
+    'Evening (5:00 PM - 8:00 PM)'
   ];
 
   const handleAdditionalServiceToggle = (serviceId: string) => {
@@ -222,13 +304,16 @@ const BookingPage: React.FC = () => {
   };
 
   const calculateTotal = () => {
-    // Base grooming price for all pets
-    const groomingTotal = formData.pets.reduce((sum, pet) => sum + getBreedPrice(pet), 0);
+    // Base grooming price for all pets (only if full service is selected)
+    const groomingTotal = formData.includeFullService 
+      ? formData.pets.reduce((sum, pet) => sum + getBreedPrice(pet), 0)
+      : 0;
     
-    // Additional services (apply to all pets)
+    // Additional services (apply to all pets, or 1 if no pets)
+    const petCount = formData.pets.length > 0 ? formData.pets.length : 1;
     const additionalTotal = formData.additionalServices.reduce((sum, serviceId) => {
       const service = addons.find(addon => addon.code === serviceId);
-      return sum + (service ? Number(service.price) * formData.pets.length : 0);
+      return sum + (service ? Number(service.price) * petCount : 0);
     }, 0);
 
     return groomingTotal + additionalTotal;
@@ -239,12 +324,33 @@ const BookingPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      // Basic validation
+      // Enhanced validation
       if (!formData.customerName || !formData.email || !formData.phone || !formData.address) {
         throw new Error('Please fill in all required customer information');
       }
 
-      if (formData.pets.some(pet => !pet.name || !pet.breedId)) {
+      // Validate email format
+      if (!validateEmail(formData.email)) {
+        throw new Error('Please enter a valid email address');
+      }
+
+      // Validate phone format
+      if (!validatePhone(formData.phone)) {
+        throw new Error('Please enter a valid 10-digit phone number');
+      }
+
+      // Validate address length
+      if (formData.address.length < 10) {
+        throw new Error('Please enter a complete service address');
+      }
+
+      // Check if at least one service is selected
+      if (!formData.includeFullService && formData.additionalServices.length === 0) {
+        throw new Error('Please select at least one service (Full Service Grooming or Additional Services)');
+      }
+
+      // If full service is selected, validate pet information
+      if (formData.includeFullService && formData.pets.some(pet => !pet.name || !pet.breedId)) {
         throw new Error('Please complete all pet information including breed selection');
       }
 
@@ -252,8 +358,8 @@ const BookingPage: React.FC = () => {
         throw new Error('Please select your preferred date and time');
       }
 
-      // Prepare pets data with breed information
-      const petsWithBreeds = formData.pets.map(pet => {
+      // Prepare pets data with breed information (only if full service is selected)
+      const petsWithBreeds = formData.includeFullService ? formData.pets.map(pet => {
         const breed = getBreedById(pet.breedId);
         return {
           name: pet.name,
@@ -262,7 +368,17 @@ const BookingPage: React.FC = () => {
           weight: pet.weight,
           specialInstructions: pet.specialInstructions
         };
-      });
+      }) : [];
+
+      // Prepare services array
+      const services = [];
+      if (formData.includeFullService) {
+        services.push({ 
+          id: 'full-groom', 
+          breedPrice: formData.pets.reduce((sum, pet) => sum + getBreedPrice(pet), 0) 
+        });
+      }
+      services.push(...formData.additionalServices.map(serviceId => ({ id: serviceId })));
 
       // Submit to backend
       const response = await fetch(apiUrl('/appointments'), {
@@ -274,17 +390,16 @@ const BookingPage: React.FC = () => {
           client: {
             name: formData.customerName,
             email: formData.email,
-            phone: formData.phone,
+            phone: formatPhone(formData.phone), // Format phone number
             address: formData.address,
             pets: petsWithBreeds
           },
-          services: [
-            { id: 'full-groom', breedPrice: formData.pets.reduce((sum, pet) => sum + getBreedPrice(pet), 0) },
-            ...formData.additionalServices.map(serviceId => ({ id: serviceId }))
-          ],
+          services: services,
+          includeFullService: formData.includeFullService,
           date: formData.preferredDate,
           time: formData.preferredTime,
-          notes: formData.notes
+          notes: formData.notes,
+          totalAmount: calculateTotal()
         }),
       });
 
@@ -301,6 +416,7 @@ const BookingPage: React.FC = () => {
         phone: '',
         address: '',
         pets: [{ name: '', type: 'dog', breedId: null, weight: '', specialInstructions: '' }],
+        includeFullService: false,
         additionalServices: [],
         preferredDate: '',
         preferredTime: '',
@@ -363,9 +479,18 @@ const BookingPage: React.FC = () => {
                     type="email"
                     required
                     value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, email: e.target.value }));
+                      validateField('email', e.target.value);
+                    }}
+                    onBlur={(e) => validateField('email', e.target.value)}
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm ${
+                      validationErrors.email ? 'border-red-400' : 'border-amber-200'
+                    }`}
                   />
+                  {validationErrors.email && (
+                    <p className="text-red-600 text-sm mt-1">{validationErrors.email}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-amber-800 mb-2">
@@ -374,12 +499,22 @@ const BookingPage: React.FC = () => {
                   <input
                     type="tel"
                     required
+                    placeholder="(786) 222-3785"
                     value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, phone: e.target.value }));
+                      validateField('phone', e.target.value);
+                    }}
+                    onBlur={(e) => validateField('phone', e.target.value)}
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm ${
+                      validationErrors.phone ? 'border-red-400' : 'border-amber-200'
+                    }`}
                   />
+                  {validationErrors.phone && (
+                    <p className="text-red-600 text-sm mt-1">{validationErrors.phone}</p>
+                  )}
                 </div>
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-medium text-amber-800 mb-2">
                     Service Address *
                   </label>
@@ -388,14 +523,78 @@ const BookingPage: React.FC = () => {
                     required
                     placeholder="123 Main St, City, State, ZIP"
                     value={formData.address}
-                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                    className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    onChange={(e) => handleAddressChange(e.target.value)}
+                    onBlur={(e) => validateField('address', e.target.value)}
+                    onFocus={() => {
+                      if (formData.address.length > 3) {
+                        setShowAddressSuggestions(true);
+                      }
+                    }}
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm ${
+                      validationErrors.address ? 'border-red-400' : 'border-amber-200'
+                    }`}
                   />
+                  {validationErrors.address && (
+                    <p className="text-red-600 text-sm mt-1">{validationErrors.address}</p>
+                  )}
+                  {showAddressSuggestions && addressSuggestions.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-amber-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                      {addressSuggestions.map((suggestion, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => selectAddress(suggestion)}
+                          className="w-full text-left px-4 py-2 hover:bg-amber-50 focus:bg-amber-50 focus:outline-none border-b border-amber-100 last:border-b-0"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Pet Information */}
+            {/* Service Selection */}
+            <div>
+              <h2 className="text-2xl font-semibold text-amber-900 mb-6">Service Selection</h2>
+              <div className="border border-amber-200 rounded-xl p-6 bg-white/50 backdrop-blur-sm">
+                <div className="flex items-center space-x-3 mb-4">
+                  <input
+                    type="checkbox"
+                    id="fullService"
+                    checked={formData.includeFullService}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, includeFullService: e.target.checked }));
+                      // If unchecking full service, ensure pet array is not empty for additional services
+                      if (!e.target.checked && formData.pets.length === 0) {
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          pets: [{ name: '', type: 'dog', breedId: null, weight: '', specialInstructions: '' }]
+                        }));
+                      }
+                    }}
+                    className="w-5 h-5 text-rose-600 border-2 border-amber-300 rounded focus:ring-rose-400 focus:ring-2"
+                  />
+                  <label htmlFor="fullService" className="text-lg font-medium text-amber-900 cursor-pointer">
+                    Full Service Grooming
+                  </label>
+                </div>
+                <p className="text-amber-700 text-sm mb-4">
+                  Includes bath, brush, nail trim, ear cleaning, and professional styling based on breed.
+                </p>
+                {formData.includeFullService && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-blue-800 text-sm">
+                      <span className="font-medium">Note:</span> Please add your pet information below to see exact pricing based on breed and size.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Pet Information - Only show if full service is selected */}
+            {formData.includeFullService && (
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold text-amber-900">Pet Information</h2>
@@ -528,6 +727,7 @@ const BookingPage: React.FC = () => {
                 </div>
               ))}
             </div>
+            )}
 
             {/* Additional Services */}
             {addons.length > 0 && (
@@ -632,29 +832,31 @@ const BookingPage: React.FC = () => {
           <div className="bg-gradient-to-br from-amber-50 to-rose-50 rounded-2xl shadow-xl p-6 border border-amber-200/50 sticky top-6">
             <h3 className="text-2xl font-semibold text-amber-900 mb-6">Price Summary</h3>
             
-            {/* Grooming Services */}
-            <div className="space-y-4 mb-6">
-              <h4 className="text-lg font-medium text-amber-800">Full Service Grooming</h4>
-              {formData.pets.map((pet, index) => {
-                const breed = getBreedById(pet.breedId);
-                const price = getBreedPrice(pet);
-                return (
-                  <div key={index} className="flex justify-between items-center py-2 border-b border-amber-200/50">
-                    <div>
-                      <p className="text-sm font-medium text-amber-900">
-                        {pet.name || `Pet #${index + 1}`}
-                      </p>
-                      <p className="text-xs text-amber-700">
-                        {breed ? breed.name : 'Breed not selected'}
+            {/* Grooming Services - Only show if full service is selected */}
+            {formData.includeFullService && formData.pets.length > 0 && (
+              <div className="space-y-4 mb-6">
+                <h4 className="text-lg font-medium text-amber-800">Full Service Grooming</h4>
+                {formData.pets.map((pet, index) => {
+                  const breed = getBreedById(pet.breedId);
+                  const price = getBreedPrice(pet);
+                  return (
+                    <div key={index} className="flex justify-between items-center py-2 border-b border-amber-200/50">
+                      <div>
+                        <p className="text-sm font-medium text-amber-900">
+                          {pet.name || `Pet #${index + 1}`}
+                        </p>
+                        <p className="text-xs text-amber-700">
+                          {breed ? breed.name : 'Breed not selected'}
+                        </p>
+                      </div>
+                      <p className="text-lg font-semibold text-rose-600">
+                        ${price.toFixed(2)}
                       </p>
                     </div>
-                    <p className="text-lg font-semibold text-rose-600">
-                      ${price.toFixed(2)}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Additional Services */}
             {formData.additionalServices.length > 0 && (
@@ -664,13 +866,15 @@ const BookingPage: React.FC = () => {
                   const service = addons.find(addon => addon.code === serviceId);
                   if (!service) return null;
                   
-                  const totalPrice = Number(service.price) * formData.pets.length;
+                  // Calculate price based on number of pets (or 1 if no pets for additional services only)
+                  const petCount = formData.pets.length > 0 ? formData.pets.length : 1;
+                  const totalPrice = Number(service.price) * petCount;
                   return (
                     <div key={serviceId} className="flex justify-between items-center py-2 border-b border-amber-200/50">
                       <div>
                         <p className="text-sm font-medium text-amber-900">{service.name}</p>
                         <p className="text-xs text-amber-700">
-                          ${Number(service.price).toFixed(2)} × {formData.pets.length} pet{formData.pets.length > 1 ? 's' : ''}
+                          ${Number(service.price).toFixed(2)} × {petCount} pet{petCount > 1 ? 's' : ''}
                         </p>
                       </div>
                       <p className="text-lg font-semibold text-rose-600">
@@ -679,6 +883,16 @@ const BookingPage: React.FC = () => {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Show message if no services selected */}
+            {!formData.includeFullService && formData.additionalServices.length === 0 && (
+              <div className="text-center py-8">
+                <div className="text-4xl mb-3">🐾</div>
+                <p className="text-amber-700 text-sm">
+                  Select Full Service Grooming or Additional Services to see pricing
+                </p>
               </div>
             )}
 

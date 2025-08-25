@@ -998,7 +998,7 @@ const ClientManagement: React.FC = () => {
                         }
                       }}
                       className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="(305) 555-1234 or +1 305 555 1234"
+                      placeholder="(786) 222-3785 or +1 786 222 3785"
                     />
                     {clientForm.phone && (
                       <div className="mt-1">

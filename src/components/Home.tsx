@@ -51,9 +51,12 @@ const Home: React.FC = () => {
               >
                 📅 Book Now
               </Link>
-              <button className="bg-white/80 backdrop-blur-sm border-2 border-amber-300 text-amber-800 px-10 py-4 rounded-full text-lg font-semibold hover:bg-amber-200 hover:text-amber-900 hover:border-amber-400 transform hover:scale-105 transition-all duration-300 min-w-[220px] shadow-md hover:shadow-lg">
-                📞 Call (305) 555-PETS
-              </button>
+              <a 
+                href="tel:+17862223785"
+                className="bg-white/80 backdrop-blur-sm border-2 border-amber-300 text-amber-800 px-10 py-4 rounded-full text-lg font-semibold hover:bg-amber-200 hover:text-amber-900 hover:border-amber-400 transform hover:scale-105 transition-all duration-300 min-w-[220px] shadow-md hover:shadow-lg"
+              >
+                📞 Call (786) 222-3785
+              </a>
             </div>
             
             {/* Trust Indicators */}
