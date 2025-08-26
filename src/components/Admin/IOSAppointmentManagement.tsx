@@ -15,7 +15,7 @@ import {
   Eye
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
-import type { Appointment, Client } from '../../types';
+import type { Appointment } from '../../types';
 import { apiUrl } from '../../config/api';
 
 interface IOSAppointmentManagementProps {}
@@ -35,6 +35,178 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const [editMode, setEditMode] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [draggedAppointment, setDraggedAppointment] = useState<Appointment | null>(null);
+  const [resizing, setResizing] = useState<{ appointmentId: string; edge: 'top' | 'bottom' } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [justFinishedResizing, setJustFinishedResizing] = useState(false);
+
+  // Helper functions for time calculations
+  const parseTime = (timeStr: string): number => {
+    const [time, period] = timeStr.split(' ');
+    const [hours, minutes] = time.split(':').map(Number);
+    let totalMinutes = hours * 60 + (minutes || 0);
+    if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
+    if (period === 'AM' && hours === 12) totalMinutes = minutes || 0;
+    return totalMinutes;
+  };
+
+  const formatTimeFromMinutes = (minutes: number): string => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+    return `${displayHours}:${mins.toString().padStart(2, '0')} ${period}`;
+  };
+
+  const calculateEndTime = (startTime: string, duration: number = 60): string => {
+    const startMinutes = parseTime(startTime);
+    const endMinutes = startMinutes + duration;
+    return formatTimeFromMinutes(endMinutes);
+  };
+
+  const calculateDurationFromTimes = (startTime: string, endTime: string): number => {
+    const startMinutes = parseTime(startTime);
+    const endMinutes = parseTime(endTime);
+    return Math.max(15, endMinutes - startMinutes); // Minimum 15 minutes
+  };
+
+  const getActualDuration = (appointment: Appointment): number => {
+    // If both start and end times exist, calculate from times
+    if (appointment.time && appointment.endTime) {
+      return calculateDurationFromTimes(appointment.time, appointment.endTime);
+    }
+    // Otherwise use the duration field or default to 60 minutes
+    return appointment.duration || 60;
+  };
+
+  const getAppointmentHeight = (duration: number = 60): number => {
+    // Match the actual grid height: 64px on mobile, 80px on desktop
+    const hourHeight = window.innerWidth >= 768 ? 80 : 64;
+    return Math.max(30, (duration / 60) * hourHeight); // Minimum 30px height
+  };
+
+  const handleResizeStart = (e: React.MouseEvent, appointmentId: string, edge: 'top' | 'bottom') => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsDragging(false); // Ensure we're not in drag mode
+    setResizing({ appointmentId, edge });
+    
+    // Disable drag on the parent element while resizing
+    const appointmentElement = document.querySelector(`[data-appointment-id="${appointmentId}"]`) as HTMLElement;
+    if (appointmentElement) {
+      appointmentElement.draggable = false;
+      // Also prevent click events during resize
+      appointmentElement.style.pointerEvents = 'none';
+    }
+  };
+
+  const handleResizeMove = (e: MouseEvent) => {
+    if (!resizing) return;
+    
+    // Prevent this from interfering with drag operations
+    if (isDragging) {
+      setResizing(null);
+      return;
+    }
+    
+    const appointment = appointments.find(apt => apt.id === resizing.appointmentId);
+    if (!appointment) return;
+
+    // Calculate new time based on mouse position
+    const container = document.querySelector('.day-view-grid');
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top;
+    
+    // Each hour height matches the grid: 64px on mobile, 80px on desktop
+    const pixelsPerHour = window.innerWidth >= 768 ? 80 : 64;
+    const startTimeMinutes = 6 * 60; // 6 AM in minutes from midnight
+    
+    // Calculate new time in minutes from midnight
+    const hoursFromStart = relativeY / pixelsPerHour;
+    const totalMinutesFromMidnight = startTimeMinutes + (hoursFromStart * 60);
+    
+    // Round to nearest 15-minute interval
+    const roundedMinutes = Math.round(totalMinutesFromMidnight / 15) * 15;
+    const clampedMinutes = Math.max(startTimeMinutes, Math.min(22 * 60, roundedMinutes)); // 6 AM to 10 PM
+    
+    const newTime = formatTimeFromMinutes(clampedMinutes);
+
+    const currentStartMinutes = parseTime(appointment.time);
+    const currentDuration = appointment.duration || 60;
+    const currentEndMinutes = currentStartMinutes + currentDuration;
+
+    let updatedAppointment = { ...appointment };
+
+    if (resizing.edge === 'top') {
+      // Adjust start time, keep end time
+      const endTime = formatTimeFromMinutes(currentEndMinutes);
+      const newDuration = Math.max(15, currentEndMinutes - clampedMinutes);
+      updatedAppointment = {
+        ...appointment,
+        time: newTime,
+        duration: newDuration,
+        endTime
+      };
+    } else {
+      // Adjust end time, keep start time
+      const newEndMinutes = Math.max(currentStartMinutes + 15, clampedMinutes);
+      const newDuration = newEndMinutes - currentStartMinutes;
+      updatedAppointment = {
+        ...appointment,
+        duration: newDuration,
+        endTime: formatTimeFromMinutes(newEndMinutes)
+      };
+    }
+
+    // Update appointment only if resizing is still active
+    if (resizing) {
+      setAppointments(prev => prev.map(apt => 
+        apt.id === resizing.appointmentId ? updatedAppointment : apt
+      ));
+    }
+  };
+
+  const handleResizeEnd = () => {
+    setJustFinishedResizing(true);
+    
+    // Re-enable drag and click events on all appointment elements with a small delay
+    setTimeout(() => {
+      const appointmentElements = document.querySelectorAll('[data-appointment-id]') as NodeListOf<HTMLElement>;
+      appointmentElements.forEach(element => {
+        element.draggable = true;
+        element.style.pointerEvents = 'auto';
+      });
+      setJustFinishedResizing(false);
+    }, 100); // Small delay to prevent accidental clicks
+    
+    setResizing(null);
+  };
+
+  // Add event listeners for resize
+  useEffect(() => {
+    if (resizing && !isDragging) {
+      const handleMouseMove = (e: MouseEvent) => handleResizeMove(e);
+      const handleMouseUp = () => handleResizeEnd();
+      
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      // Also listen for escape key to cancel resize
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          handleResizeEnd();
+        }
+      };
+      document.addEventListener('keydown', handleEscape);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('keydown', handleEscape);
+      };
+    }
+  }, [resizing, isDragging]);
 
   // Sample data for demonstration (will be replaced by API data)
   useEffect(() => {
@@ -49,15 +221,18 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         {
           id: 'sample-1',
           date: today.toISOString(),
-          time: '9:00 AM',
+          time: '6:15 AM',
+          endTime: '8:00 AM',
+          duration: 105, // 1 hour 45 minutes
+          assignedGroomer: 'Maria Rodriguez',
           status: 'confirmed',
           services: ['Full Grooming', 'Nail Trim'],
           createdAt: today.toISOString(),
           updatedAt: today.toISOString(),
           client: {
             id: 'client-1',
-            name: 'Sarah Johnson',
-            email: 'sarah@example.com',
+            name: 'Greta Raya recomendado por Clariza',
+            email: 'greta@example.com',
             phone: '(555) 123-4567',
             address: '123 Main St, City, State',
             pets: [
@@ -69,6 +244,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           id: 'sample-2',
           date: tomorrow.toISOString(),
           time: '2:15 PM',
+          endTime: '3:00 PM',
+          duration: 45,
+          assignedGroomer: 'Carlos Martinez',
           status: 'pending',
           services: ['Bath & Brush'],
           createdAt: tomorrow.toISOString(),
@@ -88,6 +266,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           id: 'sample-3',
           date: today.toISOString(),
           time: '11:30 AM',
+          endTime: '1:15 PM',
+          duration: 105,
+          assignedGroomer: 'Ana Silva',
           status: 'completed',
           services: ['Full Grooming', 'Teeth Cleaning'],
           createdAt: today.toISOString(),
@@ -275,6 +456,13 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
   // Enhanced drag and drop handlers with 15-minute precision
   const handleDragStart = (e: React.DragEvent, appointment: Appointment) => {
+    // Prevent drag if we're currently resizing
+    if (resizing) {
+      e.preventDefault();
+      return;
+    }
+    
+    setIsDragging(true);
     setDraggedAppointment(appointment);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', appointment.id);
@@ -805,9 +993,6 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                               <div className="truncate opacity-90 text-xs mt-1">
                                 {appointment.time || 'No time'}
                               </div>
-                              <div className="truncate opacity-75 text-xs">
-                                {appointment.services?.slice(0, 1).join(', ') || 'No services'}
-                              </div>
                             </div>
                           );
                         });
@@ -876,7 +1061,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   </div>
                   
                   {/* Appointment area */}
-                  <div className="flex-1 relative">
+                  <div className="flex-1 relative day-view-grid">
                     {/* Single large drop zone covering entire appointment area */}
                     <div
                       className="absolute inset-0 z-10"
@@ -933,50 +1118,109 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                             draggable
                             onDragStart={(e) => handleDragStart(e, appointment)}
                             onDragEnd={(e) => {
+                              setIsDragging(false);
+                              setDraggedAppointment(null);
                               if (e.currentTarget instanceof HTMLElement) {
                                 e.currentTarget.style.opacity = '1';
                               }
                             }}
-                            onClick={() => openViewModal(appointment)}
-                            className={`absolute pointer-events-auto rounded-md cursor-move transition-all duration-200 z-20 mx-2 hover:shadow-md border-l-4 ${getStatusColors(appointment.status).bgLight} ${getStatusColors(appointment.status).border}`}
+                            onClick={() => {
+                              if (!justFinishedResizing && !resizing) {
+                                openViewModal(appointment);
+                              }
+                            }}
+                            className={`absolute pointer-events-auto rounded-md transition-all duration-200 z-20 mx-2 hover:shadow-md border-l-4 group ${getStatusColors(appointment.status).bgLight} ${getStatusColors(appointment.status).border} ${
+                              resizing?.appointmentId === appointment.id ? 'cursor-ns-resize' : 'cursor-move'
+                            }`}
                             style={{
                               top: `${topPosition}px`,
                               left: '8px',
                               right: '8px',
-                              minHeight: '40px',
-                              maxHeight: '56px',
+                              height: `${getAppointmentHeight(getActualDuration(appointment))}px`,
                             }}
-                            title={`${appointment.time || 'No time'} - ${appointment.client?.name || 'No client'} (Drag to move)`}
+                            title={`${appointment.time || 'No time'} - ${appointment.endTime || ''} - ${appointment.client?.name || 'No client'} (Drag to move)`}
                           >
-                            <div className="p-2 md:p-3">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className={`font-semibold truncate text-sm ${
+                            {/* Top resize handle - only visible on hover */}
+                            <div 
+                              className="absolute top-0 left-0 right-0 h-3 cursor-n-resize z-30 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onMouseDown={(e) => handleResizeStart(e, appointment.id, 'top')}
+                              title="Drag to adjust start time"
+                            />
+                            
+                            {/* Main content - excludes resize areas */}
+                            <div className="p-2 h-full flex overflow-hidden relative mt-1 mb-1">
+                              {/* Left side - Client info and address */}
+                              <div className="flex-1 min-w-0 flex flex-col justify-start">
+                                <div className="space-y-0.5 overflow-hidden">
+                                  {/* Client Name */}
+                                  <div className={`font-semibold truncate text-sm leading-tight ${
                                     getStatusColors(appointment.status).textDark
                                   }`}>
                                     {appointment.client?.name || 'No client'}
                                   </div>
-                                  <div className={`text-xs mt-1 truncate ${
+                                  
+                                  {/* Address - only show if there's space */}
+                                  {appointment.client?.address && (
+                                    <div className={`text-xs truncate opacity-75 leading-tight ${
+                                      getStatusColors(appointment.status).textDark
+                                    }`}>
+                                      📍 {appointment.client.address}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Time */}
+                                  <div className={`text-xs truncate opacity-90 leading-tight ${
                                     getStatusColors(appointment.status).textDark
                                   }`}>
-                                    {appointment.time || 'No time'} • {appointment.services?.slice(0, 1).join(', ') || 'No services'}
+                                    {appointment.time || 'No time'} - {appointment.endTime || calculateEndTime(appointment.time, getActualDuration(appointment))}
                                   </div>
                                 </div>
-                                
-                                {/* Action buttons - hidden on mobile, visible on hover on desktop */}
-                                <div className="hidden md:flex space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openViewModal(appointment);
-                                    }}
-                                    className="p-1 text-stone-500 hover:bg-stone-200 rounded"
-                                    title="View"
-                                  >
-                                    <Eye className="w-3 h-3" />
-                                  </button>
+                              </div>
+                              
+                              {/* Right side - Services and Groomer */}
+                              <div className="flex flex-col items-end text-right min-w-0 ml-2 justify-start">
+                                <div className="space-y-0.5 overflow-hidden">
+                                  {appointment.services && appointment.services.length > 0 && (
+                                    <div className={`text-xs truncate opacity-75 leading-tight ${
+                                      getStatusColors(appointment.status).textDark
+                                    }`}>
+                                      ✂️ {Array.isArray(appointment.services) 
+                                          ? appointment.services.slice(0, 1).join(', ')
+                                          : 'Services'
+                                        }
+                                        {appointment.services.length > 1 && ` +${appointment.services.length - 1}`}
+                                    </div>
+                                  )}
+                                  {appointment.assignedGroomer && (
+                                    <div className={`text-xs truncate opacity-75 leading-tight ${
+                                      getStatusColors(appointment.status).textDark
+                                    }`}>
+                                      👤 {appointment.assignedGroomer}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
+                            </div>
+                            
+                            {/* Bottom resize handle - only visible on hover */}
+                            <div 
+                              className="absolute bottom-0 left-0 right-0 h-3 cursor-s-resize z-30 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onMouseDown={(e) => handleResizeStart(e, appointment.id, 'bottom')}
+                              title="Drag to adjust end time"
+                            />
+                            
+                            {/* Action buttons - hidden on mobile, visible on hover on desktop */}
+                            <div className="absolute top-2 right-2 hidden md:flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openViewModal(appointment);
+                                }}
+                                className="p-1 text-stone-500 hover:bg-stone-200 rounded"
+                                title="View"
+                              >
+                                <Eye className="w-3 h-3" />
+                              </button>
                             </div>
                           </div>
                         );

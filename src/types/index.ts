@@ -30,6 +30,9 @@ export interface Appointment {
   services: string[];
   date: string;
   time: string;
+  endTime?: string;
+  duration?: number; // in minutes
+  assignedGroomer?: string;
   status: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled';
   notes?: string;
   totalAmount?: number;
