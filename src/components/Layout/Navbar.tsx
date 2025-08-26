@@ -1,12 +1,54 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { 
+  BarChart3, 
+  Calendar, 
+  Users, 
+  Settings,
+  User
+} from 'lucide-react';
 import Logo from './Logo';
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
+  const location = useLocation();
+
+  // Admin navigation items
+  const adminNavItems = [
+    {
+      id: 'overview',
+      label: 'Overview',
+      icon: BarChart3,
+      path: '/admin'
+    },
+    {
+      id: 'appointments',
+      label: 'Appointments',
+      icon: Calendar,
+      path: '/admin/appointments'
+    },
+    {
+      id: 'clients',
+      label: 'Clients',
+      icon: Users,
+      path: '/admin/clients'
+    },
+    {
+      id: 'users',
+      label: 'Users',
+      icon: User,
+      path: '/admin/users'
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: Settings,
+      path: '/admin/settings'
+    }
+  ];
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -42,13 +84,41 @@ const Navbar: React.FC = () => {
 
           {/* Navigation Links - Desktop */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link to="/" className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300">
-              Home
-            </Link>
-            {(!user || user.role !== 'admin') && (
-              <Link to="/book" className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300">
-                Book Now
-              </Link>
+            {user?.role === 'admin' ? (
+              /* Admin Navigation Tabs */
+              <div className="flex items-center space-x-6">
+                {adminNavItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path || 
+                    (item.id === 'overview' && location.pathname === '/admin');
+                  return (
+                    <Link
+                      key={item.id}
+                      to={item.path}
+                      className={`flex items-center px-3 py-2 text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'text-blue-600 border-b-2 border-blue-500'
+                          : 'text-amber-800 hover:text-rose-600'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 mr-2" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Regular User Navigation */
+              <>
+                <Link to="/" className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300">
+                  Home
+                </Link>
+                {!user && (
+                  <Link to="/book" className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300">
+                    Book Now
+                  </Link>
+                )}
+              </>
             )}
             
             {user ? (
@@ -59,14 +129,6 @@ const Navbar: React.FC = () => {
                     className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300"
                   >
                     Dashboard
-                  </Link>
-                )}
-                {user.role === 'admin' && (
-                  <Link 
-                    to="/admin" 
-                    className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300"
-                  >
-                    Admin
                   </Link>
                 )}
                 <button
@@ -119,21 +181,50 @@ const Navbar: React.FC = () => {
           isMobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
         }`}>
           <div className="px-4 pt-2 pb-4 space-y-2">
-            <Link 
-              to="/" 
-              className="block py-3 px-2 text-amber-800 hover:text-rose-600 hover:bg-orange-100/30 rounded-lg font-medium transition-all duration-300"
-              onClick={closeMobileMenu}
-            >
-              Home
-            </Link>
-            {(!user || user.role !== 'admin') && (
-              <Link 
-                to="/book" 
-                className="block py-3 px-2 text-amber-800 hover:text-rose-600 hover:bg-orange-100/30 rounded-lg font-medium transition-all duration-300"
-                onClick={closeMobileMenu}
-              >
-                Book Now
-              </Link>
+            {user?.role === 'admin' ? (
+              /* Admin Mobile Navigation */
+              <>
+                {adminNavItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path || 
+                    (item.id === 'overview' && location.pathname === '/admin');
+                  return (
+                    <Link
+                      key={item.id}
+                      to={item.path}
+                      className={`flex items-center py-3 px-2 rounded-lg font-medium transition-all duration-300 ${
+                        isActive
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'text-amber-800 hover:text-rose-600 hover:bg-orange-100/30'
+                      }`}
+                      onClick={closeMobileMenu}
+                    >
+                      <Icon className="w-5 h-5 mr-3" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </>
+            ) : (
+              /* Regular User Mobile Navigation */
+              <>
+                <Link 
+                  to="/" 
+                  className="block py-3 px-2 text-amber-800 hover:text-rose-600 hover:bg-orange-100/30 rounded-lg font-medium transition-all duration-300"
+                  onClick={closeMobileMenu}
+                >
+                  Home
+                </Link>
+                {!user && (
+                  <Link 
+                    to="/book" 
+                    className="block py-3 px-2 text-amber-800 hover:text-rose-600 hover:bg-orange-100/30 rounded-lg font-medium transition-all duration-300"
+                    onClick={closeMobileMenu}
+                  >
+                    Book Now
+                  </Link>
+                )}
+              </>
             )}
             
             {user ? (
@@ -146,24 +237,6 @@ const Navbar: React.FC = () => {
                   >
                     Dashboard
                   </Link>
-                )}
-                {user.role === 'admin' && (
-                  <>
-                    <Link 
-                      to="/admin" 
-                      className="block py-3 px-2 text-amber-800 hover:text-rose-600 hover:bg-orange-100/30 rounded-lg font-medium transition-all duration-300"
-                      onClick={closeMobileMenu}
-                    >
-                      Admin
-                    </Link>
-                    <Link 
-                      to="/admin/routes" 
-                      className="block py-3 px-2 text-amber-800 hover:text-rose-600 hover:bg-orange-100/30 rounded-lg font-medium transition-all duration-300"
-                      onClick={closeMobileMenu}
-                    >
-                      🗺️ Routes
-                    </Link>
-                  </>
                 )}
                 <button
                   onClick={() => {

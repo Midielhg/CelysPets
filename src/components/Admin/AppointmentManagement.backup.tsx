@@ -951,10 +951,11 @@ const AppointmentManagement: React.FC = () => {
         <p className="text-amber-700 text-sm lg:text-base">Manage and organize all pet grooming appointments</p>
         
         {/* View Toggle and Filter Buttons */}
-        <div className="flex justify-between items-center mb-4 mt-6">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mt-6">
+          {/* Filter Buttons - Mobile Optimized */}
           <div className="flex flex-wrap gap-2">
             {[
-              { key: 'all', label: 'All Appointments' },
+              { key: 'all', label: 'All' },
               { key: 'today', label: 'Today' },
               { key: 'pending', label: 'Pending' },
               { key: 'confirmed', label: 'Confirmed' },
@@ -963,7 +964,7 @@ const AppointmentManagement: React.FC = () => {
               <button
                 key={key}
                 onClick={() => setFilter(key as any)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-3 py-2 lg:px-4 lg:py-2 rounded-lg font-medium text-sm lg:text-base transition-colors ${
                   filter === key
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -975,7 +976,7 @@ const AppointmentManagement: React.FC = () => {
           </div>
           
           {/* Add Appointment and View Toggle */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <button
               onClick={() => {
                 const now = new Date();
@@ -1003,7 +1004,7 @@ const AppointmentManagement: React.FC = () => {
                 setEditMode(true);
                 setShowModal(true);
               }}
-              className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-6 py-3 rounded-full hover:from-rose-600 hover:to-rose-700 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold"
+              className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-4 py-2 lg:px-6 lg:py-3 rounded-full hover:from-rose-600 hover:to-rose-700 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold text-sm lg:text-base"
             >
               + Add Appointment
             </button>
@@ -1011,23 +1012,25 @@ const AppointmentManagement: React.FC = () => {
             <div className="flex bg-gray-100 rounded-lg p-1">
               <button
                 onClick={() => setViewMode('calendar')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`px-3 py-2 lg:px-4 lg:py-2 rounded-md text-xs lg:text-sm font-medium transition-colors ${
                   viewMode === 'calendar'
                     ? 'bg-white text-blue-600 shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                📅 Calendar
+                <span className="hidden sm:inline">📅 Calendar</span>
+                <span className="sm:hidden">📅</span>
               </button>
               <button
                 onClick={() => setViewMode('table')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`px-3 py-2 lg:px-4 lg:py-2 rounded-md text-xs lg:text-sm font-medium transition-colors ${
                   viewMode === 'table'
                     ? 'bg-white text-blue-600 shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                📋 Table
+                <span className="hidden sm:inline">📋 Table</span>
+                <span className="sm:hidden">📋</span>
               </button>
             </div>
           </div>
@@ -1037,18 +1040,36 @@ const AppointmentManagement: React.FC = () => {
       {/* Main Content - Calendar or Table View */}
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
         {filteredAppointments.length === 0 ? (
-          <div className="text-center py-12">
-            <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="text-center py-8 lg:py-12 px-4">
+            <svg className="w-10 h-10 lg:w-12 lg:h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <p className="text-gray-500 text-lg">No appointments found</p>
-            <p className="text-gray-400">Appointments will appear here when customers book services</p>
+            <p className="text-gray-500 text-base lg:text-lg">No appointments found</p>
+            <p className="text-gray-400 text-sm lg:text-base">Appointments will appear here when customers book services</p>
           </div>
         ) : viewMode === 'calendar' ? (
-          /* Calendar View */
-          <div className="p-4" style={{ height: '700px' }}>
-            {/* Calendar Toolbar */}
-            <div className="flex justify-between items-center mb-4">
+          /* Calendar View - Responsive */
+          <div className="p-2 lg:p-4">
+            {/* Mobile Calendar Header */}
+            <div className="lg:hidden mb-4 bg-gray-50 rounded-lg p-3">
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={handleToday}
+                  className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+                >
+                  Today
+                </button>
+                <span className="text-sm font-semibold text-gray-700">
+                  {moment(calendarDate).format('MMM YYYY')}
+                </span>
+                <div className="text-xs text-gray-500">
+                  {calendarView}
+                </div>
+              </div>
+            </div>
+            
+            {/* Desktop Calendar Header */}
+            <div className="hidden lg:flex justify-between items-center mb-4">
               <div className="flex items-center space-x-2">
                 <button
                   onClick={handleToday}
@@ -1065,7 +1086,9 @@ const AppointmentManagement: React.FC = () => {
               </div>
             </div>
             
-            <DragAndDropCalendar
+            {/* Calendar Container - Responsive Height */}
+            <div className="calendar-container" style={{ height: window.innerWidth < 768 ? '400px' : '700px' }}>
+              <DragAndDropCalendar
               localizer={localizer}
               events={calendarEvents}
               startAccessor={(event: any) => event.start}
@@ -1132,72 +1155,143 @@ const AppointmentManagement: React.FC = () => {
               min={new Date(2025, 0, 1, 7, 0, 0)} // 7 AM
               max={new Date(2025, 0, 1, 19, 0, 0)} // 7 PM
             />
-          </div>
+            </div>
         ) : (
-          /* Table View */
-          (() => {
-            try {
-              return (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Date & Time
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Client
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Pet(s)
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Services
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredAppointments.map((appointment) => {
-                        try {
-                          return (
-                            <tr key={appointment.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {appointment.date ? formatDate(appointment.date) : 'No date'}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {appointment.time ? formatTime(appointment.time) : 'No time'}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {appointment.client?.name || 'No client name'}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {appointment.client?.phone || 'No phone'}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {appointment.client?.address || 'No address'}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">
-                                  {appointment.client?.pets && Array.isArray(appointment.client.pets) ? 
-                                    appointment.client.pets.map((pet, index) => (
-                                      <div key={index} className="mb-1">
-                                        <span className="font-medium">{pet?.name || 'Unknown pet'}</span>
-                                        <span className="text-gray-500"> ({pet?.breed || 'Unknown breed'})</span>
-                                        {pet?.type && <span className="text-xs text-blue-600"> - {pet.type}</span>}
-                                      </div>
-                                    )) : 
-                                    <div className="text-gray-400">No pets listed</div>
-                                  }
+          /* Table View - Mobile Optimized */
+          <div className="overflow-x-auto">
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-4 p-4">
+              {filteredAppointments.map((appointment) => (
+                <div key={appointment.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{appointment.client?.name || 'No client name'}</h3>
+                      <p className="text-sm text-gray-600">{appointment.client?.phone || 'No phone'}</p>
+                    </div>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                      appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      appointment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                      appointment.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {appointment.status}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-600 mb-2">
+                    <div className="flex justify-between">
+                      <span>{appointment.date ? formatDate(appointment.date) : 'No date'}</span>
+                      <span>{appointment.time ? formatTime(appointment.time) : 'No time'}</span>
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-600 mb-3">
+                    {appointment.client?.pets && Array.isArray(appointment.client.pets) ? 
+                      appointment.client.pets.map((pet, index) => (
+                        <div key={index} className="mb-1">
+                          <span className="font-medium">{pet?.name || 'Unknown pet'}</span>
+                          <span className="text-gray-500"> ({pet?.breed || 'Unknown breed'})</span>
+                        </div>
+                      )) : 
+                      <div className="text-gray-400">No pets listed</div>
+                    }
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <button
+                      onClick={() => {
+                        setSelectedAppointment(appointment);
+                        setEditMode(false);
+                        setIsAddingNew(false);
+                        setShowModal(true);
+                      }}
+                      className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                    >
+                      View
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedAppointment(appointment);
+                        setEditForm({
+                          client: appointment.client || { name: '', email: '', phone: '', address: '', pets: [] },
+                          services: appointment.services || [],
+                          includeFullService: true,
+                          date: appointment.date || '',
+                          time: appointment.time || '',
+                          status: appointment.status || 'pending',
+                          notes: appointment.notes || '',
+                          groomerId: appointment.groomerId || null,
+                          estimatedDuration: appointment.estimatedDuration || '60'
+                        });
+                        setEditMode(true);
+                        setIsAddingNew(false);
+                        setShowModal(true);
+                      }}
+                      className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Desktop Table View */}
+            <table className="hidden lg:table min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date & Time
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Client
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Pet(s)
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Services
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredAppointments.map((appointment) => (
+                  <tr key={appointment.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {appointment.date ? formatDate(appointment.date) : 'No date'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {appointment.time ? formatTime(appointment.time) : 'No time'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {appointment.client?.name || 'No client name'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {appointment.client?.phone || 'No phone'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {appointment.client?.address || 'No address'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {appointment.client?.pets && Array.isArray(appointment.client.pets) ? 
+                          appointment.client.pets.map((pet, index) => (
+                            <div key={index} className="mb-1">
+                              <span className="font-medium">{pet?.name || 'Unknown pet'}</span>
+                              <span className="text-gray-500"> ({pet?.breed || 'Unknown breed'})</span>
+                              {pet?.type && <span className="text-xs text-blue-600"> - {pet.type}</span>}
+                            </div>
+                          )) : 
+                          <div className="text-gray-400">No pets listed</div>
+                        }
                                 </div>
                               </td>
                     <td className="px-6 py-4">
