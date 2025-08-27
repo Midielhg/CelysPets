@@ -26,7 +26,7 @@ import pricingRouter from './routes/pricing';
 import clientRouter from './routes/client';
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = Number(process.env.PORT) || 5001;
 
 // Security middleware
 app.use(helmet({
@@ -41,6 +41,9 @@ const allowedOrigins = [
   'http://localhost:5176', // Alternative local port
   'http://localhost:5177', // Alternative local port
   'http://localhost:3000', // Alternative local port
+  'http://10.0.0.158:5174', // Network IP for mobile testing (current port)
+  'http://10.0.0.158:5175', // Network IP for mobile testing
+  'http://10.0.0.158:5176', // Network IP for mobile testing
   'https://your-domain.com', // Replace with your actual domain
   'https://www.your-domain.com', // Replace with your actual domain
   'https://your-vercel-app.vercel.app', // Replace with your actual Vercel URL
@@ -79,6 +82,17 @@ app.use('/api/', limiter);
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Request logging middleware for debugging
+app.use((req, res, next) => {
+  console.log(`🌐 ${new Date().toISOString()} - ${req.method} ${req.url} from ${req.ip}`);
+  console.log('🔗 Origin:', req.headers.origin);
+  console.log('📋 Headers:', JSON.stringify(req.headers, null, 2));
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('📦 Body:', JSON.stringify(req.body, null, 2));
+  }
+  next();
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -143,10 +157,11 @@ const startServer = async () => {
     await connectDatabase();
     
     // Start the server
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+      console.log(`🌐 Network access: http://10.0.0.158:${PORT}/health`);
       if (process.env.NODE_ENV === 'development') {
         console.log(`📋 API docs: http://localhost:${PORT}/api`);
       }

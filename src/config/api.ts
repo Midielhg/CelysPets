@@ -3,10 +3,16 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:50
 export const apiUrl = (path: string) => {
   // If VITE_API_URL already includes the full path (like for PHP), use it directly
   if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.includes('.php')) {
-    return `${import.meta.env.VITE_API_URL}${path.startsWith('/') ? path : `/${path}`}`;
+    const url = `${import.meta.env.VITE_API_URL}${path.startsWith('/') ? path : `/${path}`}`;
+    console.log('🔗 API URL (PHP mode):', url);
+    return url;
   }
   // Otherwise use the base URL pattern
-  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+  const url = `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+  console.log('🔗 API URL (standard mode):', url);
+  console.log('🔗 VITE_API_URL:', import.meta.env.VITE_API_URL);
+  console.log('🔗 API_BASE_URL:', API_BASE_URL);
+  return url;
 };
 
 if (typeof window !== 'undefined') {

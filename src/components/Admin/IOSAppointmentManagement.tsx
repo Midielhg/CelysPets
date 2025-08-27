@@ -27,7 +27,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day' | 'list'>('month');
+  const [viewMode, setViewMode] = useState<'month' | 'week' | '4day' | 'day'>('month');
   const [filter, setFilter] = useState<'all' | 'today' | 'pending' | 'confirmed' | 'completed'>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -79,8 +79,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   };
 
   const getAppointmentHeight = (duration: number = 60): number => {
-    // Match the actual grid height: 64px on mobile, 80px on desktop
-    const hourHeight = window.innerWidth >= 768 ? 80 : 64;
+    // Match the actual grid height: 48px on mobile, 64px on desktop
+    const hourHeight = window.innerWidth >= 768 ? 64 : 48;
     return Math.max(30, (duration / 60) * hourHeight); // Minimum 30px height
   };
 
@@ -347,6 +347,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       newDate.setMonth(selectedDate.getMonth() + (direction === 'next' ? 1 : -1));
     } else if (viewMode === 'week') {
       newDate.setDate(selectedDate.getDate() + (direction === 'next' ? 7 : -7));
+    } else if (viewMode === '4day') {
+      newDate.setDate(selectedDate.getDate() + (direction === 'next' ? 4 : -4));
     } else if (viewMode === 'day') {
       newDate.setDate(selectedDate.getDate() + (direction === 'next' ? 1 : -1));
     }
@@ -652,60 +654,106 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const filteredAppointments = getFilteredAppointments();
 
   return (
-    <div className="bg-gradient-to-br from-stone-50 to-neutral-50 rounded-lg shadow-sm border border-stone-200 overflow-hidden">
+    <div className="bg-gradient-to-br from-stone-50 to-neutral-50 md:rounded-lg md:shadow-sm md:border md:border-stone-200 overflow-hidden">
       {/* iOS-style Header */}
       <div className="bg-gradient-to-r from-stone-50 to-neutral-50 border-b border-stone-200">
-        <div className="px-4 py-6">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-semibold text-stone-800">
-              {selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+        <div className="px-2 md:px-4 py-4 md:py-6">
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <h1 className="text-lg md:text-2xl font-semibold text-stone-800">
+              {viewMode === 'month' && selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              {viewMode === 'week' && (() => {
+                const currentDate = new Date(selectedDate);
+                const startOfWeek = new Date(currentDate.setDate(currentDate.getDate() - currentDate.getDay()));
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 6);
+                
+                const startMonth = startOfWeek.toLocaleDateString('en-US', { month: 'short' });
+                const endMonth = endOfWeek.toLocaleDateString('en-US', { month: 'short' });
+                const year = startOfWeek.getFullYear();
+                
+                if (startMonth === endMonth) {
+                  return `${startMonth} ${startOfWeek.getDate()}-${endOfWeek.getDate()}, ${year}`;
+                } else {
+                  return `${startMonth} ${startOfWeek.getDate()} - ${endMonth} ${endOfWeek.getDate()}, ${year}`;
+                }
+              })()}
+              {viewMode === '4day' && (() => {
+                const startDate = new Date(selectedDate);
+                const endDate = new Date(selectedDate);
+                endDate.setDate(startDate.getDate() + 3);
+                
+                const startMonth = startDate.toLocaleDateString('en-US', { month: 'short' });
+                const endMonth = endDate.toLocaleDateString('en-US', { month: 'short' });
+                const year = startDate.getFullYear();
+                
+                if (startMonth === endMonth) {
+                  return `${startMonth} ${startDate.getDate()}-${endDate.getDate()}, ${year}`;
+                } else {
+                  return `${startMonth} ${startDate.getDate()} - ${endMonth} ${endDate.getDate()}, ${year}`;
+                }
+              })()}
+              {viewMode === 'day' && selectedDate.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                month: 'long', 
+                day: 'numeric', 
+                year: 'numeric' 
+              })}
             </h1>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1 md:space-x-2">
               <button
                 onClick={goToToday}
-                className="px-3 py-1 text-sm font-medium text-stone-600 bg-white rounded-full border border-stone-300 hover:bg-stone-50 transition-colors"
+                className="px-2 md:px-3 py-1 text-xs md:text-sm font-medium text-stone-600 bg-white rounded-full border border-stone-300 hover:bg-stone-50 transition-colors"
               >
                 Today
               </button>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-white rounded-full transition-colors"
+                className="p-1.5 md:p-2 text-gray-500 hover:text-gray-700 hover:bg-white rounded-full transition-colors"
               >
-                <Filter className="w-5 h-5" />
+                <Filter className="w-4 h-4 md:w-5 md:h-5" />
               </button>
             </div>
           </div>
 
           {/* View Mode Selector */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-1 bg-white rounded-lg p-1 shadow-sm">
-              {(['month', 'week', 'day', 'list'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                    viewMode === mode
-                      ? 'bg-stone-600 text-white shadow-sm'
-                      : 'text-stone-600 hover:text-stone-800 hover:bg-stone-100'
-                  }`}
-                >
-                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                </button>
-              ))}
+            <div className="flex items-center space-x-1 bg-white rounded-lg p-0.5 md:p-1 shadow-sm">
+              {(['month', 'week', '4day', 'day'] as const).map((mode) => {
+                const labelMap = {
+                  'month': 'Month',
+                  'week': 'Week', 
+                  '4day': '4-Day',
+                  'day': 'Day'
+                };
+                
+                return (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className={`px-2 md:px-3 py-1 text-xs md:text-sm font-medium rounded-md transition-colors ${
+                      viewMode === mode
+                        ? 'bg-stone-600 text-white shadow-sm'
+                        : 'text-stone-600 hover:text-stone-800 hover:bg-stone-100'
+                    }`}
+                  >
+                    {labelMap[mode]}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="flex items-center space-x-2">
-                            <button
+            <div className="flex items-center space-x-1 md:space-x-2">
+              <button
                 onClick={() => navigateDate('prev')}
-                className="p-2 text-stone-500 hover:text-stone-700 hover:bg-stone-100 rounded-full transition-colors"
+                className="p-1.5 md:p-2 text-stone-500 hover:text-stone-700 hover:bg-stone-100 rounded-full transition-colors"
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
               </button>
               <button
                 onClick={() => navigateDate('next')}
-                className="p-2 text-stone-500 hover:text-stone-700 hover:bg-stone-100 rounded-full transition-colors"
+                className="p-1.5 md:p-2 text-stone-500 hover:text-stone-700 hover:bg-stone-100 rounded-full transition-colors"
               >
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
               </button>
             </div>
           </div>
@@ -713,8 +761,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
         {/* Filters */}
         {showFilters && (
-          <div className="px-4 pb-4 border-t border-gray-200 bg-white">
-            <div className="flex flex-wrap gap-2 pt-4">
+          <div className="px-2 md:px-4 pb-3 md:pb-4 border-t border-gray-200 bg-white">
+            <div className="flex flex-wrap gap-1 md:gap-2 pt-3 md:pt-4">
               {[
                 { key: 'all', label: 'All' },
                 { key: 'today', label: 'Today' },
@@ -741,7 +789,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   <button
                     key={key}
                     onClick={() => setFilter(key as any)}
-                    className={`px-3 py-1 text-sm font-medium rounded-full transition-colors ${getFilterColors()}`}
+                    className={`px-2 md:px-3 py-1 text-xs md:text-sm font-medium rounded-full transition-colors ${getFilterColors()}`}
                   >
                     {label}
                   </button>
@@ -753,14 +801,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       </div>
 
       {/* Calendar Content */}
-      <div className="p-4">
+      <div className="p-1 md:p-4">
         {viewMode === 'month' && (
-          <div className="space-y-4">
+          <div className="space-y-2 md:space-y-4">
             {/* Month Grid */}
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-px md:gap-1">
               {/* Day headers */}
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+                <div key={day} className="p-1 md:p-2 text-center text-xs md:text-sm font-medium text-gray-500">
                   {day}
                 </div>
               ))}
@@ -776,45 +824,55 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   <div
                     key={index}
                     onClick={() => setSelectedDate(day)}
-                    className={`relative p-2 min-h-[60px] cursor-pointer rounded-lg border transition-colors ${
+                    className={`relative p-1 md:p-2 min-h-[80px] md:min-h-[100px] cursor-pointer md:rounded-lg border-0 md:border transition-colors ${
                       isSelected
-                        ? 'bg-stone-50 border-stone-200'
+                        ? 'bg-stone-100 md:bg-stone-50 md:border-stone-200'
                         : isCurrentMonth
-                        ? 'bg-white border-stone-100 hover:bg-stone-50'
-                        : 'bg-stone-50 border-stone-100 text-stone-400'
+                        ? 'bg-white md:border-stone-100 hover:bg-stone-50'
+                        : 'bg-stone-50 md:border-stone-100 text-stone-400'
                     }`}
+                    style={{
+                      borderRight: '1px solid #e5e7eb'
+                    }}
                   >
-                    <div className={`text-sm font-medium ${
+                    <div className={`text-xs md:text-sm font-medium mb-1 flex justify-center ${
                       isTodayDate && isCurrentMonth
-                        ? 'bg-stone-600 text-white rounded-full w-6 h-6 flex items-center justify-center'
+                        ? 'bg-stone-600 text-white rounded-full w-5 h-5 md:w-6 md:h-6 items-center justify-center text-xs mx-auto'
                         : ''
                     }`}>
                       {day.getDate()}
                     </div>
                     
-                    {/* Appointment indicators */}
+                    {/* Appointment indicators - Mobile Optimized */}
                     {dayAppointments.length > 0 && (
-                      <div className="mt-1 space-y-1">
-                        {dayAppointments.slice(0, 2).map((apt, aptIndex) => (
+                      <div className="space-y-0.5 md:space-y-1">
+                        {dayAppointments.slice(0, 5).map((apt, aptIndex) => (
                           <div
                             key={aptIndex}
-                            className={`text-xs px-1 py-0.5 rounded cursor-pointer hover:opacity-80 transition-opacity ${
-                              getStatusColors(apt.status).bg
-                            } ${getStatusColors(apt.status).text}`}
-                            onClick={() => openViewModal(apt)}
-                            title={`${apt.time || 'No time'} - ${apt.client?.name || 'No client'} (${apt.status})`}
+                            className={`text-xs px-1 py-0.5 rounded cursor-pointer hover:opacity-80 transition-opacity border-l-2 ${
+                              getStatusColors(apt.status).bgLight
+                            } ${getStatusColors(apt.status).textDark} ${getStatusColors(apt.status).border}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openViewModal(apt);
+                            }}
+                            title={`${apt.time || 'No time'} - ${apt.client?.name || 'No client'} - ${apt.services?.join(', ') || 'No services'} (${apt.status})`}
                           >
-                            <div className="truncate font-medium leading-tight">
-                              {apt.client?.name || 'No client'}
-                            </div>
-                            <div className="truncate text-xs opacity-90">
-                              {apt.time || 'No time'}
+                            <div className="flex items-center justify-between leading-tight">
+                              <div className="truncate font-medium text-xs flex-1 min-w-0">
+                                {apt.client?.name?.split(' ')[0] || 'No client'}
+                              </div>
+                              {apt.time && (
+                                <div className="hidden sm:block text-xs opacity-75 ml-1 flex-shrink-0">
+                                  {apt.time?.replace(' ', '') || ''}
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
-                        {dayAppointments.length > 2 && (
-                          <div className="text-xs text-gray-500 text-center">
-                            +{dayAppointments.length - 2} more
+                        {dayAppointments.length > 5 && (
+                          <div className="text-xs text-gray-500 text-center font-medium">
+                            +{dayAppointments.length - 5}
                           </div>
                         )}
                       </div>
@@ -828,45 +886,52 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
         {/* Week View */}
         {viewMode === 'week' && (
-          <div className="space-y-4">
+          <div className="space-y-2 md:space-y-4">
             {/* Week Header with Days */}
-            <div className="grid grid-cols-8 gap-1 mb-4 bg-gray-50 rounded-lg p-2">
-              {/* Empty corner cell for time column */}
-              <div className="p-2 text-xs font-medium text-gray-500">Time</div>
-              {Array.from({ length: 7 }, (_, i) => {
-                const currentDate = new Date(selectedDate);
-                const startOfWeek = new Date(currentDate.setDate(currentDate.getDate() - currentDate.getDay()));
-                const dayDate = new Date(startOfWeek);
-                dayDate.setDate(startOfWeek.getDate() + i);
-                const isTodayDate = isToday(dayDate);
-                
-                return (
-                  <div key={i} className="text-center py-2">
-                    <div className="text-xs text-stone-500 mb-1">
-                      {dayDate.toLocaleDateString('en-US', { weekday: 'short' })}
-                    </div>
-                    <div className={`text-sm font-semibold ${
-                      isTodayDate 
-                        ? 'bg-stone-600 text-white rounded-full w-7 h-7 flex items-center justify-center mx-auto' 
-                        : 'text-stone-800'
-                    }`}>
-                      {dayDate.getDate()}
-                    </div>
-                    <div className="text-xs text-stone-400 mt-1">
-                      {dayDate.toLocaleDateString('en-US', { month: 'short' })}
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="bg-gray-50 rounded-lg p-1 md:p-2 mb-2 md:mb-4">
+              <div className="flex">
+                {/* Time column header - matches content width */}
+                <div className="w-10 md:w-16 p-1 md:p-2 text-xs font-medium text-gray-500 text-center">
+                  Time
+                </div>
+                {/* Day headers */}
+                <div className="flex-1 grid grid-cols-7 gap-px md:gap-1">
+                  {Array.from({ length: 7 }, (_, i) => {
+                    const currentDate = new Date(selectedDate);
+                    const startOfWeek = new Date(currentDate.setDate(currentDate.getDate() - currentDate.getDay()));
+                    const dayDate = new Date(startOfWeek);
+                    dayDate.setDate(startOfWeek.getDate() + i);
+                    const isTodayDate = isToday(dayDate);
+                    
+                    return (
+                      <div key={i} className="text-center py-1 md:py-2">
+                        <div className="text-xs text-stone-500 mb-1">
+                          {dayDate.toLocaleDateString('en-US', { weekday: 'short' })}
+                        </div>
+                        <div className={`text-xs md:text-sm font-semibold ${
+                          isTodayDate 
+                            ? 'bg-stone-600 text-white rounded-full w-5 h-5 md:w-7 md:h-7 flex items-center justify-center mx-auto text-xs' 
+                            : 'text-stone-800'
+                        }`}>
+                          {dayDate.getDate()}
+                        </div>
+                        <div className="text-xs text-stone-400 mt-1 hidden md:block">
+                          {dayDate.toLocaleDateString('en-US', { month: 'short' })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
             
             {/* Time Grid */}
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="bg-white md:rounded-lg border-0 md:border border-gray-200 overflow-hidden">
               <div className="relative">
                 {/* Time slots */}
                 <div className="flex">
-                  {/* Time column */}
-                  <div className="w-16 md:w-20 border-r border-gray-200">
+                  {/* Time column - Mobile Optimized */}
+                  <div className="w-10 md:w-16 border-r border-gray-200">
                     {Array.from({ length: 17 }, (_, hourIndex) => {
                       const hour = hourIndex + 6; // Start from 6 AM
                       const timeLabel = hour === 12 ? '12' : 
@@ -876,9 +941,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                       const period = hour >= 12 ? 'PM' : 'AM';
                       
                       return (
-                        <div key={hourIndex} className="h-16 md:h-20 flex items-center justify-end border-b-2 border-gray-200 last:border-b-0">
-                          <div className="text-xs text-gray-500 mr-2 text-right">
-                            <div className="font-medium">{timeLabel}</div>
+                        <div key={hourIndex} className="h-12 md:h-16 flex items-center justify-end border-b border-gray-200 last:border-b-0">
+                          <div className="text-xs text-gray-500 mr-1 md:mr-2 text-right">
+                            <div className="font-medium text-xs">{timeLabel}</div>
                             <div className="text-xs opacity-75">{period}</div>
                           </div>
                         </div>
@@ -924,7 +989,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                           {Array.from({ length: 17 }, (_, hourIndex) => (
                             <div 
                               key={hourIndex} 
-                              className="h-16 md:h-20 border-b-2 border-gray-200 last:border-b-0 relative pointer-events-none"
+                              className="h-12 md:h-16 border-b border-gray-200 last:border-b-0 relative pointer-events-none"
                             >
                               {/* 15-minute markers */}
                               <div className="absolute inset-0">
@@ -955,8 +1020,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                           const startMinutes = 360; // 6 AM
                           const relativeMinutes = appointmentMinutes - startMinutes;
                           
-                          // Each hour is 64px (h-16) or 80px (h-20), calculate based on screen size
-                          const hourHeight = window.innerWidth >= 768 ? 80 : 64; // md:h-20 vs h-16
+                          // Match the heights used in day view: 48px mobile, 64px desktop
+                          const hourHeight = window.innerWidth >= 768 ? 64 : 48;
                           const topPosition = Math.max(0, (relativeMinutes * hourHeight) / 60);
                           
                           // Skip if appointment is outside visible hours
@@ -976,23 +1041,36 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                 }
                               }}
                               onClick={() => openViewModal(appointment)}
-                              className={`absolute pointer-events-auto text-xs p-2 mx-1 rounded-lg cursor-move shadow-sm hover:shadow-md transition-all duration-200 z-30 ${
-                                getStatusColors(appointment.status).bg
-                              } ${getStatusColors(appointment.status).text}`}
+                              className={`absolute pointer-events-auto text-xs p-0.5 md:p-1 mx-0.5 rounded cursor-move shadow-sm hover:shadow-md transition-all duration-200 z-30 border-l-2 ${
+                                getStatusColors(appointment.status).bgLight
+                              } ${getStatusColors(appointment.status).textDark} ${getStatusColors(appointment.status).border}`}
                               style={{
                                 top: `${topPosition}px`,
-                                left: `${(dayIndex * (100 / 7)) + 1}%`,
-                                width: `${(100 / 7) - 2}%`,
-                                height: `${Math.min(hourHeight - 4, 52)}px`,
+                                left: `${(dayIndex * (100 / 7)) + 0.5}%`,
+                                width: `${(100 / 7) - 1}%`,
+                                height: `${Math.min(hourHeight - 4, getAppointmentHeight(getActualDuration(appointment)))}px`,
                               }}
                               title={`${appointment.time || 'No time'} - ${appointment.client?.name || 'No client'} (Drag to move)`}
                             >
-                              <div className="font-medium truncate text-xs leading-tight">
-                                {appointment.client?.name || 'No client'}
+                              <div className="flex items-center justify-between leading-tight overflow-hidden">
+                                <div className="font-medium truncate text-xs flex-1 min-w-0">
+                                  {appointment.client?.name?.split(' ')[0] || 'No client'}
+                                </div>
+                                {appointment.time && (
+                                  <div className="hidden sm:block text-xs opacity-75 ml-0.5 flex-shrink-0">
+                                    {appointment.time?.replace(' ', '') || ''}
+                                  </div>
+                                )}
                               </div>
-                              <div className="truncate opacity-90 text-xs mt-1">
-                                {appointment.time || 'No time'}
-                              </div>
+                              {appointment.services && appointment.services.length > 0 && (
+                                <div className="truncate opacity-90 text-xs leading-tight">
+                                  {Array.isArray(appointment.services) 
+                                    ? appointment.services.slice(0, 1).join('')
+                                    : 'Services'
+                                  }
+                                  {appointment.services.length > 1 && ` +${appointment.services.length - 1}`}
+                                </div>
+                              )}
                             </div>
                           );
                         });
@@ -1012,16 +1090,16 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
         {/* Day View */}
         {viewMode === 'day' && (
-          <div className="space-y-4">
+          <div className="space-y-2 md:space-y-4">
             {/* Day Header - iOS Style */}
-            <div className="bg-gray-50 rounded-lg p-4">
+            <div className="bg-gray-50 rounded-lg p-2 md:p-4">
               <div className="text-center">
-                <h2 className="text-xl font-semibold text-gray-900 mb-1">
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-1">
                   {selectedDate.toLocaleDateString('en-US', { 
                     weekday: 'long' 
                   })}
                 </h2>
-                <div className="text-lg text-gray-600">
+                <div className="text-sm md:text-lg text-gray-600">
                   {selectedDate.toLocaleDateString('en-US', { 
                     month: 'long',
                     day: 'numeric', 
@@ -1029,18 +1107,18 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   })}
                 </div>
                 {isToday(selectedDate) && (
-                  <span className="inline-block mt-2 text-sm text-stone-600 font-medium bg-stone-100 px-3 py-1 rounded-full">Today</span>
+                  <span className="inline-block mt-2 text-xs md:text-sm text-stone-600 font-medium bg-stone-100 px-2 md:px-3 py-1 rounded-full">Today</span>
                 )}
               </div>
             </div>
 
             {/* Day Time Grid - iOS Calendar Style */}
-            <div className="bg-white rounded-lg border border-stone-200 overflow-hidden">
+            <div className="bg-white md:rounded-lg border-0 md:border border-stone-200 overflow-hidden">
               <div className="relative">
                 {/* Time slots */}
                 <div className="flex">
-                  {/* Time column */}
-                  <div className="w-16 md:w-20 border-r border-stone-200">
+                  {/* Time column - Mobile Optimized */}
+                  <div className="w-10 md:w-16 border-r border-stone-200">
                     {Array.from({ length: 17 }, (_, hourIndex) => {
                       const hour = hourIndex + 6; // Start from 6 AM
                       const timeLabel = hour === 12 ? '12' : 
@@ -1050,9 +1128,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                       const period = hour >= 12 ? 'PM' : 'AM';
                       
                       return (
-                        <div key={hourIndex} className="h-16 md:h-20 flex items-center justify-end border-b-2 border-gray-200 last:border-b-0">
-                          <div className="text-xs text-gray-500 mr-2 text-right">
-                            <div className="font-medium">{timeLabel}</div>
+                        <div key={hourIndex} className="h-12 md:h-16 flex items-center justify-end border-b border-gray-200 last:border-b-0">
+                          <div className="text-xs text-gray-500 mr-1 md:mr-2 text-right">
+                            <div className="font-medium text-xs">{timeLabel}</div>
                             <div className="text-xs opacity-75">{period}</div>
                           </div>
                         </div>
@@ -1080,7 +1158,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                     {Array.from({ length: 17 }, (_, hourIndex) => (
                       <div 
                         key={hourIndex} 
-                        className="h-16 md:h-20 border-b-2 border-gray-200 last:border-b-0 relative pointer-events-none"
+                        className="h-12 md:h-16 border-b border-gray-200 last:border-b-0 relative pointer-events-none"
                       >
                         {/* 15-minute markers */}
                         <div className="absolute inset-0">
@@ -1102,8 +1180,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                         const startMinutes = 360; // 6 AM
                         const relativeMinutes = appointmentMinutes - startMinutes;
                         
-                        // Calculate position (each hour is 64px on mobile, 80px on desktop)
-                        const hourHeight = window.innerWidth >= 768 ? 80 : 64;
+                        // Calculate position (each hour is 48px on mobile, 64px on desktop)
+                        const hourHeight = window.innerWidth >= 768 ? 64 : 48;
                         const topPosition = Math.max(0, (relativeMinutes / 60) * hourHeight);
                         
                         // Skip if appointment is outside visible hours
@@ -1129,31 +1207,31 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                 openViewModal(appointment);
                               }
                             }}
-                            className={`absolute pointer-events-auto rounded-md transition-all duration-200 z-20 mx-2 hover:shadow-md border-l-4 group ${getStatusColors(appointment.status).bgLight} ${getStatusColors(appointment.status).border} ${
+                            className={`absolute pointer-events-auto rounded-md transition-all duration-200 z-20 mx-1 md:mx-2 hover:shadow-md border-l-4 group ${getStatusColors(appointment.status).bgLight} ${getStatusColors(appointment.status).border} ${
                               resizing?.appointmentId === appointment.id ? 'cursor-ns-resize' : 'cursor-move'
                             }`}
                             style={{
                               top: `${topPosition}px`,
-                              left: '8px',
-                              right: '8px',
-                              height: `${getAppointmentHeight(getActualDuration(appointment))}px`,
+                              left: '4px',
+                              right: '4px',
+                              height: `${Math.max(getAppointmentHeight(getActualDuration(appointment)), 40)}px`,
                             }}
                             title={`${appointment.time || 'No time'} - ${appointment.endTime || ''} - ${appointment.client?.name || 'No client'} (Drag to move)`}
                           >
-                            {/* Top resize handle - only visible on hover */}
+                            {/* Top resize handle - only visible on hover on desktop */}
                             <div 
-                              className="absolute top-0 left-0 right-0 h-3 cursor-n-resize z-30 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="absolute top-0 left-0 right-0 h-2 md:h-3 cursor-n-resize z-30 opacity-0 md:group-hover:opacity-100 transition-opacity"
                               onMouseDown={(e) => handleResizeStart(e, appointment.id, 'top')}
                               title="Drag to adjust start time"
                             />
                             
-                            {/* Main content - excludes resize areas */}
-                            <div className="p-2 h-full flex overflow-hidden relative mt-1 mb-1">
+                            {/* Main content - Mobile Optimized */}
+                            <div className="p-1 md:p-2 h-full flex overflow-hidden relative mt-1 mb-1">
                               {/* Left side - Client info and address */}
                               <div className="flex-1 min-w-0 flex flex-col justify-start">
                                 <div className="space-y-0.5 overflow-hidden">
                                   {/* Client Name */}
-                                  <div className={`font-semibold truncate text-sm leading-tight ${
+                                  <div className={`font-semibold truncate text-xs md:text-sm leading-tight ${
                                     getStatusColors(appointment.status).textDark
                                   }`}>
                                     {appointment.client?.name || 'No client'}
@@ -1177,8 +1255,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                 </div>
                               </div>
                               
-                              {/* Right side - Services and Groomer */}
-                              <div className="flex flex-col items-end text-right min-w-0 ml-2 justify-start">
+                              {/* Right side - Services and Groomer (hidden on very small mobile) */}
+                              <div className="hidden sm:flex flex-col items-end text-right min-w-0 ml-2 justify-start">
                                 <div className="space-y-0.5 overflow-hidden">
                                   {appointment.services && appointment.services.length > 0 && (
                                     <div className={`text-xs truncate opacity-75 leading-tight ${
@@ -1202,15 +1280,15 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                               </div>
                             </div>
                             
-                            {/* Bottom resize handle - only visible on hover */}
+                            {/* Bottom resize handle - only visible on hover on desktop */}
                             <div 
-                              className="absolute bottom-0 left-0 right-0 h-3 cursor-s-resize z-30 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="absolute bottom-0 left-0 right-0 h-2 md:h-3 cursor-s-resize z-30 opacity-0 md:group-hover:opacity-100 transition-opacity"
                               onMouseDown={(e) => handleResizeStart(e, appointment.id, 'bottom')}
                               title="Drag to adjust end time"
                             />
                             
                             {/* Action buttons - hidden on mobile, visible on hover on desktop */}
-                            <div className="absolute top-2 right-2 hidden md:flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute top-1 md:top-2 right-1 md:right-2 hidden md:flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1232,117 +1310,206 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
             </div>
             
             {/* Day View Instructions */}
-            <div className="text-center text-sm text-gray-500 bg-gray-50 rounded-lg p-3">
+            <div className="text-center text-xs md:text-sm text-gray-500 bg-gray-50 rounded-lg p-2 md:p-3">
               <p>💡 <strong>Drag appointments</strong> to reschedule to different times (15-minute precision)</p>
             </div>
           </div>
         )}
 
-        {viewMode === 'list' && (
-          <div className="space-y-3">
-            {filteredAppointments.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p>No appointments found</p>
+        {viewMode === '4day' && (
+          <div className="space-y-2 md:space-y-4">
+            {/* 4-Day Header */}
+            <div className="bg-gray-50 rounded-lg p-1 md:p-2 mb-2 md:mb-4">
+              <div className="flex">
+                {/* Time column header - matches content width */}
+                <div className="w-10 md:w-16 p-1 md:p-2 text-xs font-medium text-gray-500 text-center">
+                  Time
+                </div>
+                {/* Day headers */}
+                <div className="flex-1 grid grid-cols-4 gap-px md:gap-1">
+                  {Array.from({ length: 4 }, (_, i) => {
+                    const dayDate = new Date(selectedDate);
+                    dayDate.setDate(selectedDate.getDate() + i);
+                    const isTodayDate = isToday(dayDate);
+                    
+                    return (
+                      <div key={i} className="text-center py-1 md:py-2">
+                        <div className="text-xs text-stone-500 mb-1">
+                          {dayDate.toLocaleDateString('en-US', { weekday: 'short' })}
+                        </div>
+                        <div className={`text-xs md:text-sm font-semibold ${
+                          isTodayDate 
+                            ? 'bg-stone-600 text-white rounded-full w-5 h-5 md:w-7 md:h-7 flex items-center justify-center mx-auto text-xs' 
+                            : 'text-stone-800'
+                        }`}>
+                          {dayDate.getDate()}
+                        </div>
+                        <div className="text-xs text-stone-400 mt-1 hidden md:block">
+                          {dayDate.toLocaleDateString('en-US', { month: 'short' })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            ) : (
-              filteredAppointments.map((appointment) => (
-                <div
-                  key={appointment.id}
-                  className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <div className="flex items-center space-x-2">
-                          <Clock className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm font-medium text-gray-900">
-                            {appointment.time || 'No time set'}
-                          </span>
-                        </div>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          getStatusColors(appointment.status).bgLight
-                        } ${getStatusColors(appointment.status).textDark}`}>
-                          {appointment.status}
-                        </span>
-                      </div>
+            </div>
+            
+            {/* Time Grid */}
+            <div className="bg-white md:rounded-lg border-0 md:border border-gray-200 overflow-hidden">
+              <div className="relative">
+                {/* Time slots */}
+                <div className="flex">
+                  {/* Time column - Mobile Optimized */}
+                  <div className="w-10 md:w-16 border-r border-gray-200">
+                    {Array.from({ length: 17 }, (_, hourIndex) => {
+                      const hour = hourIndex + 6; // Start from 6 AM
+                      const timeLabel = hour === 12 ? '12' : 
+                                      hour > 12 ? `${hour - 12}` : 
+                                      hour === 0 ? '12' :
+                                      `${hour}`;
+                      const period = hour >= 12 ? 'PM' : 'AM';
                       
-                      <div className="flex items-center space-x-2 mb-1">
-                        <User className="w-4 h-4 text-gray-400" />
-                        <span className="font-medium text-gray-900">
-                          {appointment.client?.name || 'No client name'}
-                        </span>
-                      </div>
-                      
-                      {appointment.client?.phone && (
-                        <div className="flex items-center space-x-2 mb-1">
-                          <Phone className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600">
-                            {appointment.client.phone}
-                          </span>
+                      return (
+                        <div key={hourIndex} className="h-12 md:h-16 flex items-center justify-end border-b border-gray-200 last:border-b-0">
+                          <div className="text-xs text-gray-500 mr-1 md:mr-2 text-right">
+                            <div className="font-medium text-xs">{timeLabel}</div>
+                            <div className="text-xs opacity-75">{period}</div>
+                          </div>
                         </div>
-                      )}
-                      
-                      {appointment.client?.address && (
-                        <div className="flex items-center space-x-2">
-                          <MapPin className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600">
-                            {appointment.client.address}
-                          </span>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Days container */}
+                  <div className="flex-1 relative">
+                    {/* Single large drop zone covering entire 4-day area */}
+                    <div
+                      className="absolute inset-0 z-10"
+                      onDrop={(e) => {
+                        // Calculate which day column was dropped on
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const relativeX = e.clientX - rect.left;
+                        const dayWidth = rect.width / 4;
+                        const dayIndex = Math.min(3, Math.floor(relativeX / dayWidth));
+                        
+                        // Calculate the target date
+                        const targetDate = new Date(selectedDate);
+                        targetDate.setDate(selectedDate.getDate() + dayIndex);
+                        
+                        handleDrop(e, targetDate);
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.add('bg-blue-25');
+                      }}
+                      onDragLeave={(e) => {
+                        e.currentTarget.classList.remove('bg-blue-25');
+                      }}
+                      onDragEnter={(e) => e.preventDefault()}
+                    />
+                    
+                    {/* Day columns grid */}
+                    <div className="grid grid-cols-4 h-full">
+                      {Array.from({ length: 4 }, (_, dayIndex) => (
+                        <div key={dayIndex} className="border-r border-gray-100 last:border-r-0">
+                          {/* Hour lines for each day */}
+                          {Array.from({ length: 17 }, (_, hourIndex) => (
+                            <div 
+                              key={hourIndex} 
+                              className="h-12 md:h-16 border-b border-gray-200 last:border-b-0 relative pointer-events-none"
+                            >
+                              {/* 15-minute markers */}
+                              <div className="absolute inset-0">
+                                {[15, 30, 45].map(minute => (
+                                  <div 
+                                    key={minute}
+                                    className="absolute left-0 right-0 border-b border-gray-100"
+                                    style={{ top: `${(minute / 60) * 100}%` }}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      )}
+                      ))}
                     </div>
                     
-                    <div className="flex flex-col justify-between">
-                      <div className="text-right mb-3">
-                        <div className="text-sm font-medium text-gray-900">
-                          {appointment.date ? formatShortDate(new Date(appointment.date)) : 'No date'}
-                        </div>
-                        {appointment.client?.pets && appointment.client.pets.length > 0 && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            {appointment.client.pets.length} pet{appointment.client.pets.length > 1 ? 's' : ''}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Action buttons */}
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openViewModal(appointment);
-                          }}
-                          className="p-1 text-stone-500 hover:text-stone-700 hover:bg-stone-100 rounded"
-                          title="View"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEditModal(appointment);
-                          }}
-                          className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteAppointment(appointment.id);
-                          }}
-                          className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                    {/* Appointments overlay */}
+                    <div className="absolute inset-0 pointer-events-none z-20">
+                      {Array.from({ length: 4 }, (_, dayIndex) => {
+                        const dayDate = new Date(selectedDate);
+                        dayDate.setDate(selectedDate.getDate() + dayIndex);
+                        
+                        return getAppointmentsForDate(dayDate).map((appointment) => {
+                          const appointmentMinutes = convertTimeToMinutes(appointment.time || '12:00 PM');
+                          const startMinutes = 360; // 6 AM
+                          const relativeMinutes = appointmentMinutes - startMinutes;
+                          
+                          // Match the heights used in day view: 48px mobile, 64px desktop
+                          const hourHeight = window.innerWidth >= 768 ? 64 : 48;
+                          const topPosition = Math.max(0, (relativeMinutes * hourHeight) / 60);
+                          
+                          // Skip if appointment is outside visible hours
+                          if (appointmentMinutes < startMinutes || appointmentMinutes > 1320) { // 22:00 PM
+                            return null;
+                          }
+                          
+                          return (
+                            <div
+                              key={appointment.id}
+                              data-appointment-id={appointment.id}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, appointment)}
+                              onDragEnd={(e) => {
+                                if (e.currentTarget instanceof HTMLElement) {
+                                  e.currentTarget.style.opacity = '1';
+                                }
+                              }}
+                              onClick={() => openViewModal(appointment)}
+                              className={`absolute pointer-events-auto text-xs p-0.5 md:p-1 mx-0.5 rounded cursor-move shadow-sm hover:shadow-md transition-all duration-200 z-30 border-l-2 ${
+                                getStatusColors(appointment.status).bgLight
+                              } ${getStatusColors(appointment.status).textDark} ${getStatusColors(appointment.status).border}`}
+                              style={{
+                                top: `${topPosition}px`,
+                                left: `${(dayIndex * (100 / 4)) + 0.5}%`,
+                                width: `${(100 / 4) - 1}%`,
+                                height: `${Math.min(hourHeight - 4, getAppointmentHeight(getActualDuration(appointment)))}px`,
+                              }}
+                              title={`${appointment.time || 'No time'} - ${appointment.client?.name || 'No client'} (Drag to move)`}
+                            >
+                              <div className="flex items-center justify-between leading-tight overflow-hidden">
+                                <div className="font-medium truncate text-xs flex-1 min-w-0">
+                                  {appointment.client?.name?.split(' ')[0] || 'No client'}
+                                </div>
+                                {appointment.time && (
+                                  <div className="hidden lg:block text-xs opacity-75 ml-0.5 flex-shrink-0">
+                                    {appointment.time?.replace(' ', '') || ''}
+                                  </div>
+                                )}
+                              </div>
+                              {appointment.services && appointment.services.length > 0 && (
+                                <div className="truncate opacity-90 text-xs leading-tight">
+                                  {Array.isArray(appointment.services) 
+                                    ? appointment.services.slice(0, 1).join('')
+                                    : 'Services'
+                                  }
+                                  {appointment.services.length > 1 && ` +${appointment.services.length - 1}`}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })}
                     </div>
                   </div>
                 </div>
-              ))
-            )}
+              </div>
+            </div>
+            
+            {/* 4-Day View Instructions */}
+            <div className="text-center text-xs md:text-sm text-gray-500 bg-gray-50 rounded-lg p-2 md:p-3">
+              <p>💡 <strong>Drag and drop appointments</strong> to reschedule them to different days and times (15-minute precision)</p>
+            </div>
           </div>
         )}
       </div>
