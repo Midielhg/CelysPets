@@ -16,7 +16,6 @@ dotenv.config();
 // Import routes
 import appointmentsRouter from './routes/appointments';
 import authRouter from './routes/auth';
-import routeOptimizationRouter from './routes/routeOptimization';
 import clientsRouter from './routes/clients';
 import groomersRouter from './routes/groomers';
 import usersRouter from './routes/users';
@@ -106,7 +105,6 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/appointments', appointmentsRouter);
 app.use('/api/auth', authRouter);
-app.use('/api/route-optimization', routeOptimizationRouter);
 app.use('/api/clients', clientsRouter);
 app.use('/api/groomers', groomersRouter);
 app.use('/api/users', usersRouter);

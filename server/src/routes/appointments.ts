@@ -1,6 +1,7 @@
 import express from 'express';
 import { Appointment, Client, User } from '../models/index';
 import { AdditionalService } from '../models/AdditionalServiceMySQL';
+import { Breed } from '../models/BreedMySQL';
 import { auth } from '../middleware/authMySQL';
 import { Op } from 'sequelize';
 
@@ -120,6 +121,10 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Calculate duration and end time
+    const duration = await calculateDuration(services, clientData.pets);
+    const endTime = calculateEndTime(time, duration);
+
     // Create appointment
     const appointment = await Appointment.create({
       clientId: client.id,
@@ -127,6 +132,8 @@ router.post('/', async (req, res) => {
       services: services,
       date: new Date(date),
       time: time,
+      endTime: endTime,
+      duration: duration,
       status: 'pending',
       notes: notes || null,
       totalAmount: await calculateTotal(services)
@@ -196,7 +203,21 @@ router.get('/', async (req, res) => {
     });
     
     console.log(`Found ${appointments.length} appointments`);
-    res.json(appointments);
+    
+    // Format the appointments data to ensure proper date formatting
+    const formattedAppointments = appointments.map(appointment => {
+      const appointmentData = appointment.toJSON() as any;
+      
+      // Format the date to YYYY-MM-DD format instead of full timestamp
+      if (appointmentData.date) {
+        const date = new Date(appointmentData.date);
+        appointmentData.date = date.toISOString().split('T')[0]; // Extract just the date part
+      }
+      
+      return appointmentData;
+    });
+    
+    res.json(formattedAppointments);
   } catch (error) {
     console.error('Error fetching appointments:', error);
     res.status(500).json({ message: 'Failed to fetch appointments' });
@@ -382,9 +403,23 @@ router.patch('/:id', async (req, res) => {
 // Full appointment update (admin only)
 router.put('/:id', async (req, res) => {
   try {
-    const { client: clientData, services, date, time, status, notes, groomerId } = req.body;
+    const { 
+      clientName, 
+      clientEmail, 
+      clientPhone, 
+      clientAddress, 
+      pets, 
+      services, 
+      date, 
+      time, 
+      status, 
+      notes, 
+      groomerId 
+    } = req.body;
     
-    console.log('Updating appointment with data:', { clientData, services, date, time, status });
+    console.log('Updating appointment with data:', { 
+      clientName, clientEmail, clientPhone, clientAddress, pets, services, date, time, status 
+    });
 
     const appointment = await Appointment.findByPk(req.params.id, {
       include: [{ model: Client, as: 'client' }]
@@ -395,15 +430,23 @@ router.put('/:id', async (req, res) => {
     }
 
     // Update client information if provided
-    if (clientData && (appointment as any).client) {
+    if ((appointment as any).client) {
       await (appointment as any).client.update({
-        name: clientData.name || (appointment as any).client.name,
-        email: clientData.email || (appointment as any).client.email,
-        phone: clientData.phone || (appointment as any).client.phone,
-        address: clientData.address || (appointment as any).client.address,
-        pets: clientData.pets || (appointment as any).client.pets,
-        notes: clientData.notes !== undefined ? clientData.notes : (appointment as any).client.notes
+        name: clientName || (appointment as any).client.name,
+        email: clientEmail || (appointment as any).client.email,
+        phone: clientPhone || (appointment as any).client.phone,
+        address: clientAddress || (appointment as any).client.address,
+        pets: pets || (appointment as any).client.pets,
       });
+    }
+
+    // Calculate duration and end time for updated appointment
+    let totalDuration = 0;
+    let endTime = time;
+
+    if (pets && pets.length > 0 && services && services.length > 0) {
+      totalDuration = await calculateDuration(pets, services);
+      endTime = calculateEndTime(time, totalDuration);
     }
 
     // Update appointment details
@@ -414,7 +457,11 @@ router.put('/:id', async (req, res) => {
     if (status !== undefined) updateData.status = status;
     if (notes !== undefined) updateData.notes = notes;
     if (groomerId !== undefined) updateData.groomerId = groomerId;
-  if (services !== undefined) updateData.totalAmount = await calculateTotal(services);
+    if (totalDuration > 0) {
+      updateData.duration = totalDuration;
+      updateData.endTime = endTime;
+    }
+    if (services !== undefined) updateData.totalAmount = await calculateTotal(services);
 
     await appointment.update(updateData);
 
@@ -431,10 +478,8 @@ router.put('/:id', async (req, res) => {
       ]
     });
 
-    res.json({
-      message: 'Appointment updated successfully',
-      appointment: updatedAppointment
-    });
+    // Return the appointment in the format expected by frontend
+    res.json(updatedAppointment);
   } catch (error) {
     console.error('Error updating full appointment:', error);
     res.status(500).json({ message: 'Failed to update appointment' });
@@ -457,6 +502,110 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Route optimization endpoint
+router.post('/optimize-route', auth, async (req, res) => {
+  try {
+    const { date, appointments: appointmentIds } = req.body;
+    
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required' });
+    }
+
+    // Get appointments for the specified date
+    let appointmentsToOptimize;
+    
+    if (appointmentIds && appointmentIds.length > 0) {
+      // Use specific appointment IDs if provided
+      appointmentsToOptimize = await Appointment.findAll({
+        where: {
+          id: { [Op.in]: appointmentIds }
+        },
+        include: [{
+          model: Client,
+          as: 'client',
+          attributes: ['id', 'name', 'address', 'phone', 'email']
+        }],
+        order: [['time', 'ASC']]
+      });
+    } else {
+      // Get all appointments for the date
+      const startDate = new Date(date);
+      const endDate = new Date(date);
+      endDate.setHours(23, 59, 59, 999);
+
+      appointmentsToOptimize = await Appointment.findAll({
+        where: {
+          date: {
+            [Op.between]: [startDate, endDate]
+          },
+          status: { [Op.ne]: 'cancelled' }
+        },
+        include: [{
+          model: Client,
+          as: 'client',
+          attributes: ['id', 'name', 'address', 'phone', 'email']
+        }],
+        order: [['time', 'ASC']]
+      });
+      
+      // Debug logging for August 13th
+      if (date.includes('2025-08-13')) {
+        console.log('DEBUG: Route optimization for Aug 13, 2025');
+        console.log('Start date:', startDate);
+        console.log('End date:', endDate);
+        console.log('Found appointments:', appointmentsToOptimize.length);
+        appointmentsToOptimize.forEach((apt, index) => {
+          console.log(`Appointment ${index + 1}:`, {
+            id: apt.id,
+            date: apt.date,
+            time: apt.time,
+            clientId: apt.clientId,
+            status: apt.status
+          });
+        });
+      }
+    }
+
+    if (appointmentsToOptimize.length < 2) {
+      return res.json({
+        optimizedRoute: appointmentsToOptimize,
+        totalDistance: 0,
+        estimatedTime: 0,
+        message: 'Need at least 2 appointments to optimize route'
+      });
+    }
+
+    // Basic route optimization (sort by time for now)
+    // TODO: Implement actual geographic optimization using Google Maps API
+    const optimizedRoute = [...appointmentsToOptimize].sort((a, b) => {
+      const timeA = a.time || '09:00';
+      const timeB = b.time || '09:00';
+      return timeA.localeCompare(timeB);
+    });
+
+    // Mock distance and time calculations
+    // TODO: Replace with actual Google Maps Distance Matrix API
+    const totalDistance = appointmentsToOptimize.length > 1 
+      ? Math.random() * 50 + 10 // Mock: 10-60 miles for multiple appointments
+      : 0;
+    const estimatedTime = appointmentsToOptimize.length > 1 
+      ? appointmentsToOptimize.length * 15 + Math.random() * 60 // Mock: 15 min per stop + travel
+      : 0;
+
+    res.json({
+      optimizedRoute,
+      totalDistance: Math.round(totalDistance * 10) / 10,
+      estimatedTime: Math.round(estimatedTime),
+      message: 'Route optimized successfully',
+      geocodingReady: true
+    });
+
+  } catch (error) {
+    console.error('Error optimizing route:', error);
+    res.status(500).json({ error: 'Failed to optimize route' });
+  }
+});
+
 // Helper function to calculate total cost
 async function calculateTotal(services: any[]): Promise<number> {
   // Look up additional services from DB when possible
@@ -473,6 +622,87 @@ async function calculateTotal(services: any[]): Promise<number> {
     if (found) total += Number(found.price);
   }
   return total;
+}
+
+// Helper function to calculate total duration
+async function calculateDuration(services: any[], pets: any[] = []): Promise<number> {
+  if (!Array.isArray(services)) return 60; // Default 1 hour
+  
+  let totalDuration = 0;
+  let hasFullGrooming = false;
+  
+  for (const srv of services) {
+    const id = typeof srv === 'string' ? srv : srv.id || srv.code || srv.name;
+    
+    // Handle full grooming service
+    if (id === 'full-groom' || id === 'Full Service') {
+      hasFullGrooming = true;
+      // Calculate duration based on breeds if pets are provided
+      if (pets && pets.length > 0) {
+        for (const pet of pets) {
+          if (pet.breedId) {
+            // Look up breed duration
+            const breed = await Breed.findByPk(pet.breedId);
+            if (breed && breed.fullGroomDuration) {
+              totalDuration += breed.fullGroomDuration;
+            } else {
+              totalDuration += 90; // Default full groom duration
+            }
+          } else {
+            totalDuration += 90; // Default if no breed specified
+          }
+        }
+      } else {
+        totalDuration += 90; // Default for full groom without pet info
+      }
+    } else {
+      // Handle additional services
+      const found = await AdditionalService.findOne({ where: { code: id } });
+      if (found && found.duration) {
+        // For additional services, multiply by number of pets if applicable
+        const multiplier = hasFullGrooming ? 1 : (pets?.length || 1);
+        totalDuration += found.duration * multiplier;
+      } else {
+        totalDuration += 30; // Default additional service duration
+      }
+    }
+  }
+  
+  return Math.max(totalDuration, 30); // Minimum 30 minutes
+}
+
+// Helper function to calculate end time
+function calculateEndTime(startTime: string, durationMinutes: number): string {
+  // Parse start time
+  const [time, period] = startTime.split(' ');
+  const [hours, minutes] = time.split(':').map(Number);
+  
+  // Convert to 24-hour format
+  let hour24 = hours;
+  if (period === 'PM' && hours !== 12) hour24 += 12;
+  if (period === 'AM' && hours === 12) hour24 = 0;
+  
+  // Calculate end time in minutes from midnight
+  const startMinutes = hour24 * 60 + minutes;
+  const endMinutes = startMinutes + durationMinutes;
+  
+  // Convert back to 12-hour format
+  const endHour24 = Math.floor(endMinutes / 60) % 24;
+  const endMin = endMinutes % 60;
+  
+  let endHour12 = endHour24;
+  let endPeriod = 'AM';
+  
+  if (endHour24 === 0) {
+    endHour12 = 12;
+  } else if (endHour24 === 12) {
+    endPeriod = 'PM';
+  } else if (endHour24 > 12) {
+    endHour12 = endHour24 - 12;
+    endPeriod = 'PM';
+  }
+  
+  return `${endHour12}:${endMin.toString().padStart(2, '0')} ${endPeriod}`;
 }
 
 export default router;

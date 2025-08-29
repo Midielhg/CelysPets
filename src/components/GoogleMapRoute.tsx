@@ -23,6 +23,11 @@ interface OptimizedRoute {
   totalDistance: number;
   totalDuration: number;
   estimatedFuelCost: number;
+  fuelDetails?: {
+    gasPrice: number;
+    mpg: number;
+    gallonsUsed: number;
+  };
 }
 
 interface GoogleMapRouteProps {
@@ -165,49 +170,66 @@ const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({
           directionsRenderer.setDirections(result);
           
           // Add custom markers for each stop
+          // Use coordinates from the directions result if not provided
+          const routeLegs = result.routes[0].legs;
+          
           route.stops.forEach((stop, index) => {
+            let markerPosition;
+            
             if (stop.coordinates) {
-              const marker = new window.google.maps.Marker({
-                position: { lat: stop.coordinates.lat, lng: stop.coordinates.lng },
-                map: map,
-                title: `${index + 1}. ${stop.appointment.client.name || 'Appointment'} - ${stop.appointment.time}`,
-                icon: {
-                  url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                    <svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="18" cy="18" r="16" fill="#f43f5e" stroke="#e11d48" stroke-width="2"/>
-                      <text x="18" y="23" text-anchor="middle" fill="white" font-size="14" font-weight="bold">${index + 1}</text>
-                    </svg>
-                  `),
-                  scaledSize: new window.google.maps.Size(36, 36),
-                  anchor: new window.google.maps.Point(18, 18)
-                }
-              });
-
-              // Info window for each marker
-              const infoWindow = new window.google.maps.InfoWindow({
-                content: `
-                  <div style="padding: 8px; min-width: 200px;">
-                    <h3 style="margin: 0 0 8px 0; color: #f43f5e; font-size: 16px;">
-                      Stop ${index + 1}: ${stop.appointment.time}
-                    </h3>
-                    <p style="margin: 4px 0; font-weight: bold; color: #374151;">
-                      ${stop.appointment.client.name || 'Customer'}
-                    </p>
-                    <p style="margin: 4px 0; color: #6b7280; font-size: 14px;">
-                      ${stop.address}
-                    </p>
-                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;">
-                      ${stop.distanceFromPrevious ? `Distance: ${stop.distanceFromPrevious.toFixed(1)} miles` : ''}
-                      ${stop.travelTimeFromPrevious ? ` • Travel: ${Math.round(stop.travelTimeFromPrevious)} min` : ''}
-                    </div>
-                  </div>
-                `
-              });
-
-              marker.addListener('click', () => {
-                infoWindow.open(map, marker);
-              });
+              markerPosition = { lat: stop.coordinates.lat, lng: stop.coordinates.lng };
+            } else if (routeLegs[index] && routeLegs[index].end_location) {
+              // Use the end location from the directions result
+              markerPosition = {
+                lat: routeLegs[index].end_location.lat(),
+                lng: routeLegs[index].end_location.lng()
+              };
+            } else {
+              // Skip this marker if we can't determine position
+              console.warn(`Cannot determine position for stop ${index + 1}`);
+              return;
             }
+
+            const marker = new window.google.maps.Marker({
+              position: markerPosition,
+              map: map,
+              title: `${index + 1}. ${stop.appointment.client.name || 'Appointment'} - ${stop.appointment.time}`,
+              icon: {
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                  <svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="18" cy="18" r="16" fill="#f43f5e" stroke="#e11d48" stroke-width="2"/>
+                    <text x="18" y="23" text-anchor="middle" fill="white" font-size="14" font-weight="bold">${index + 1}</text>
+                  </svg>
+                `),
+                scaledSize: new window.google.maps.Size(36, 36),
+                anchor: new window.google.maps.Point(18, 18)
+              }
+            });
+
+            // Info window for each marker
+            const infoWindow = new window.google.maps.InfoWindow({
+              content: `
+                <div style="padding: 8px; min-width: 200px;">
+                  <h3 style="margin: 0 0 8px 0; color: #f43f5e; font-size: 16px;">
+                    Stop ${index + 1}: ${stop.appointment.time}
+                  </h3>
+                  <p style="margin: 4px 0; font-weight: bold; color: #374151;">
+                    ${stop.appointment.client.name || 'Customer'}
+                  </p>
+                  <p style="margin: 4px 0; color: #6b7280; font-size: 14px;">
+                    ${stop.address}
+                  </p>
+                  <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;">
+                    ${stop.distanceFromPrevious ? `Distance: ${stop.distanceFromPrevious.toFixed(1)} miles` : ''}
+                    ${stop.travelTimeFromPrevious ? ` • Travel: ${Math.round(stop.travelTimeFromPrevious)} min` : ''}
+                  </div>
+                </div>
+              `
+            });
+
+            marker.addListener('click', () => {
+              infoWindow.open(map, marker);
+            });
           });
           
         } else {
@@ -222,8 +244,8 @@ const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({
   return (
     <div className="w-full">
       <div className="mb-4 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
-        <h3 className="text-lg font-semibold text-amber-900 mb-2">📍 Route Overview</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <h3 className="text-lg font-semibold text-amber-900 mb-3">📍 Route Overview</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-rose-600">{route.stops.length}</div>
             <div className="text-amber-700">Stops</div>
@@ -241,6 +263,27 @@ const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({
             <div className="text-amber-700">Fuel Cost</div>
           </div>
         </div>
+        
+        {/* Detailed Fuel Cost Breakdown */}
+        {route.fuelDetails && (
+          <div className="bg-white rounded-lg p-3 border border-amber-200">
+            <h4 className="text-sm font-semibold text-amber-900 mb-2">⛽ Fuel Cost Details</h4>
+            <div className="grid grid-cols-3 gap-4 text-xs">
+              <div className="text-center">
+                <div className="font-semibold text-amber-800">${route.fuelDetails.gasPrice.toFixed(2)}</div>
+                <div className="text-amber-600">Price/Gallon</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-amber-800">{route.fuelDetails.mpg} MPG</div>
+                <div className="text-amber-600">Vehicle Efficiency</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-amber-800">{route.fuelDetails.gallonsUsed.toFixed(1)} gal</div>
+                <div className="text-amber-600">Total Fuel</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       
       <div 
@@ -249,8 +292,11 @@ const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({
         style={{ minHeight: '400px' }}
       />
       
-      <div className="mt-4 text-xs text-amber-600 text-center">
-        🟢 Start Location • 🔴 Appointment Stops • Click markers for details
+      <div className="mt-4 text-xs text-amber-600 text-center space-y-1">
+        <div>🟢 Start Location • 🔴 Appointment Stops • Click markers for details</div>
+        <div className="text-amber-500">
+          Route optimized for minimum travel time and fuel efficiency
+        </div>
       </div>
     </div>
   );

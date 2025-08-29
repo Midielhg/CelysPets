@@ -26,6 +26,7 @@
     "@headlessui/react": "^2.2.4",
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^5.1.1",
+    "@types/google.maps": "^3.58.1",
     "@types/react-datepicker": "^6.2.0",
     "@types/react-router-dom": "^5.3.3",
     "axios": "^1.10.0",

@@ -6,19 +6,21 @@ interface AdditionalServiceAttributes {
   code: string; // e.g., teeth-cleaning
   name: string;
   price: number; // base price per pet
+  duration?: number; // duration in minutes
   description?: string;
   active: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-interface AdditionalServiceCreationAttributes extends Optional<AdditionalServiceAttributes, 'id' | 'description' | 'active' | 'createdAt' | 'updatedAt'> {}
+interface AdditionalServiceCreationAttributes extends Optional<AdditionalServiceAttributes, 'id' | 'duration' | 'description' | 'active' | 'createdAt' | 'updatedAt'> {}
 
 class AdditionalService extends Model<AdditionalServiceAttributes, AdditionalServiceCreationAttributes> implements AdditionalServiceAttributes {
   public id!: number;
   public code!: string;
   public name!: string;
   public price!: number;
+  public duration?: number;
   public description?: string | undefined;
   public active!: boolean;
   public readonly createdAt!: Date;
@@ -45,6 +47,11 @@ AdditionalService.init(
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       defaultValue: 0,
+    },
+    duration: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: 'Duration in minutes for this service',
     },
     description: {
       type: DataTypes.TEXT,

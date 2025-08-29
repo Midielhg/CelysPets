@@ -45,6 +45,12 @@ cd "/Users/midielhenriquez/Library/Mobile Documents/com~apple~CloudDocs/Document
 
 cd "/Users/midielhenriquez/Library/Mobile Documents/com~apple~CloudDocs/Documents/Investments/CelysPets Inc/dev" && npm run dev:client
 
+### Latest Features:
+- **Route Optimization**: Enhanced with manual gas price and vehicle MPG input
+- **Crash Prevention**: Added ErrorBoundary component and comprehensive error handling
+- **Frontend**: Running on http://localhost:5175/
+- **Backend API**: Running on http://localhost:5001/
+
 
 # React + TypeScript + Vite
 

@@ -8,7 +8,6 @@ import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import Dashboard from './components/Dashboard/Dashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
-import RouteOptimization from './components/RouteOptimization/RouteOptimization';
 import PetManagement from './components/Client/PetManagement';
 import ClientAppointments from './components/Client/ClientAppointments';
 import ClientProfile from './components/Client/ClientProfile';
@@ -73,14 +72,6 @@ function App() {
                   element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminDashboard />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/routes" 
-                  element={
-                    <ProtectedRoute requiredRole="admin">
-                      <RouteOptimization />
                     </ProtectedRoute>
                   } 
                 />

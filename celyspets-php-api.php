@@ -333,10 +333,6 @@ switch ($path) {
         handleUserStats($pdo);
         break;
         
-    case 'route-optimization/optimize':
-        handleRouteOptimization($pdo, $method, $input);
-        break;
-        
     case 'clients':
         handleClients($pdo, $method, $input);
         break;
@@ -936,90 +932,6 @@ function handleDebugTables($pdo) {
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Debug failed: ' . $e->getMessage()]);
-    }
-}
-
-function handleRouteOptimization($pdo, $method, $input) {
-    if ($method !== 'POST') {
-        http_response_code(405);
-        echo json_encode(['error' => 'Method not allowed']);
-        return;
-    }
-    
-    try {
-        $startLocation = $input['startLocation'] ?? '';
-        $appointments = $input['appointments'] ?? [];
-        
-        if (empty($appointments)) {
-            echo json_encode([
-                'error' => 'No appointments provided'
-            ]);
-            return;
-        }
-        
-        // Get full appointment details from database
-        $appointmentIds = array_map(function($apt) { return $apt['id']; }, $appointments);
-        $placeholders = str_repeat('?,', count($appointmentIds) - 1) . '?';
-        
-        $sql = "
-            SELECT 
-                a.id,
-                a.clientId,
-                a.time,
-                a.date,
-                c.name as client_name,
-                c.address as client_address,
-                c.phone as client_phone
-            FROM appointments a
-            LEFT JOIN clients c ON a.clientId = c.id
-            WHERE a.id IN ($placeholders)
-            ORDER BY a.time ASC
-        ";
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($appointmentIds);
-        $dbAppointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Create route stops
-        $stops = [];
-        foreach ($dbAppointments as $appointment) {
-            $stops[] = [
-                'appointment' => [
-                    '_id' => $appointment['id'],
-                    'client' => [
-                        'name' => $appointment['client_name'],
-                        'address' => $appointment['client_address'],
-                        'phone' => $appointment['client_phone']
-                    ],
-                    'time' => $appointment['time'],
-                    'date' => $appointment['date']
-                ],
-                'address' => $appointment['client_address'],
-                'coordinates' => null, // Will be geocoded on frontend
-                'estimatedDuration' => 30, // Default 30 minutes per appointment
-                'distanceFromPrevious' => 0,
-                'travelTimeFromPrevious' => 0
-            ];
-        }
-        
-        // Simple time-based optimization (can be enhanced with actual distance calculations)
-        $totalDistance = count($stops) * 5; // Estimate 5 miles per stop
-        $totalDuration = (count($stops) * 30) + (count($stops) * 15); // 30min per appointment + 15min travel
-        $estimatedFuelCost = $totalDistance * 0.15; // $0.15 per mile
-        
-        $optimizedRoute = [
-            'stops' => $stops,
-            'totalDistance' => $totalDistance,
-            'totalDuration' => $totalDuration,
-            'estimatedFuelCost' => $estimatedFuelCost,
-            'optimizationMethod' => 'time-based'
-        ];
-        
-        echo json_encode($optimizedRoute);
-        
-    } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Route optimization failed: ' . $e->getMessage()]);
     }
 }
 ?>

@@ -10,6 +10,7 @@ interface BreedAttributes {
   name: string; // e.g., Chihuahua
   sizeCategory: SizeCategory; // For cats use 'all'
   fullGroomPrice: number; // price in USD for full grooming
+  fullGroomDuration?: number; // duration in minutes for full grooming
   active: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -23,6 +24,7 @@ class Breed extends Model<BreedAttributes, BreedCreationAttributes> implements B
   public name!: string;
   public sizeCategory!: SizeCategory;
   public fullGroomPrice!: number;
+  public fullGroomDuration?: number;
   public active!: boolean;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -51,6 +53,11 @@ Breed.init(
     fullGroomPrice: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
+    },
+    fullGroomDuration: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: 'Duration in minutes for full grooming service',
     },
     active: {
       type: DataTypes.BOOLEAN,

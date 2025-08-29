@@ -17,6 +17,7 @@ const ClientManagement: React.FC = () => {
   const [editMode, setEditMode] = useState(false);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [breeds, setBreeds] = useState<any[]>([]);
   
   const [clientForm, setClientForm] = useState({
     name: '',
@@ -58,7 +59,32 @@ const ClientManagement: React.FC = () => {
   // Fetch clients when page or debounced search term changes
   useEffect(() => {
     fetchClients();
+    fetchBreeds();
   }, [currentPage, debouncedSearchTerm]);
+
+  const fetchBreeds = async () => {
+    try {
+      const response = await fetch(apiUrl('/pricing/breeds'));
+      if (response.ok) {
+        const breedsData = await response.json();
+        setBreeds(breedsData);
+      }
+    } catch (error) {
+      console.error('Error fetching breeds:', error);
+    }
+  };
+
+  const getBreedById = (breedId: number | null) => {
+    if (!breedId) return null;
+    return breeds.find((breed: any) => breed.id === breedId);
+  };
+
+  const getBreedByName = (breedName: string) => {
+    if (!breedName) return null;
+    return breeds.find((breed: any) => 
+      breed.name.toLowerCase() === breedName.toLowerCase()
+    );
+  };
 
   const fetchClients = async () => {
     try {
@@ -166,12 +192,31 @@ const ClientManagement: React.FC = () => {
 
   const openEditModal = (client: Client) => {
     setSelectedClient(client);
+    
+    // Map existing pet breeds to breedIds
+    const petsWithBreedIds = (client.pets || []).map(pet => {
+      let breedId = pet.breedId || null;
+      
+      // If pet has a breed name but no breedId, try to find the matching breedId
+      if (pet.breed && !breedId) {
+        const matchingBreed = getBreedByName(pet.breed);
+        if (matchingBreed) {
+          breedId = matchingBreed.id;
+        }
+      }
+      
+      return {
+        ...pet,
+        breedId: breedId
+      };
+    });
+    
     setClientForm({
       name: client.name,
       email: client.email,
       phone: client.phone,
       address: client.address,
-      pets: client.pets || [],
+      pets: petsWithBreedIds,
       notes: client.notes || ''
     });
     setEditMode(true);
@@ -369,16 +414,27 @@ const ClientManagement: React.FC = () => {
   const addPet = () => {
     setClientForm(prev => ({
       ...prev,
-      pets: [...prev.pets, { name: '', breed: '', age: 1, type: 'dog' as const }]
+      pets: [...prev.pets, { name: '', breed: '', breedId: null, age: 1, type: 'dog' as const }]
     }));
   };
 
-  const updatePet = (index: number, field: keyof Pet, value: string | number) => {
+  const updatePet = (index: number, field: keyof Pet, value: string | number | null) => {
     setClientForm(prev => ({
       ...prev,
-      pets: prev.pets.map((pet, i) => 
-        i === index ? { ...pet, [field]: value } : pet
-      )
+      pets: prev.pets.map((pet, i) => {
+        if (i === index) {
+          const updatedPet = { ...pet, [field]: value };
+          
+          // If breedId is being updated, sync the breed name
+          if (field === 'breedId') {
+            const breed = getBreedById(value as number);
+            updatedPet.breed = breed ? breed.name : '';
+          }
+          
+          return updatedPet;
+        }
+        return pet;
+      })
     }));
   };
 
@@ -857,16 +913,27 @@ const ClientManagement: React.FC = () => {
                               onChange={(e) => updatePet(index, 'name', e.target.value)}
                               className="px-2 py-1 border border-gray-300 rounded text-sm"
                             />
-                            <input
-                              type="text"
-                              placeholder="Breed"
-                              value={pet.breed}
-                              onChange={(e) => updatePet(index, 'breed', e.target.value)}
+                            <select
+                              value={pet.breedId || ''}
+                              onChange={(e) => updatePet(index, 'breedId', e.target.value ? Number(e.target.value) : null)}
                               className="px-2 py-1 border border-gray-300 rounded text-sm"
-                            />
+                            >
+                              <option value="">Select breed</option>
+                              {breeds
+                                .filter((breed: any) => breed.species === (pet.type || 'dog'))
+                                .map((breed: any) => (
+                                  <option key={breed.id} value={breed.id}>
+                                    {breed.name}
+                                  </option>
+                                ))}
+                            </select>
                             <select
                               value={pet.type || ''}
-                              onChange={(e) => updatePet(index, 'type', e.target.value)}
+                              onChange={(e) => {
+                                updatePet(index, 'type', e.target.value);
+                                // Reset breed when type changes
+                                updatePet(index, 'breedId', null);
+                              }}
                               className="px-2 py-1 border border-gray-300 rounded text-sm"
                             >
                               <option value="">Select Type</option>
@@ -1113,16 +1180,27 @@ const ClientManagement: React.FC = () => {
                             onChange={(e) => updatePet(index, 'name', e.target.value)}
                             className="px-2 py-1 border border-gray-300 rounded text-sm"
                           />
-                          <input
-                            type="text"
-                            placeholder="Breed"
-                            value={pet.breed}
-                            onChange={(e) => updatePet(index, 'breed', e.target.value)}
+                          <select
+                            value={pet.breedId || ''}
+                            onChange={(e) => updatePet(index, 'breedId', e.target.value ? Number(e.target.value) : null)}
                             className="px-2 py-1 border border-gray-300 rounded text-sm"
-                          />
+                          >
+                            <option value="">Select breed</option>
+                            {breeds
+                              .filter((breed: any) => breed.species === (pet.type || 'dog'))
+                              .map((breed: any) => (
+                                <option key={breed.id} value={breed.id}>
+                                  {breed.name}
+                                </option>
+                              ))}
+                          </select>
                           <select
                             value={pet.type || ''}
-                            onChange={(e) => updatePet(index, 'type', e.target.value)}
+                            onChange={(e) => {
+                              updatePet(index, 'type', e.target.value);
+                              // Reset breed when type changes
+                              updatePet(index, 'breedId', null);
+                            }}
                             className="px-2 py-1 border border-gray-300 rounded text-sm"
                           >
                             <option value="">Select Type</option>

@@ -3,6 +3,7 @@
 export interface Pet {
   name: string;
   breed: string;
+  breedId?: number | null;
   age?: number;
   type?: 'dog' | 'cat';
   weight?: string;

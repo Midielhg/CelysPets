@@ -7,6 +7,7 @@ export interface Breed {
   name: string;
   sizeCategory: SizeCategory;
   fullGroomPrice: number;
+  fullGroomDuration?: number; // Duration in minutes
   active: boolean;
 }
 
@@ -15,6 +16,7 @@ export interface AdditionalService {
   code: string;
   name: string;
   price: number;
+  duration?: number; // Duration in minutes
   description?: string;
   active: boolean;
 }

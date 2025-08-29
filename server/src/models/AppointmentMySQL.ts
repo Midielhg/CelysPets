@@ -9,6 +9,8 @@ interface AppointmentAttributes {
   services: string[];
   date: Date;
   time: string;
+  endTime?: string; // Calculated end time based on duration
+  duration?: number; // Total duration in minutes
   status: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled';
   notes?: string;
   totalAmount?: number;
@@ -27,6 +29,8 @@ class Appointment extends Model<AppointmentAttributes, AppointmentCreationAttrib
   public services!: string[];
   public date!: Date;
   public time!: string;
+  public endTime?: string;
+  public duration?: number;
   public status!: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled';
   public notes?: string;
   public totalAmount?: number;
@@ -69,6 +73,16 @@ Appointment.init(
     time: {
       type: DataTypes.STRING(10),
       allowNull: false,
+    },
+    endTime: {
+      type: DataTypes.STRING(10),
+      allowNull: true,
+      comment: 'Calculated end time based on service duration'
+    },
+    duration: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: 'Total appointment duration in minutes'
     },
     status: {
       type: DataTypes.ENUM('pending', 'confirmed', 'in-progress', 'completed', 'cancelled'),

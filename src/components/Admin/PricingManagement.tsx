@@ -3,8 +3,8 @@ import { apiUrl } from '../../config/api';
 import { useToast } from '../../contexts/ToastContext';
 import type { Breed, AdditionalService, Species, SizeCategory } from '../../types/pricing';
 
-const emptyBreed: Partial<Breed> = { species: 'dog', name: '', sizeCategory: 'small', fullGroomPrice: 0, active: true };
-const emptyAddon: Partial<AdditionalService> = { code: '', name: '', price: 0, description: '', active: true };
+const emptyBreed: Partial<Breed> = { species: 'dog', name: '', sizeCategory: 'small', fullGroomPrice: 0, fullGroomDuration: 90, active: true };
+const emptyAddon: Partial<AdditionalService> = { code: '', name: '', price: 0, duration: 30, description: '', active: true };
 
 const sizeLabels: Record<SizeCategory, string> = {
   small: 'Small (0-15 lbs)',
@@ -253,6 +253,7 @@ const PricingManagement: React.FC = () => {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-amber-900">Breed</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-amber-900">Size Category</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-amber-900">Full Groom Price</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-amber-900">Duration</th>
                 <th className="px-6 py-4 text-center text-sm font-semibold text-amber-900">Actions</th>
               </tr>
             </thead>
@@ -263,6 +264,7 @@ const PricingManagement: React.FC = () => {
                   <td className="px-6 py-4 font-medium text-amber-900">{breed.name}</td>
                   <td className="px-6 py-4 text-amber-700">{sizeLabels[breed.sizeCategory as SizeCategory]}</td>
                   <td className="px-6 py-4 font-semibold text-rose-600">${Number(breed.fullGroomPrice).toFixed(2)}</td>
+                  <td className="px-6 py-4 text-amber-700">{breed.fullGroomDuration ? `${breed.fullGroomDuration} min` : 'Not set'}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex justify-center space-x-2">
                       <button 
@@ -312,6 +314,7 @@ const PricingManagement: React.FC = () => {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-amber-900">Code</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-amber-900">Service Name</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-amber-900">Price</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-amber-900">Duration</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-amber-900">Description</th>
                 <th className="px-6 py-4 text-center text-sm font-semibold text-amber-900">Actions</th>
               </tr>
@@ -322,6 +325,7 @@ const PricingManagement: React.FC = () => {
                   <td className="px-6 py-4 font-mono text-sm text-amber-800 bg-amber-50/50 rounded">{addon.code}</td>
                   <td className="px-6 py-4 font-medium text-amber-900">{addon.name}</td>
                   <td className="px-6 py-4 font-semibold text-rose-600">${Number(addon.price).toFixed(2)}</td>
+                  <td className="px-6 py-4 text-amber-700">{addon.duration ? `${addon.duration} min` : 'Not set'}</td>
                   <td className="px-6 py-4 text-sm text-amber-700">{addon.description || '—'}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex justify-center space-x-2">
@@ -343,7 +347,7 @@ const PricingManagement: React.FC = () => {
               ))}
               {addons.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-amber-600">
+                  <td colSpan={6} className="px-6 py-8 text-center text-amber-600">
                     No additional services found. Click "Add Service" to get started.
                   </td>
                 </tr>
@@ -412,6 +416,18 @@ const PricingManagement: React.FC = () => {
             />
           </div>
           
+          <div>
+            <label className="block text-sm font-medium text-amber-800 mb-2">Full Groom Duration (minutes)</label>
+            <input 
+              type="number" 
+              min="1" 
+              placeholder="90"
+              value={Number(breedForm.fullGroomDuration) || ''} 
+              onChange={e => setBreedForm(prev => ({...prev, fullGroomDuration: parseInt(e.target.value) || 90}))} 
+              className="w-full border border-amber-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-400"
+            />
+          </div>
+          
           <div className="flex space-x-3 pt-4">
             <button 
               onClick={() => {
@@ -473,6 +489,18 @@ const PricingManagement: React.FC = () => {
               placeholder="0.00"
               value={Number(addonForm.price) || ''} 
               onChange={e => setAddonForm(prev => ({...prev, price: parseFloat(e.target.value) || 0}))} 
+              className="w-full border border-amber-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-400"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-amber-800 mb-2">Duration (minutes)</label>
+            <input 
+              type="number" 
+              min="1" 
+              placeholder="30"
+              value={Number(addonForm.duration) || ''} 
+              onChange={e => setAddonForm(prev => ({...prev, duration: parseInt(e.target.value) || 30}))} 
               className="w-full border border-amber-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-400"
             />
           </div>
