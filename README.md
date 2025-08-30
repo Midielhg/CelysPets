@@ -30,6 +30,9 @@ cp celyspets-php-api.php simple-static-deploy/api.php
 ### Testing & Debugging URLs:
 - **Health Check**: `https://celyspets.com/api.php` 
 - **Admin User Test**: `https://celyspets.com/api.php/test/admin`
+- **Dashboard Stats**: `https://celyspets.com/api.php/dashboard/stats`
+- **Pricing Breeds**: `https://celyspets.com/api.php/pricing/breeds`
+- **Additional Services**: `https://celyspets.com/api.php/pricing/additional-services`
 - **Reset Admin Password**: `POST https://celyspets.com/api.php/setup/reset-admin-password`
 - **Login**: `admin@celyspets.com` / `admin123`
 

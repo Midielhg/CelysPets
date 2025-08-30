@@ -56,7 +56,6 @@ const UserManagement: React.FC = () => {
   const fetchUsers = useCallback(async (page = 1, search = '', role = 'all') => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('auth_token');
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '10',
@@ -64,10 +63,11 @@ const UserManagement: React.FC = () => {
         ...(role !== 'all' && { role })
       });
 
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(apiUrl(`/users?${params}`), {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
       });
 
@@ -91,8 +91,8 @@ const UserManagement: React.FC = () => {
       const token = localStorage.getItem('auth_token');
       const response = await fetch(apiUrl('/users/stats/overview'), {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
       });
 

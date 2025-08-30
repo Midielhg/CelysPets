@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AlertTriangle, User } from 'lucide-react';
+import { apiUrl } from '../../config/api';
 
 interface User {
   id: number;
@@ -36,7 +37,7 @@ const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/users/${user.id}`, {
+      const response = await fetch(apiUrl(`/users/${user.id}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

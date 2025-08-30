@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 // Database configuration
-$host = 'localhost';
+$host = 'mysql.us.cloudlogin.co';
 $dbname = 'celyspets_celypets';
 $username = 'celyspets_celypets';
 $password = 'nCvCE42v6_';
@@ -101,7 +101,8 @@ function initializeDatabase($pdo) {
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
             species ENUM('dog', 'cat') NOT NULL,
-            sizeCategory ENUM('small', 'medium', 'large', 'xlarge', 'xxlarge') NOT NULL,
+            sizeCategory ENUM('small', 'medium', 'large', 'extra-large') NOT NULL,
+            bathOnlyPrice DECIMAL(10, 2) NOT NULL,
             fullGroomPrice DECIMAL(10, 2) NOT NULL,
             active BOOLEAN DEFAULT TRUE,
             createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -114,15 +115,32 @@ function initializeDatabase($pdo) {
         // Create additional_services table if it doesn't exist
         $pdo->exec("CREATE TABLE IF NOT EXISTS additional_services (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            code VARCHAR(100) NOT NULL UNIQUE,
-            name VARCHAR(255) NOT NULL,
+            service_code VARCHAR(100) NOT NULL UNIQUE,
+            service_name VARCHAR(255) NOT NULL,
             price DECIMAL(10, 2) NOT NULL DEFAULT 0,
+            duration INT DEFAULT 30,
             description TEXT NULL,
             active BOOLEAN DEFAULT TRUE,
             createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            INDEX idx_code (code),
+            INDEX idx_code (service_code),
             INDEX idx_active (active)
+        )");
+        
+        // Create pricing_breeds table if it doesn't exist
+        $pdo->exec("CREATE TABLE IF NOT EXISTS pricing_breeds (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            species ENUM('dog', 'cat') NOT NULL,
+            breed VARCHAR(255) NOT NULL,
+            size_category ENUM('small', 'medium', 'large', 'extra-large') NOT NULL,
+            full_groom_price DECIMAL(10, 2) NOT NULL,
+            duration INT DEFAULT 60,
+            active BOOLEAN DEFAULT TRUE,
+            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_species (species),
+            INDEX idx_breed (breed),
+            INDEX idx_size (size_category)
         )");
 
         // Check if admin user exists, if not create one
@@ -312,8 +330,16 @@ switch ($path) {
         handleDatabaseSetup($pdo);
         break;
         
+    case 'setup/create-tables':
+        handleCreateMissingTables($pdo);
+        break;
+        
     case 'auth/login':
         handleLogin($pdo, $input);
+        break;
+        
+    case 'auth/me':
+        handleAuthMe($pdo);
         break;
         
     case 'auth/register':
@@ -321,39 +347,31 @@ switch ($path) {
         break;
         
     case 'appointments':
-        handleAppointments($pdo, $method, $input, $path);
-        break;
-        
-    case 'appointments/recent':
-        handleRecentAppointments($pdo);
+        handleAppointments($pdo, $method, $input);
         break;
         
     case 'users':
-        handleUsers($pdo, $method, $input, $path);
+        handleUsers($pdo, $method, $input);
         break;
         
     case 'users/stats/overview':
         handleUserStats($pdo);
         break;
         
-    case 'users/bulk-update-roles':
-        handleUsersBulkUpdate($pdo, $method, $input);
-        break;
-        
     case 'dashboard/stats':
         handleDashboardStats($pdo);
         break;
         
-    case 'clients':
-        handleClients($pdo, $method, $input, $path);
-        break;
-        
     case 'pricing/breeds':
-        handlePricingBreeds($pdo, $method, $input, $path);
+        handlePricingBreeds($pdo, $method, $input);
         break;
         
     case 'pricing/additional-services':
-        handlePricingAdditionalServices($pdo, $method, $input, $path);
+        handlePricingAdditionalServices($pdo, $method, $input);
+        break;
+        
+    case 'clients':
+        handleClients($pdo, $method, $input);
         break;
         
     case 'debug/tables':
@@ -364,44 +382,9 @@ switch ($path) {
         handleDebugFrontend($pdo);
         break;
         
-    case 'setup/seed-data':
-        handleSeedData($pdo);
-        break;
-        
     default:
-        // Handle endpoints with IDs (like appointments/123, users/456, etc.)
-        $pathParts = explode('/', $path);
-        
-        if (count($pathParts) >= 2 && is_numeric($pathParts[1])) {
-            switch ($pathParts[0]) {
-                case 'appointments':
-                    handleAppointments($pdo, $method, $input, $path);
-                    break;
-                case 'users':
-                    handleUsers($pdo, $method, $input, $path);
-                    break;
-                case 'clients':
-                    handleClients($pdo, $method, $input, $path);
-                    break;
-                default:
-                    http_response_code(404);
-                    echo json_encode(['error' => 'Endpoint not found: ' . $path]);
-                    break;
-            }
-        } elseif (count($pathParts) >= 3 && $pathParts[0] === 'pricing') {
-            // Handle pricing endpoints with IDs
-            if ($pathParts[1] === 'breeds' && is_numeric($pathParts[2])) {
-                handlePricingBreeds($pdo, $method, $input, $path);
-            } elseif ($pathParts[1] === 'additional-services' && is_numeric($pathParts[2])) {
-                handlePricingAdditionalServices($pdo, $method, $input, $path);
-            } else {
-                http_response_code(404);
-                echo json_encode(['error' => 'Endpoint not found: ' . $path]);
-            }
-        } else {
-            http_response_code(404);
-            echo json_encode(['error' => 'Endpoint not found: ' . $path]);
-        }
+        http_response_code(404);
+        echo json_encode(['error' => 'Endpoint not found: ' . $path]);
         break;
 }
 
@@ -499,6 +482,96 @@ function handleLogin($pdo, $input) {
     }
 }
 
+function handleAuthMe($pdo) {
+    // Get the Authorization header - handle different server configurations
+    $authHeader = '';
+    
+    // Try multiple ways to get the Authorization header
+    if (function_exists('getallheaders')) {
+        $headers = getallheaders();
+        $authHeader = isset($headers['Authorization']) ? $headers['Authorization'] : 
+                     (isset($headers['authorization']) ? $headers['authorization'] : '');
+    }
+    
+    // Fallback to $_SERVER if getallheaders() doesn't work
+    if (!$authHeader) {
+        if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+            $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+        } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        }
+    }
+    
+    $token = '';
+    
+    // Extract token from Authorization header
+    if ($authHeader && preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+        $token = $matches[1];
+    }
+    
+    // Fallback: try to get token from query parameter
+    if (!$token && isset($_GET['token'])) {
+        $token = $_GET['token'];
+    }
+    
+    if (!$token) {
+        http_response_code(401);
+        echo json_encode([
+            'error' => 'Authorization token required',
+            'debug' => [
+                'authHeader' => $authHeader,
+                'headers_available' => function_exists('getallheaders'),
+                'server_auth' => isset($_SERVER['HTTP_AUTHORIZATION']) ? 'yes' : 'no',
+                'all_headers' => function_exists('getallheaders') ? getallheaders() : 'not available',
+                'query_token' => isset($_GET['token']) ? 'present' : 'missing'
+            ]
+        ]);
+        return;
+    }
+    
+    try {
+        // Decode the JWT token (simple base64 decode for now)
+        $parts = explode('.', $token);
+        if (count($parts) !== 3) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Invalid token format']);
+            return;
+        }
+        
+        $payload = json_decode(base64_decode($parts[1]), true);
+        if (!$payload || !isset($payload['user_id'])) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Invalid token payload']);
+            return;
+        }
+        
+        // Get user from database
+        $stmt = $pdo->prepare("SELECT id, email, name, role FROM users WHERE id = ?");
+        $stmt->execute([$payload['user_id']]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$user) {
+            http_response_code(401);
+            echo json_encode(['error' => 'User not found']);
+            return;
+        }
+        
+        // Return user information
+        echo json_encode([
+            'user' => [
+                'id' => (int)$user['id'],
+                'email' => $user['email'],
+                'name' => $user['name'],
+                'role' => $user['role']
+            ]
+        ]);
+        
+    } catch (Exception $e) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Token validation failed: ' . $e->getMessage()]);
+    }
+}
+
 function handleRegister($pdo, $input) {
     if (!$input || !isset($input['email']) || !isset($input['password'])) {
         http_response_code(400);
@@ -537,7 +610,97 @@ function handleRegister($pdo, $input) {
     }
 }
 
-function handleAppointments($pdo, $method, $input, $path = '') {
+// Create missing tables for pricing functionality
+function handleCreateMissingTables($pdo) {
+    try {
+        // Create pricing_breeds table
+        $pdo->exec("CREATE TABLE IF NOT EXISTS pricing_breeds (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            species ENUM('dog', 'cat') NOT NULL,
+            breed VARCHAR(255) NOT NULL,
+            size_category ENUM('small', 'medium', 'large', 'extra-large') NOT NULL,
+            full_groom_price DECIMAL(10, 2) NOT NULL,
+            duration INT DEFAULT 60,
+            active BOOLEAN DEFAULT TRUE,
+            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_species (species),
+            INDEX idx_breed (breed),
+            INDEX idx_size (size_category)
+        )");
+        
+        // Create additional_services table
+        $pdo->exec("CREATE TABLE IF NOT EXISTS additional_services (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            service_code VARCHAR(100) NOT NULL UNIQUE,
+            service_name VARCHAR(255) NOT NULL,
+            price DECIMAL(10, 2) NOT NULL DEFAULT 0,
+            duration INT DEFAULT 30,
+            description TEXT NULL,
+            active BOOLEAN DEFAULT TRUE,
+            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_code (service_code),
+            INDEX idx_active (active)
+        )");
+        
+        // Add some default data to pricing_breeds
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM pricing_breeds");
+        $stmt->execute();
+        $count = $stmt->fetchColumn();
+        
+        if ($count == 0) {
+            $defaultBreeds = [
+                ['dog', 'Golden Retriever', 'large', 75.00, 90],
+                ['dog', 'Labrador Retriever', 'large', 75.00, 90],
+                ['dog', 'German Shepherd', 'large', 80.00, 100],
+                ['dog', 'Chihuahua', 'small', 45.00, 45],
+                ['dog', 'Poodle', 'medium', 65.00, 75],
+                ['cat', 'Persian', 'medium', 55.00, 60],
+                ['cat', 'Maine Coon', 'large', 65.00, 75],
+                ['cat', 'Siamese', 'medium', 50.00, 55]
+            ];
+            
+            $stmt = $pdo->prepare("INSERT INTO pricing_breeds (species, breed, size_category, full_groom_price, duration) VALUES (?, ?, ?, ?, ?)");
+            foreach ($defaultBreeds as $breed) {
+                $stmt->execute($breed);
+            }
+        }
+        
+        // Add some default additional services
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM additional_services");
+        $stmt->execute();
+        $count = $stmt->fetchColumn();
+        
+        if ($count == 0) {
+            $defaultServices = [
+                ['NAIL_TRIM', 'Nail Trimming', 15.00, 15, 'Basic nail trimming service'],
+                ['EAR_CLEAN', 'Ear Cleaning', 10.00, 10, 'Thorough ear cleaning'],
+                ['TEETH_BRUSH', 'Teeth Brushing', 20.00, 20, 'Dental hygiene service'],
+                ['FLEA_TREAT', 'Flea Treatment', 25.00, 30, 'Flea and tick treatment'],
+                ['DE_SHED', 'De-shedding Treatment', 30.00, 45, 'Remove excess undercoat'],
+                ['ANAL_GLAND', 'Anal Gland Expression', 15.00, 10, 'Anal gland cleaning']
+            ];
+            
+            $stmt = $pdo->prepare("INSERT INTO additional_services (service_code, service_name, price, duration, description) VALUES (?, ?, ?, ?, ?)");
+            foreach ($defaultServices as $service) {
+                $stmt->execute($service);
+            }
+        }
+        
+        echo json_encode([
+            'message' => 'Missing tables created successfully',
+            'tables_created' => ['pricing_breeds', 'additional_services'],
+            'default_data_added' => true
+        ]);
+        
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to create tables: ' . $e->getMessage()]);
+    }
+}
+
+function handleAppointments($pdo, $method, $input) {
     switch ($method) {
         case 'GET':
             try {
@@ -639,203 +802,25 @@ function handleAppointments($pdo, $method, $input, $path = '') {
             }
             
             try {
-                // Handle new booking format with client information
-                $clientId = null;
-                
-                if (isset($input['client'])) {
-                    $client = $input['client'];
-                    
-                    // Check if client already exists by email
-                    $stmt = $pdo->prepare("SELECT id FROM clients WHERE email = ?");
-                    $stmt->execute([$client['email']]);
-                    $existingClient = $stmt->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($existingClient) {
-                        $clientId = $existingClient['id'];
-                        // Update existing client information
-                        $stmt = $pdo->prepare("UPDATE clients SET name = ?, phone = ?, address = ?, pets = ? WHERE id = ?");
-                        $stmt->execute([
-                            $client['name'],
-                            $client['phone'],
-                            $client['address'],
-                            json_encode($client['pets'] ?? []),
-                            $clientId
-                        ]);
-                    } else {
-                        // Create new client
-                        $stmt = $pdo->prepare("INSERT INTO clients (name, email, phone, address, pets) VALUES (?, ?, ?, ?, ?)");
-                        $stmt->execute([
-                            $client['name'],
-                            $client['email'],
-                            $client['phone'],
-                            $client['address'],
-                            json_encode($client['pets'] ?? [])
-                        ]);
-                        $clientId = $pdo->lastInsertId();
-                    }
-                } else {
-                    // Fallback to default client ID
-                    $clientId = $input['clientId'] ?? 1;
-                }
-                
-                // Calculate total amount if not provided
-                $totalAmount = $input['totalAmount'] ?? 0;
-                if ($totalAmount == 0 && isset($input['services'])) {
-                    // You can implement price calculation here based on services
-                    // For now, we'll use the provided total or default to 0
-                }
-                
-                // Create the appointment
                 $stmt = $pdo->prepare("INSERT INTO appointments (clientId, services, date, time, status, notes, totalAmount) VALUES (?, ?, ?, ?, ?, ?, ?)");
                 $stmt->execute([
-                    $clientId,
+                    $input['clientId'] ?? 1, // Default to client ID 1 for now
                     json_encode($input['services'] ?? []),
                     $input['date'] ?? '',
                     $input['time'] ?? '',
                     'pending',
                     $input['notes'] ?? '',
-                    $totalAmount
+                    $input['totalAmount'] ?? 0
                 ]);
-                
-                $appointmentId = $pdo->lastInsertId();
                 
                 echo json_encode([
                     'success' => true,
-                    'id' => $appointmentId,
-                    'clientId' => $clientId,
+                    'id' => $pdo->lastInsertId(),
                     'message' => 'Appointment created successfully'
                 ]);
             } catch (PDOException $e) {
                 http_response_code(500);
                 echo json_encode(['error' => 'Failed to create appointment: ' . $e->getMessage()]);
-            }
-            break;
-            
-        case 'PUT':
-            if (!$input) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Invalid input']);
-                return;
-            }
-            
-            try {
-                // Extract appointment ID from the URL path if it exists
-                $pathParts = explode('/', $path);
-                $appointmentId = null;
-                
-                // Look for appointments/{id} pattern
-                if (count($pathParts) >= 2 && $pathParts[0] === 'appointments' && is_numeric($pathParts[1])) {
-                    $appointmentId = intval($pathParts[1]);
-                } elseif (isset($input['id'])) {
-                    $appointmentId = intval($input['id']);
-                }
-                
-                if (!$appointmentId) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Appointment ID is required']);
-                    return;
-                }
-                
-                // Check if appointment exists
-                $stmt = $pdo->prepare("SELECT * FROM appointments WHERE id = ?");
-                $stmt->execute([$appointmentId]);
-                $appointment = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$appointment) {
-                    http_response_code(404);
-                    echo json_encode(['error' => 'Appointment not found']);
-                    return;
-                }
-                
-                // Prepare update fields
-                $updates = [];
-                $params = [];
-                
-                if (isset($input['status'])) {
-                    $updates[] = "status = ?";
-                    $params[] = $input['status'];
-                }
-                if (isset($input['date'])) {
-                    $updates[] = "date = ?";
-                    $params[] = $input['date'];
-                }
-                if (isset($input['time'])) {
-                    $updates[] = "time = ?";
-                    $params[] = $input['time'];
-                }
-                if (isset($input['notes'])) {
-                    $updates[] = "notes = ?";
-                    $params[] = $input['notes'];
-                }
-                if (isset($input['services'])) {
-                    $updates[] = "services = ?";
-                    $params[] = json_encode($input['services']);
-                }
-                if (isset($input['totalAmount'])) {
-                    $updates[] = "totalAmount = ?";
-                    $params[] = $input['totalAmount'];
-                }
-                
-                if (empty($updates)) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'No fields to update']);
-                    return;
-                }
-                
-                $params[] = $appointmentId;
-                $sql = "UPDATE appointments SET " . implode(', ', $updates) . " WHERE id = ?";
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute($params);
-                
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'Appointment updated successfully',
-                    'id' => $appointmentId
-                ]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to update appointment: ' . $e->getMessage()]);
-            }
-            break;
-            
-        case 'DELETE':
-            try {
-                // Extract appointment ID from the URL path
-                $pathParts = explode('/', $path);
-                $appointmentId = null;
-                
-                if (count($pathParts) >= 2 && $pathParts[0] === 'appointments' && is_numeric($pathParts[1])) {
-                    $appointmentId = intval($pathParts[1]);
-                }
-                
-                if (!$appointmentId) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Appointment ID is required']);
-                    return;
-                }
-                
-                // Check if appointment exists
-                $stmt = $pdo->prepare("SELECT * FROM appointments WHERE id = ?");
-                $stmt->execute([$appointmentId]);
-                $appointment = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$appointment) {
-                    http_response_code(404);
-                    echo json_encode(['error' => 'Appointment not found']);
-                    return;
-                }
-                
-                // Delete the appointment
-                $stmt = $pdo->prepare("DELETE FROM appointments WHERE id = ?");
-                $stmt->execute([$appointmentId]);
-                
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'Appointment deleted successfully'
-                ]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to delete appointment: ' . $e->getMessage()]);
             }
             break;
             
@@ -846,67 +831,7 @@ function handleAppointments($pdo, $method, $input, $path = '') {
     }
 }
 
-function handleRecentAppointments($pdo) {
-    try {
-        // Get recent appointments (last 10) ordered by updatedAt
-        $sql = "
-            SELECT 
-                a.id,
-                a.clientId,
-                a.services,
-                a.date,
-                a.time,
-                a.status,
-                a.notes,
-                a.totalAmount,
-                a.createdAt,
-                a.updatedAt,
-                a.groomerId,
-                c.name as client_name,
-                c.email as client_email,
-                c.phone as client_phone,
-                c.address as client_address,
-                c.pets as client_pets
-            FROM appointments a
-            LEFT JOIN clients c ON a.clientId = c.id
-            ORDER BY a.updatedAt DESC 
-            LIMIT 10
-        ";
-        
-        $stmt = $pdo->query($sql);
-        $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Format the data for the frontend
-        $formattedAppointments = array_map(function($appointment) {
-            return [
-                'id' => $appointment['id'],
-                'client' => [
-                    'id' => $appointment['clientId'],
-                    'name' => $appointment['client_name'] ?? 'Unknown Client',
-                    'email' => $appointment['client_email'] ?? '',
-                    'phone' => $appointment['client_phone'] ?? '',
-                    'address' => $appointment['client_address'] ?? ''
-                ],
-                'services' => json_decode($appointment['services'] ?? '[]', true),
-                'date' => $appointment['date'],
-                'time' => formatTime($appointment['time']),
-                'status' => $appointment['status'],
-                'notes' => $appointment['notes'],
-                'totalAmount' => floatval($appointment['totalAmount'] ?? 0),
-                'createdAt' => $appointment['createdAt'],
-                'updatedAt' => $appointment['updatedAt'],
-                'groomerId' => $appointment['groomerId']
-            ];
-        }, $appointments);
-        
-        echo json_encode($formattedAppointments);
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Failed to fetch recent appointments: ' . $e->getMessage()]);
-    }
-}
-
-function handleUsers($pdo, $method, $input, $path = '') {
+function handleUsers($pdo, $method, $input) {
     switch ($method) {
         case 'GET':
             try {
@@ -969,176 +894,6 @@ function handleUsers($pdo, $method, $input, $path = '') {
             }
             break;
             
-        case 'POST':
-            if (!$input) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Invalid input']);
-                return;
-            }
-            
-            try {
-                // Validate required fields
-                if (!isset($input['name']) || !isset($input['email']) || !isset($input['password']) || !isset($input['role'])) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Name, email, password, and role are required']);
-                    return;
-                }
-                
-                // Check if email already exists
-                $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE email = ?");
-                $stmt->execute([$input['email']]);
-                if ($stmt->fetchColumn() > 0) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Email already exists']);
-                    return;
-                }
-                
-                // Hash password
-                $hashedPassword = password_hash($input['password'], PASSWORD_DEFAULT);
-                
-                // Create user
-                $stmt = $pdo->prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)");
-                $stmt->execute([$input['name'], $input['email'], $hashedPassword, $input['role']]);
-                
-                $userId = $pdo->lastInsertId();
-                
-                echo json_encode([
-                    'success' => true,
-                    'id' => $userId,
-                    'message' => 'User created successfully'
-                ]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to create user: ' . $e->getMessage()]);
-            }
-            break;
-            
-        case 'PUT':
-            if (!$input) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Invalid input']);
-                return;
-            }
-            
-            try {
-                // Extract user ID from path
-                $pathParts = explode('/', $path);
-                $userId = null;
-                
-                if (count($pathParts) >= 2 && $pathParts[0] === 'users' && is_numeric($pathParts[1])) {
-                    $userId = intval($pathParts[1]);
-                } elseif (isset($input['id'])) {
-                    $userId = intval($input['id']);
-                }
-                
-                if (!$userId) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'User ID is required']);
-                    return;
-                }
-                
-                // Check if user exists
-                $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-                $stmt->execute([$userId]);
-                $user = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$user) {
-                    http_response_code(404);
-                    echo json_encode(['error' => 'User not found']);
-                    return;
-                }
-                
-                // Prepare update fields
-                $updates = [];
-                $params = [];
-                
-                if (isset($input['name'])) {
-                    $updates[] = "name = ?";
-                    $params[] = $input['name'];
-                }
-                if (isset($input['email'])) {
-                    // Check if email is taken by another user
-                    $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE email = ? AND id != ?");
-                    $stmt->execute([$input['email'], $userId]);
-                    if ($stmt->fetchColumn() > 0) {
-                        http_response_code(400);
-                        echo json_encode(['error' => 'Email already exists']);
-                        return;
-                    }
-                    $updates[] = "email = ?";
-                    $params[] = $input['email'];
-                }
-                if (isset($input['role'])) {
-                    $updates[] = "role = ?";
-                    $params[] = $input['role'];
-                }
-                if (isset($input['password']) && !empty($input['password'])) {
-                    $updates[] = "password = ?";
-                    $params[] = password_hash($input['password'], PASSWORD_DEFAULT);
-                }
-                
-                if (empty($updates)) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'No fields to update']);
-                    return;
-                }
-                
-                $params[] = $userId;
-                $sql = "UPDATE users SET " . implode(', ', $updates) . " WHERE id = ?";
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute($params);
-                
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'User updated successfully'
-                ]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to update user: ' . $e->getMessage()]);
-            }
-            break;
-            
-        case 'DELETE':
-            try {
-                // Extract user ID from path
-                $pathParts = explode('/', $path);
-                $userId = null;
-                
-                if (count($pathParts) >= 2 && $pathParts[0] === 'users' && is_numeric($pathParts[1])) {
-                    $userId = intval($pathParts[1]);
-                }
-                
-                if (!$userId) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'User ID is required']);
-                    return;
-                }
-                
-                // Check if user exists
-                $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-                $stmt->execute([$userId]);
-                $user = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$user) {
-                    http_response_code(404);
-                    echo json_encode(['error' => 'User not found']);
-                    return;
-                }
-                
-                // Delete the user
-                $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
-                $stmt->execute([$userId]);
-                
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'User deleted successfully'
-                ]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to delete user: ' . $e->getMessage()]);
-            }
-            break;
-            
         default:
             http_response_code(405);
             echo json_encode(['error' => 'Method not allowed']);
@@ -1160,30 +915,25 @@ function handleUserStats($pdo) {
         $stmt = $pdo->query("SELECT id, email, name, role FROM users ORDER BY id DESC LIMIT 5");
         $recentUsers = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Initialize role counts
+        // Format role counts
         $adminCount = 0;
         $clientCount = 0;
-        $groomerCount = 0;
-        
-        // Format role counts
         foreach ($roleCounts as $roleCount) {
             if ($roleCount['role'] === 'admin') {
                 $adminCount = intval($roleCount['count']);
             } elseif ($roleCount['role'] === 'client') {
                 $clientCount = intval($roleCount['count']);
-            } elseif ($roleCount['role'] === 'groomer') {
-                $groomerCount = intval($roleCount['count']);
             }
         }
         
         echo json_encode([
-            'totals' => [
-                'users' => intval($totalUsers),
+            'overview' => [
+                'admins' => $adminCount,
                 'clients' => $clientCount,
-                'groomers' => $groomerCount,
-                'admins' => $adminCount
+                'users' => intval($totalUsers)
             ],
-            'recentUsers' => $recentUsers
+            'recentUsers' => $recentUsers,
+            'totalUsers' => intval($totalUsers)
         ]);
     } catch (PDOException $e) {
         http_response_code(500);
@@ -1191,89 +941,7 @@ function handleUserStats($pdo) {
     }
 }
 
-function handleUsersBulkUpdate($pdo, $method, $input) {
-    if ($method !== 'PATCH') {
-        http_response_code(405);
-        echo json_encode(['error' => 'Method not allowed']);
-        return;
-    }
-    
-    try {
-        // Validate input
-        if (!isset($input['userIds']) || !isset($input['role'])) {
-            http_response_code(400);
-            echo json_encode(['error' => 'userIds and role are required']);
-            return;
-        }
-        
-        $userIds = $input['userIds'];
-        $role = $input['role'];
-        
-        // Validate role
-        $validRoles = ['client', 'admin', 'groomer'];
-        if (!in_array($role, $validRoles)) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Invalid role. Must be client, admin, or groomer']);
-            return;
-        }
-        
-        // Create placeholders for IN clause
-        $placeholders = str_repeat('?,', count($userIds) - 1) . '?';
-        
-        // Update users
-        $stmt = $pdo->prepare("UPDATE users SET role = ? WHERE id IN ($placeholders)");
-        $params = array_merge([$role], $userIds);
-        $stmt->execute($params);
-        
-        $updatedCount = $stmt->rowCount();
-        
-        echo json_encode([
-            'message' => "Successfully updated $updatedCount user(s) to $role role",
-            'updatedCount' => $updatedCount
-        ]);
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Failed to update user roles: ' . $e->getMessage()]);
-    }
-}
-
-function handleDashboardStats($pdo) {
-    try {
-        // Get current month start and end dates
-        $currentMonth = date('Y-m-01');
-        $nextMonth = date('Y-m-01', strtotime('+1 month'));
-        
-        // Get appointments count for this month
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM appointments WHERE date >= ? AND date < ? AND status != 'cancelled'");
-        $stmt->execute([$currentMonth, $nextMonth]);
-        $appointmentsThisMonth = intval($stmt->fetch(PDO::FETCH_ASSOC)['count']);
-        
-        // Get total revenue for this month
-        $stmt = $pdo->prepare("SELECT SUM(totalAmount) as revenue FROM appointments WHERE date >= ? AND date < ? AND status IN ('completed', 'confirmed', 'in-progress')");
-        $stmt->execute([$currentMonth, $nextMonth]);
-        $revenue = $stmt->fetch(PDO::FETCH_ASSOC)['revenue'];
-        $totalRevenue = $revenue ? floatval($revenue) : 0;
-        
-        // Get total clients count
-        $stmt = $pdo->query("SELECT COUNT(*) as count FROM clients");
-        $totalClients = intval($stmt->fetch(PDO::FETCH_ASSOC)['count']);
-        
-        // For now, use a fixed average rating (can be improved with reviews system)
-        $averageRating = 4.8;
-        
-        echo json_encode([
-            'appointmentsThisMonth' => $appointmentsThisMonth,
-            'totalRevenue' => round($totalRevenue, 2),
-            'totalClients' => $totalClients,
-            'averageRating' => $averageRating
-        ]);
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Failed to fetch dashboard stats: ' . $e->getMessage()]);
-    }
-}
-
-function handleClients($pdo, $method, $input, $path = '') {
+function handleClients($pdo, $method, $input) {
     switch ($method) {
         case 'GET':
             try {
@@ -1350,530 +1018,6 @@ function handleClients($pdo, $method, $input, $path = '') {
             } catch (PDOException $e) {
                 http_response_code(500);
                 echo json_encode(['error' => 'Failed to fetch clients: ' . $e->getMessage()]);
-            }
-            break;
-            
-        case 'PUT':
-            if (!$input) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Invalid input']);
-                return;
-            }
-            
-            try {
-                // Extract client ID from path
-                $pathParts = explode('/', $path);
-                $clientId = null;
-                
-                if (count($pathParts) >= 2 && $pathParts[0] === 'clients' && is_numeric($pathParts[1])) {
-                    $clientId = intval($pathParts[1]);
-                } elseif (isset($input['id'])) {
-                    $clientId = intval($input['id']);
-                }
-                
-                if (!$clientId) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Client ID is required']);
-                    return;
-                }
-                
-                // Check if client exists
-                $stmt = $pdo->prepare("SELECT * FROM clients WHERE id = ?");
-                $stmt->execute([$clientId]);
-                $client = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$client) {
-                    http_response_code(404);
-                    echo json_encode(['error' => 'Client not found']);
-                    return;
-                }
-                
-                // Prepare update fields
-                $updates = [];
-                $params = [];
-                
-                if (isset($input['name'])) {
-                    $updates[] = "name = ?";
-                    $params[] = $input['name'];
-                }
-                if (isset($input['email'])) {
-                    $updates[] = "email = ?";
-                    $params[] = $input['email'];
-                }
-                if (isset($input['phone'])) {
-                    $updates[] = "phone = ?";
-                    $params[] = $input['phone'];
-                }
-                if (isset($input['address'])) {
-                    $updates[] = "address = ?";
-                    $params[] = $input['address'];
-                }
-                if (isset($input['pets'])) {
-                    $updates[] = "pets = ?";
-                    $params[] = json_encode($input['pets']);
-                }
-                
-                if (empty($updates)) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'No fields to update']);
-                    return;
-                }
-                
-                $params[] = $clientId;
-                $sql = "UPDATE clients SET " . implode(', ', $updates) . " WHERE id = ?";
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute($params);
-                
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'Client updated successfully'
-                ]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to update client: ' . $e->getMessage()]);
-            }
-            break;
-            
-        case 'DELETE':
-            try {
-                // Extract client ID from path
-                $pathParts = explode('/', $path);
-                $clientId = null;
-                
-                if (count($pathParts) >= 2 && $pathParts[0] === 'clients' && is_numeric($pathParts[1])) {
-                    $clientId = intval($pathParts[1]);
-                }
-                
-                if (!$clientId) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Client ID is required']);
-                    return;
-                }
-                
-                // Check if client exists
-                $stmt = $pdo->prepare("SELECT * FROM clients WHERE id = ?");
-                $stmt->execute([$clientId]);
-                $client = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$client) {
-                    http_response_code(404);
-                    echo json_encode(['error' => 'Client not found']);
-                    return;
-                }
-                
-                // Delete the client
-                $stmt = $pdo->prepare("DELETE FROM clients WHERE id = ?");
-                $stmt->execute([$clientId]);
-                
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'Client deleted successfully'
-                ]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to delete client: ' . $e->getMessage()]);
-            }
-            break;
-            
-        default:
-            http_response_code(405);
-            echo json_encode(['error' => 'Method not allowed']);
-            break;
-    }
-}
-
-function handlePricingBreeds($pdo, $method, $input, $path = '') {
-    switch ($method) {
-        case 'GET':
-            try {
-                $stmt = $pdo->query("SELECT * FROM breeds WHERE active = 1 ORDER BY species ASC, sizeCategory ASC, name ASC");
-                $breeds = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                
-                // Format the response to match TypeScript interface
-                $formattedBreeds = array_map(function($breed) {
-                    return [
-                        'id' => (int)$breed['id'],
-                        'species' => $breed['species'],
-                        'name' => $breed['name'],
-                        'sizeCategory' => $breed['sizeCategory'],
-                        'fullGroomPrice' => (float)$breed['fullGroomPrice'],
-                        'active' => (bool)$breed['active']
-                    ];
-                }, $breeds);
-                
-                echo json_encode($formattedBreeds);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to fetch breeds: ' . $e->getMessage()]);
-            }
-            break;
-            
-        case 'POST':
-            try {
-                // Validate required fields
-                if (!isset($input['species']) || !isset($input['name']) || !isset($input['sizeCategory']) || !isset($input['fullGroomPrice'])) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Missing required fields: species, name, sizeCategory, fullGroomPrice']);
-                    return;
-                }
-                
-                $stmt = $pdo->prepare("INSERT INTO breeds (species, name, sizeCategory, fullGroomPrice, active) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([
-                    $input['species'],
-                    $input['name'],
-                    $input['sizeCategory'],
-                    $input['fullGroomPrice'],
-                    $input['active'] ?? true
-                ]);
-                
-                $id = $pdo->lastInsertId();
-                $stmt = $pdo->prepare("SELECT * FROM breeds WHERE id = ?");
-                $stmt->execute([$id]);
-                $breed = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                echo json_encode([
-                    'id' => (int)$breed['id'],
-                    'species' => $breed['species'],
-                    'name' => $breed['name'],
-                    'sizeCategory' => $breed['sizeCategory'],
-                    'fullGroomPrice' => (float)$breed['fullGroomPrice'],
-                    'active' => (bool)$breed['active']
-                ]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to create breed: ' . $e->getMessage()]);
-            }
-            break;
-            
-        case 'PUT':
-            if (!$input) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Invalid input']);
-                return;
-            }
-            
-            try {
-                // Extract breed ID from path
-                $pathParts = explode('/', $path);
-                $breedId = null;
-                
-                if (count($pathParts) >= 3 && $pathParts[0] === 'pricing' && $pathParts[1] === 'breeds' && is_numeric($pathParts[2])) {
-                    $breedId = intval($pathParts[2]);
-                } elseif (isset($input['id'])) {
-                    $breedId = intval($input['id']);
-                }
-                
-                if (!$breedId) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Breed ID is required']);
-                    return;
-                }
-                
-                // Check if breed exists
-                $stmt = $pdo->prepare("SELECT * FROM breeds WHERE id = ?");
-                $stmt->execute([$breedId]);
-                $breed = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$breed) {
-                    http_response_code(404);
-                    echo json_encode(['error' => 'Breed not found']);
-                    return;
-                }
-                
-                // Prepare update fields
-                $updates = [];
-                $params = [];
-                
-                if (isset($input['species'])) {
-                    $updates[] = "species = ?";
-                    $params[] = $input['species'];
-                }
-                if (isset($input['name'])) {
-                    $updates[] = "name = ?";
-                    $params[] = $input['name'];
-                }
-                if (isset($input['sizeCategory'])) {
-                    $updates[] = "sizeCategory = ?";
-                    $params[] = $input['sizeCategory'];
-                }
-                if (isset($input['fullGroomPrice'])) {
-                    $updates[] = "fullGroomPrice = ?";
-                    $params[] = $input['fullGroomPrice'];
-                }
-                if (isset($input['active'])) {
-                    $updates[] = "active = ?";
-                    $params[] = $input['active'];
-                }
-                
-                if (empty($updates)) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'No fields to update']);
-                    return;
-                }
-                
-                $params[] = $breedId;
-                $sql = "UPDATE breeds SET " . implode(', ', $updates) . " WHERE id = ?";
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute($params);
-                
-                // Return updated breed
-                $stmt = $pdo->prepare("SELECT * FROM breeds WHERE id = ?");
-                $stmt->execute([$breedId]);
-                $updatedBreed = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                echo json_encode([
-                    'id' => (int)$updatedBreed['id'],
-                    'species' => $updatedBreed['species'],
-                    'name' => $updatedBreed['name'],
-                    'sizeCategory' => $updatedBreed['sizeCategory'],
-                    'fullGroomPrice' => (float)$updatedBreed['fullGroomPrice'],
-                    'active' => (bool)$updatedBreed['active']
-                ]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to update breed: ' . $e->getMessage()]);
-            }
-            break;
-            
-        case 'DELETE':
-            try {
-                // Extract breed ID from path
-                $pathParts = explode('/', $path);
-                $breedId = null;
-                
-                if (count($pathParts) >= 3 && $pathParts[0] === 'pricing' && $pathParts[1] === 'breeds' && is_numeric($pathParts[2])) {
-                    $breedId = intval($pathParts[2]);
-                }
-                
-                if (!$breedId) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Breed ID is required']);
-                    return;
-                }
-                
-                // Check if breed exists
-                $stmt = $pdo->prepare("SELECT * FROM breeds WHERE id = ?");
-                $stmt->execute([$breedId]);
-                $breed = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$breed) {
-                    http_response_code(404);
-                    echo json_encode(['error' => 'Breed not found']);
-                    return;
-                }
-                
-                // Delete the breed
-                $stmt = $pdo->prepare("DELETE FROM breeds WHERE id = ?");
-                $stmt->execute([$breedId]);
-                
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'Breed deleted successfully'
-                ]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to delete breed: ' . $e->getMessage()]);
-            }
-            break;
-            
-        default:
-            http_response_code(405);
-            echo json_encode(['error' => 'Method not allowed']);
-            break;
-    }
-}
-
-function handlePricingAdditionalServices($pdo, $method, $input, $path = '') {
-    switch ($method) {
-        case 'GET':
-            try {
-                $stmt = $pdo->query("SELECT * FROM additional_services WHERE active = 1 ORDER BY name ASC");
-                $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                
-                // Format the response to match TypeScript interface
-                $formattedServices = array_map(function($service) {
-                    return [
-                        'id' => (int)$service['id'],
-                        'code' => $service['code'],
-                        'name' => $service['name'],
-                        'price' => (float)$service['price'],
-                        'description' => $service['description'],
-                        'active' => (bool)$service['active']
-                    ];
-                }, $services);
-                
-                echo json_encode($formattedServices);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to fetch additional services: ' . $e->getMessage()]);
-            }
-            break;
-            
-        case 'POST':
-            try {
-                // Validate required fields
-                if (!isset($input['code']) || !isset($input['name']) || !isset($input['price'])) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Missing required fields: code, name, price']);
-                    return;
-                }
-                
-                $stmt = $pdo->prepare("INSERT INTO additional_services (code, name, price, description, active) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([
-                    $input['code'],
-                    $input['name'],
-                    $input['price'],
-                    $input['description'] ?? null,
-                    $input['active'] ?? true
-                ]);
-                
-                $id = $pdo->lastInsertId();
-                $stmt = $pdo->prepare("SELECT * FROM additional_services WHERE id = ?");
-                $stmt->execute([$id]);
-                $service = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                echo json_encode([
-                    'id' => (int)$service['id'],
-                    'code' => $service['code'],
-                    'name' => $service['name'],
-                    'price' => (float)$service['price'],
-                    'description' => $service['description'],
-                    'active' => (bool)$service['active']
-                ]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to create additional service: ' . $e->getMessage()]);
-            }
-            break;
-            
-        case 'PUT':
-            if (!$input) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Invalid input']);
-                return;
-            }
-            
-            try {
-                // Extract service ID from path
-                $pathParts = explode('/', $path);
-                $serviceId = null;
-                
-                if (count($pathParts) >= 3 && $pathParts[0] === 'pricing' && $pathParts[1] === 'additional-services' && is_numeric($pathParts[2])) {
-                    $serviceId = intval($pathParts[2]);
-                } elseif (isset($input['id'])) {
-                    $serviceId = intval($input['id']);
-                }
-                
-                if (!$serviceId) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Service ID is required']);
-                    return;
-                }
-                
-                // Check if service exists
-                $stmt = $pdo->prepare("SELECT * FROM additional_services WHERE id = ?");
-                $stmt->execute([$serviceId]);
-                $service = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$service) {
-                    http_response_code(404);
-                    echo json_encode(['error' => 'Service not found']);
-                    return;
-                }
-                
-                // Prepare update fields
-                $updates = [];
-                $params = [];
-                
-                if (isset($input['code'])) {
-                    $updates[] = "code = ?";
-                    $params[] = $input['code'];
-                }
-                if (isset($input['name'])) {
-                    $updates[] = "name = ?";
-                    $params[] = $input['name'];
-                }
-                if (isset($input['price'])) {
-                    $updates[] = "price = ?";
-                    $params[] = $input['price'];
-                }
-                if (isset($input['description'])) {
-                    $updates[] = "description = ?";
-                    $params[] = $input['description'];
-                }
-                if (isset($input['active'])) {
-                    $updates[] = "active = ?";
-                    $params[] = $input['active'];
-                }
-                
-                if (empty($updates)) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'No fields to update']);
-                    return;
-                }
-                
-                $params[] = $serviceId;
-                $sql = "UPDATE additional_services SET " . implode(', ', $updates) . " WHERE id = ?";
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute($params);
-                
-                // Return updated service
-                $stmt = $pdo->prepare("SELECT * FROM additional_services WHERE id = ?");
-                $stmt->execute([$serviceId]);
-                $updatedService = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                echo json_encode([
-                    'id' => (int)$updatedService['id'],
-                    'code' => $updatedService['code'],
-                    'name' => $updatedService['name'],
-                    'price' => (float)$updatedService['price'],
-                    'description' => $updatedService['description'],
-                    'active' => (bool)$updatedService['active']
-                ]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to update additional service: ' . $e->getMessage()]);
-            }
-            break;
-            
-        case 'DELETE':
-            try {
-                // Extract service ID from path
-                $pathParts = explode('/', $path);
-                $serviceId = null;
-                
-                if (count($pathParts) >= 3 && $pathParts[0] === 'pricing' && $pathParts[1] === 'additional-services' && is_numeric($pathParts[2])) {
-                    $serviceId = intval($pathParts[2]);
-                }
-                
-                if (!$serviceId) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Service ID is required']);
-                    return;
-                }
-                
-                // Check if service exists
-                $stmt = $pdo->prepare("SELECT * FROM additional_services WHERE id = ?");
-                $stmt->execute([$serviceId]);
-                $service = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$service) {
-                    http_response_code(404);
-                    echo json_encode(['error' => 'Service not found']);
-                    return;
-                }
-                
-                // Delete the service
-                $stmt = $pdo->prepare("DELETE FROM additional_services WHERE id = ?");
-                $stmt->execute([$serviceId]);
-                
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'Additional service deleted successfully'
-                ]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to delete additional service: ' . $e->getMessage()]);
             }
             break;
             
@@ -2008,178 +1152,137 @@ function handleDebugTables($pdo) {
     }
 }
 
-function handleSeedData($pdo) {
+// Dashboard stats for Overview page
+function handleDashboardStats($pdo) {
     try {
-        // Check if we already have data
-        $stmt = $pdo->query("SELECT COUNT(*) FROM clients");
-        $clientCount = $stmt->fetchColumn();
+        // Get appointment counts by status - using correct column name 'date'
+        $stmt = $pdo->query("SELECT 
+            COUNT(*) as total_appointments,
+            SUM(CASE WHEN DATE(date) = CURDATE() THEN 1 ELSE 0 END) as today_appointments,
+            SUM(CASE WHEN DATE(date) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 6 DAY) THEN 1 ELSE 0 END) as week_appointments,
+            SUM(CASE WHEN MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE()) THEN 1 ELSE 0 END) as month_appointments
+            FROM appointments");
+        $appointments = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        $stmt = $pdo->query("SELECT COUNT(*) FROM appointments");
-        $appointmentCount = $stmt->fetchColumn();
+        // Get client count
+        $stmt = $pdo->query("SELECT COUNT(*) as total_clients FROM clients");
+        $clients = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        if ($clientCount > 0 && $appointmentCount > 0) {
-            echo json_encode([
-                'message' => 'Data already exists',
-                'clients' => $clientCount,
-                'appointments' => $appointmentCount
-            ]);
-            return;
-        }
+        // Get user count
+        $stmt = $pdo->query("SELECT COUNT(*) as total_users FROM users");
+        $users = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Add sample clients
-        $sampleClients = [
-            [
-                'name' => 'Sarah Johnson',
-                'email' => 'sarah@example.com',
-                'phone' => '(555) 123-4567',
-                'address' => '123 Oak Street, Miami, FL 33101',
-                'pets' => json_encode([
-                    ['name' => 'Buddy', 'breed' => 'Golden Retriever', 'age' => 3, 'type' => 'dog', 'size' => 'large']
-                ])
-            ],
-            [
-                'name' => 'Mike Wilson',
-                'email' => 'mike@example.com',
-                'phone' => '(555) 234-5678',
-                'address' => '456 Pine Avenue, Miami, FL 33102',
-                'pets' => json_encode([
-                    ['name' => 'Whiskers', 'breed' => 'Persian', 'age' => 2, 'type' => 'cat', 'size' => 'medium']
-                ])
-            ],
-            [
-                'name' => 'Emily Davis',
-                'email' => 'emily@example.com',
-                'phone' => '(555) 345-6789',
-                'address' => '789 Maple Drive, Miami, FL 33103',
-                'pets' => json_encode([
-                    ['name' => 'Max', 'breed' => 'Poodle', 'age' => 5, 'type' => 'dog', 'size' => 'medium']
-                ])
-            ]
-        ];
-        
-        $clientIds = [];
-        foreach ($sampleClients as $client) {
-            $stmt = $pdo->prepare("INSERT INTO clients (name, email, phone, address, pets) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([
-                $client['name'],
-                $client['email'],
-                $client['phone'],
-                $client['address'],
-                $client['pets']
-            ]);
-            $clientIds[] = $pdo->lastInsertId();
-        }
-        
-        // Add sample appointments
-        $sampleAppointments = [
-            [
-                'clientId' => $clientIds[0],
-                'services' => json_encode(['full-groom']),
-                'date' => date('Y-m-d'),
-                'time' => '10:00 AM',
-                'status' => 'pending',
-                'notes' => 'First grooming session',
-                'totalAmount' => 75.00
-            ],
-            [
-                'clientId' => $clientIds[1],
-                'services' => json_encode(['bath-brush']),
-                'date' => date('Y-m-d', strtotime('+1 day')),
-                'time' => '2:00 PM',
-                'status' => 'confirmed',
-                'notes' => 'Regular maintenance',
-                'totalAmount' => 45.00
-            ],
-            [
-                'clientId' => $clientIds[2],
-                'services' => json_encode(['nail-trim', 'teeth-cleaning']),
-                'date' => date('Y-m-d', strtotime('-1 day')),
-                'time' => '11:30 AM',
-                'status' => 'completed',
-                'notes' => 'Monthly routine',
-                'totalAmount' => 35.00
-            ],
-            [
-                'clientId' => $clientIds[0],
-                'services' => json_encode(['full-groom', 'nail-trim']),
-                'date' => date('Y-m-d', strtotime('+2 days')),
-                'time' => '9:00 AM',
-                'status' => 'pending',
-                'notes' => 'Special occasion grooming',
-                'totalAmount' => 90.00
-            ]
-        ];
-        
-        $appointmentIds = [];
-        foreach ($sampleAppointments as $appointment) {
-            $stmt = $pdo->prepare("INSERT INTO appointments (clientId, services, date, time, status, notes, totalAmount) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([
-                $appointment['clientId'],
-                $appointment['services'],
-                $appointment['date'],
-                $appointment['time'],
-                $appointment['status'],
-                $appointment['notes'],
-                $appointment['totalAmount']
-            ]);
-            $appointmentIds[] = $pdo->lastInsertId();
-        }
-        
-        // Add sample breeds
-        $sampleBreeds = [
-            ['species' => 'dog', 'name' => 'Chihuahua', 'sizeCategory' => 'small', 'fullGroomPrice' => 75.00],
-            ['species' => 'dog', 'name' => 'Beagle', 'sizeCategory' => 'medium', 'fullGroomPrice' => 100.00],
-            ['species' => 'dog', 'name' => 'Golden Retriever', 'sizeCategory' => 'large', 'fullGroomPrice' => 125.00],
-            ['species' => 'dog', 'name' => 'German Shepherd', 'sizeCategory' => 'xlarge', 'fullGroomPrice' => 150.00],
-            ['species' => 'dog', 'name' => 'Great Dane', 'sizeCategory' => 'xxlarge', 'fullGroomPrice' => 175.00],
-            ['species' => 'cat', 'name' => 'Domestic Shorthair', 'sizeCategory' => 'small', 'fullGroomPrice' => 85.00],
-            ['species' => 'cat', 'name' => 'Persian', 'sizeCategory' => 'medium', 'fullGroomPrice' => 85.00],
-            ['species' => 'cat', 'name' => 'Maine Coon', 'sizeCategory' => 'large', 'fullGroomPrice' => 85.00]
-        ];
-        
-        foreach ($sampleBreeds as $breed) {
-            $stmt = $pdo->prepare("INSERT IGNORE INTO breeds (species, name, sizeCategory, fullGroomPrice, active) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([
-                $breed['species'],
-                $breed['name'],
-                $breed['sizeCategory'],
-                $breed['fullGroomPrice'],
-                true
-            ]);
-        }
-        
-        // Add sample additional services
-        $sampleServices = [
-            ['code' => 'de-shedding', 'name' => 'De-Shedding Treatment', 'price' => 50.00],
-            ['code' => 'teeth-cleaning', 'name' => 'Teeth Cleaning', 'price' => 20.00],
-            ['code' => 'flea-tick', 'name' => 'Flea & Tick Treatment', 'price' => 45.00],
-            ['code' => 'nail-trim', 'name' => 'Nail Trimming', 'price' => 15.00],
-            ['code' => 'ear-cleaning', 'name' => 'Ear Cleaning', 'price' => 10.00],
-            ['code' => 'special-shampoo', 'name' => 'Special Shampoo', 'price' => 25.00]
-        ];
-        
-        foreach ($sampleServices as $service) {
-            $stmt = $pdo->prepare("INSERT IGNORE INTO additional_services (code, name, price, active) VALUES (?, ?, ?, ?)");
-            $stmt->execute([
-                $service['code'],
-                $service['name'],
-                $service['price'],
-                true
-            ]);
-        }
+        // Get recent appointments with correct column names
+        $stmt = $pdo->query("SELECT a.id, a.date, a.time, a.status, a.totalAmount, c.name as client_name 
+                            FROM appointments a 
+                            LEFT JOIN clients c ON a.clientId = c.id 
+                            ORDER BY a.date DESC, a.time DESC LIMIT 5");
+        $recentAppointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         echo json_encode([
-            'success' => true,
-            'message' => 'Sample data created successfully',
-            'clients_created' => count($clientIds),
-            'appointments_created' => count($appointmentIds),
-            'breeds_created' => count($sampleBreeds),
-            'services_created' => count($sampleServices)
+            'appointments' => [
+                'total' => intval($appointments['total_appointments']),
+                'today' => intval($appointments['today_appointments']),
+                'thisWeek' => intval($appointments['week_appointments']),
+                'thisMonth' => intval($appointments['month_appointments'])
+            ],
+            'clients' => intval($clients['total_clients']),
+            'users' => intval($users['total_users']),
+            'recentAppointments' => $recentAppointments
         ]);
-        
     } catch (PDOException $e) {
         http_response_code(500);
-        echo json_encode(['error' => 'Failed to seed data: ' . $e->getMessage()]);
+        echo json_encode(['error' => 'Failed to fetch dashboard stats: ' . $e->getMessage()]);
+    }
+}
+
+// Pricing breeds for Settings page
+function handlePricingBreeds($pdo, $method, $input) {
+    switch ($method) {
+        case 'GET':
+            try {
+                $stmt = $pdo->query("SELECT * FROM pricing_breeds ORDER BY species, breed");
+                $breeds = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                echo json_encode(['breeds' => $breeds]);
+            } catch (PDOException $e) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to fetch breeds: ' . $e->getMessage()]);
+            }
+            break;
+            
+        case 'POST':
+            if (!$input) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Breed data required']);
+                return;
+            }
+            
+            try {
+                $stmt = $pdo->prepare("INSERT INTO pricing_breeds (species, breed, size_category, full_groom_price, duration) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([
+                    $input['species'],
+                    $input['breed'],
+                    $input['size_category'],
+                    $input['full_groom_price'],
+                    $input['duration'] ?? 60
+                ]);
+                
+                echo json_encode(['message' => 'Breed added successfully', 'id' => $pdo->lastInsertId()]);
+            } catch (PDOException $e) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to add breed: ' . $e->getMessage()]);
+            }
+            break;
+            
+        default:
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+            break;
+    }
+}
+
+// Additional services for Settings page
+function handlePricingAdditionalServices($pdo, $method, $input) {
+    switch ($method) {
+        case 'GET':
+            try {
+                $stmt = $pdo->query("SELECT * FROM additional_services ORDER BY service_code");
+                $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                echo json_encode(['services' => $services]);
+            } catch (PDOException $e) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to fetch additional services: ' . $e->getMessage()]);
+            }
+            break;
+            
+        case 'POST':
+            if (!$input) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Service data required']);
+                return;
+            }
+            
+            try {
+                $stmt = $pdo->prepare("INSERT INTO additional_services (service_code, service_name, price, duration, description) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([
+                    $input['service_code'],
+                    $input['service_name'],
+                    $input['price'],
+                    $input['duration'] ?? 30,
+                    $input['description'] ?? ''
+                ]);
+                
+                echo json_encode(['message' => 'Service added successfully', 'id' => $pdo->lastInsertId()]);
+            } catch (PDOException $e) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to add service: ' . $e->getMessage()]);
+            }
+            break;
+            
+        default:
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+            break;
     }
 }
 ?>
