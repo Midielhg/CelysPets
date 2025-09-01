@@ -73,7 +73,7 @@ const BookingPage: React.FC = () => {
     email: user?.email || '',
     phone: '',
     address: '',
-    pets: [], // Start with empty pets array
+    pets: [{ name: '', type: 'dog', breedId: null, weight: '', specialInstructions: '' }], // Start with one empty pet form
     includeFullService: false, // Default to false - customer must choose
     additionalServices: [],
     preferredDate: '',
@@ -204,33 +204,18 @@ const BookingPage: React.FC = () => {
                 };
               });
               setFormData(prev => ({ ...prev, pets: defaultPets }));
-            } else {
-              // If no registered pets, add one empty pet form
-              setFormData(prev => ({ 
-                ...prev, 
-                pets: [{ name: '', type: 'dog', breedId: null, weight: '', specialInstructions: '' }] 
-              }));
             }
+            // Note: We no longer need to set a default pet here since we start with one
             
             // If user came from pet selection, pre-populate specific pet
             if (pets.length > 0 && location.state?.selectedPet) {
               const selectedPet = location.state.selectedPet;
               populatePetFromRegistered(selectedPet, 0);
             }
-          } else {
-            // Not authenticated or no pets, add empty form
-            setFormData(prev => ({ 
-              ...prev, 
-              pets: [{ name: '', type: 'dog', breedId: null, weight: '', specialInstructions: '' }] 
-            }));
           }
-        } else {
-          // Not authenticated, add empty form
-          setFormData(prev => ({ 
-            ...prev, 
-            pets: [{ name: '', type: 'dog', breedId: null, weight: '', specialInstructions: '' }] 
-          }));
+          // Note: We no longer need to set a default pet here since we start with one
         }
+        // Note: We no longer need to set a default pet here since we start with one
       } catch (e) {
         console.error('Failed to load data', e);
       }
@@ -278,10 +263,15 @@ const BookingPage: React.FC = () => {
   };
 
   const removePet = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      pets: prev.pets.filter((_, i) => i !== index)
-    }));
+    setFormData(prev => {
+      // Don't allow removing the last pet - always keep at least one
+      if (prev.pets.length <= 1) return prev;
+      
+      return {
+        ...prev,
+        pets: prev.pets.filter((_, i) => i !== index)
+      };
+    });
   };
 
   const updatePet = (index: number, field: keyof Pet, value: string | number | null) => {
@@ -349,18 +339,23 @@ const BookingPage: React.FC = () => {
         throw new Error('Please select at least one service (Full Service Grooming or Additional Services)');
       }
 
-      // If full service is selected, validate pet information
-      if (formData.includeFullService && formData.pets.some(pet => !pet.name || !pet.breedId)) {
-        throw new Error('Please complete all pet information including breed selection');
+      // Always validate basic pet information since we always show it
+      if (formData.pets.some(pet => !pet.name.trim())) {
+        throw new Error('Please enter a name for all pets');
+      }
+
+      // If full service is selected, validate breed information as well
+      if (formData.includeFullService && formData.pets.some(pet => !pet.breedId)) {
+        throw new Error('Please select a breed for all pets when choosing Full Service Grooming');
       }
 
       if (!formData.preferredDate || !formData.preferredTime) {
         throw new Error('Please select your preferred date and time');
       }
 
-      // Prepare pets data with breed information (only if full service is selected)
-      const petsWithBreeds = formData.includeFullService ? formData.pets.map(pet => {
-        const breed = getBreedById(pet.breedId);
+      // Always prepare pets data - for full service we need breed info, for additional services we just need basic info
+      const petsWithBreeds = formData.pets.map(pet => {
+        const breed = formData.includeFullService ? getBreedById(pet.breedId) : null;
         return {
           name: pet.name,
           type: pet.type,
@@ -368,7 +363,7 @@ const BookingPage: React.FC = () => {
           weight: pet.weight,
           specialInstructions: pet.specialInstructions
         };
-      }) : [];
+      });
 
       // Prepare services array
       const services = [];
@@ -555,46 +550,7 @@ const BookingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Service Selection */}
-            <div>
-              <h2 className="text-2xl font-semibold text-amber-900 mb-6">Service Selection</h2>
-              <div className="border border-amber-200 rounded-xl p-6 bg-white/50 backdrop-blur-sm">
-                <div className="flex items-center space-x-3 mb-4">
-                  <input
-                    type="checkbox"
-                    id="fullService"
-                    checked={formData.includeFullService}
-                    onChange={(e) => {
-                      setFormData(prev => ({ ...prev, includeFullService: e.target.checked }));
-                      // If unchecking full service, ensure pet array is not empty for additional services
-                      if (!e.target.checked && formData.pets.length === 0) {
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          pets: [{ name: '', type: 'dog', breedId: null, weight: '', specialInstructions: '' }]
-                        }));
-                      }
-                    }}
-                    className="w-5 h-5 text-rose-600 border-2 border-amber-300 rounded focus:ring-rose-400 focus:ring-2"
-                  />
-                  <label htmlFor="fullService" className="text-lg font-medium text-amber-900 cursor-pointer">
-                    Full Service Grooming
-                  </label>
-                </div>
-                <p className="text-amber-700 text-sm mb-4">
-                  Includes bath, brush, nail trim, ear cleaning, and professional styling based on breed.
-                </p>
-                {formData.includeFullService && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-blue-800 text-sm">
-                      <span className="font-medium">Note:</span> Please add your pet information below to see exact pricing based on breed and size.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Pet Information - Only show if full service is selected */}
-            {formData.includeFullService && (
+            {/* Pet Information - Always show this section */}
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold text-amber-900">Pet Information</h2>
@@ -628,6 +584,26 @@ const BookingPage: React.FC = () => {
                     <div>
                       <h3 className="text-lg font-medium text-blue-900">First time booking?</h3>
                       <p className="text-blue-700">Add your pet information below. You can save it to your profile for faster bookings next time!</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Show pets section even if no pets yet */}
+              {formData.pets.length === 0 && (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                  <div className="flex items-center">
+                    <div className="text-2xl mr-3">�</div>
+                    <div>
+                      <h3 className="text-lg font-medium text-amber-900">Add your pet information</h3>
+                      <p className="text-amber-700">Start by adding your pet's details. This will help us provide accurate pricing and service recommendations.</p>
+                      <button
+                        type="button"
+                        onClick={addPet}
+                        className="mt-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white px-4 py-2 rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all duration-200 font-medium"
+                      >
+                        + Add First Pet
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -681,10 +657,10 @@ const BookingPage: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-amber-800 mb-2">
-                        Breed *
+                        Breed {formData.includeFullService ? '*' : '(optional)'}
                       </label>
                       <select
-                        required
+                        required={formData.includeFullService}
                         value={pet.breedId || ''}
                         onChange={(e) => updatePet(index, 'breedId', e.target.value ? parseInt(e.target.value) : null)}
                         className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm"
@@ -698,6 +674,9 @@ const BookingPage: React.FC = () => {
                             </option>
                           ))}
                       </select>
+                      {formData.includeFullService && (
+                        <p className="text-xs text-amber-600 mt-1">Required for Full Service pricing calculation</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-amber-800 mb-2">
@@ -727,7 +706,44 @@ const BookingPage: React.FC = () => {
                 </div>
               ))}
             </div>
-            )}
+
+            {/* Service Selection - Now comes AFTER pet information */}
+            <div>
+              <h2 className="text-2xl font-semibold text-amber-900 mb-6">Service Selection</h2>
+              <div className="border border-amber-200 rounded-xl p-6 bg-white/50 backdrop-blur-sm">
+                <div className="flex items-center space-x-3 mb-4">
+                  <input
+                    type="checkbox"
+                    id="fullService"
+                    checked={formData.includeFullService}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, includeFullService: e.target.checked }));
+                    }}
+                    className="w-5 h-5 text-rose-600 border-2 border-amber-300 rounded focus:ring-rose-400 focus:ring-2"
+                  />
+                  <label htmlFor="fullService" className="text-lg font-medium text-amber-900 cursor-pointer">
+                    Full Service Grooming
+                  </label>
+                </div>
+                <p className="text-amber-700 text-sm mb-4">
+                  Includes bath, brush, nail trim, ear cleaning, and professional styling based on breed.
+                </p>
+                {formData.pets.length === 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <p className="text-amber-800 text-sm">
+                      <span className="font-medium">Note:</span> Please add your pet information above to see exact pricing based on breed and size.
+                    </p>
+                  </div>
+                )}
+                {formData.pets.length > 0 && formData.includeFullService && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-green-800 text-sm">
+                      <span className="font-medium">✓ Ready:</span> Your pets are added! You can see the exact pricing in the summary on the right.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Additional Services */}
             {addons.length > 0 && (
