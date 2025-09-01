@@ -5,11 +5,14 @@ import IOSAppointmentManagement from './IOSAppointmentManagement';
 import ClientManagement from './ClientManagement';
 import UserManagement from './UserManagement';
 import PricingManagement from './PricingManagement';
+import PromoCodeManagement from './PromoCodeManagement';
 import TodaySchedule from './TodaySchedule';
 import RecentActivity from './RecentActivity';
 
 const AdminDashboard: React.FC = () => {
   const location = useLocation();
+
+  console.log('AdminDashboard: Current pathname is:', location.pathname);
 
   const renderContent = () => {
     // Determine which view to show based on the current route
@@ -21,6 +24,8 @@ const AdminDashboard: React.FC = () => {
       return <UserManagement />;
     } else if (location.pathname === '/admin/settings') {
       return <PricingManagement />;
+    } else if (location.pathname === '/admin/promo-codes') {
+      return <PromoCodeManagement />;
     } else {
       // Default to overview for /admin route
       return (

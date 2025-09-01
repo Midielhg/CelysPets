@@ -23,9 +23,10 @@ import setupRouter from './routes/setup';
 import dashboardRouter from './routes/dashboard';
 import pricingRouter from './routes/pricing';
 import clientRouter from './routes/client';
+import promoCodesRouter from './routes/promo-codes';
 
 const app = express();
-const PORT = Number(process.env.PORT) || 5001;
+const PORT = Number(process.env.PORT) || 5002;
 
 // Security middleware
 app.use(helmet({
@@ -112,6 +113,7 @@ app.use('/api/setup', setupRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/pricing', pricingRouter);
 app.use('/api/client', clientRouter);
+app.use('/api/promo-codes', promoCodesRouter);
 
 // Root endpoint
 app.get('/', (req, res) => {

@@ -89,6 +89,7 @@ const ClientManagement: React.FC = () => {
   const fetchClients = async () => {
     try {
       setLoading(true);
+      const token = localStorage.getItem('auth_token');
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: itemsPerPage.toString(),
@@ -98,7 +99,12 @@ const ClientManagement: React.FC = () => {
       const clientApiUrl = apiUrl(`/clients?${params}`);
       console.log('Fetching clients from:', clientApiUrl);
 
-      let response = await fetch(clientApiUrl);
+      let response = await fetch(clientApiUrl, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
       console.log('Response status:', response.status);
       console.log('Response ok:', response.ok);
 
@@ -106,7 +112,12 @@ const ClientManagement: React.FC = () => {
       if (!response.ok) {
         console.log('Clients API failed, trying appointments API as fallback...');
         const fallbackUrl = apiUrl('/appointments');
-        response = await fetch(fallbackUrl);
+        response = await fetch(fallbackUrl, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          }
+        });
         
         if (response.ok) {
           const appointmentsData = await response.json();

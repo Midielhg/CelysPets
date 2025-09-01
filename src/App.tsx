@@ -76,6 +76,14 @@ function App() {
                   } 
                 />
                 <Route 
+                  path="/admin/promo-codes" 
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
                   path="/groomer" 
                   element={
                     <ProtectedRoute requiredRole="groomer">

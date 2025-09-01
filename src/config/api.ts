@@ -1,5 +1,5 @@
 // API configuration that uses environment variables
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002/api';
 export const apiUrl = (path: string) => {
   // If VITE_API_URL already includes the full path (like for PHP), use it directly
   if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.includes('.php')) {

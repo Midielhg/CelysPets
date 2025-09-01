@@ -16,6 +16,7 @@ import { useToast } from '../../contexts/ToastContext';
 import type { Appointment, Pet } from '../../types';
 import { apiUrl } from '../../config/api';
 import RouteOptimizationBox from './RouteOptimizationBox';
+import PromoCodeInput from '../Booking/PromoCodeInput';
 
 interface IOSAppointmentManagementProps {}
 
@@ -73,6 +74,10 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const [breeds, setBreeds] = useState<any[]>([]);
   const [addons, setAddons] = useState<any[]>([]);
 
+  // Promo code state
+  const [promoCodeDiscount, setPromoCodeDiscount] = useState(0);
+  const [appliedPromoCode, setAppliedPromoCode] = useState('');
+
   // Client search functionality
   const [clientSearch, setClientSearch] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -125,6 +130,10 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     setSearchResults([]);
     setShowSearchResults(false);
     
+    // Clear promo code state
+    setAppliedPromoCode('');
+    setPromoCodeDiscount(0);
+    
     // Clear form data
     setBookingFormData(prev => ({
       ...prev,
@@ -173,6 +182,10 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     setIsAddingNew(false);
     setSelectedAppointment(null);
     clearClientSelection();
+    
+    // Clear promo code state
+    setAppliedPromoCode('');
+    setPromoCodeDiscount(0);
     
     // Reset form to default state
     setBookingFormData({
@@ -224,7 +237,35 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       return sum + (service ? Number(service.price) * petCount : 0);
     }, 0);
 
+    const subtotal = groomingTotal + additionalTotal;
+    return Math.max(0, subtotal - promoCodeDiscount);
+  };
+
+  const calculateSubtotal = () => {
+    const groomingTotal = bookingFormData.includeFullService 
+      ? bookingFormData.pets.reduce((sum, pet) => sum + getBreedPrice(pet), 0)
+      : 0;
+    
+    const petCount = bookingFormData.pets.length > 0 ? bookingFormData.pets.length : 1;
+    const additionalTotal = bookingFormData.additionalServices.reduce((sum, serviceId) => {
+      const service = addons.find(addon => addon.code === serviceId);
+      return sum + (service ? Number(service.price) * petCount : 0);
+    }, 0);
+
     return groomingTotal + additionalTotal;
+  };
+
+  // Promo code handlers
+  const handlePromoCodeApplied = (discount: number, code: string) => {
+    setAppliedPromoCode(code);
+    setPromoCodeDiscount(discount);
+    showToast(`Promo code "${code}" applied! Discount: $${discount.toFixed(2)}`, 'success');
+  };
+
+  const handlePromoCodeRemoved = () => {
+    setAppliedPromoCode('');
+    setPromoCodeDiscount(0);
+    showToast('Promo code removed', 'info');
   };
 
   // Helper functions for time calculations
@@ -924,7 +965,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   // Fetch breeds
   const fetchBreeds = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/pricing/breeds');
+      const response = await fetch(apiUrl('/pricing/breeds'));
       if (response.ok) {
         const data = await response.json();
         console.log('Breeds loaded:', data.length, 'breeds'); // Debug log
@@ -938,7 +979,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   // Fetch additional services
   const fetchAddons = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/pricing/additional-services');
+      const response = await fetch(apiUrl('/pricing/additional-services'));
       if (response.ok) {
         const data = await response.json();
         console.log('Addons loaded:', data); // Debug log
@@ -2578,16 +2619,45 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                       </div>
                     )}
 
-                    {/* Total */}
-                    <div className="border-t border-amber-300 pt-3 sm:pt-4">
-                      <div className="flex justify-between items-center">
-                        <p className="text-lg sm:text-xl font-bold text-amber-900">Total:</p>
-                        <p className="text-xl sm:text-2xl font-bold text-rose-600">${calculateTotal().toFixed(2)}</p>
+                    {/* Promo Code Input - Show if ANY services are selected */}
+                    {(bookingFormData.includeFullService || bookingFormData.additionalServices.length > 0) && (
+                      <div className="mb-6">
+                        <PromoCodeInput
+                          onPromoCodeApplied={handlePromoCodeApplied}
+                          onPromoCodeRemoved={handlePromoCodeRemoved}
+                          totalAmount={calculateSubtotal()}
+                          customerEmail={bookingFormData.email}
+                        />
                       </div>
-                      <p className="text-xs sm:text-sm text-amber-700 mt-2">
-                        Final price may vary based on pet size and condition
-                      </p>
-                    </div>
+                    )}
+
+                    {/* Total */}
+                    {(bookingFormData.includeFullService || bookingFormData.additionalServices.length > 0) && (
+                      <div className="border-t border-amber-300 pt-3 sm:pt-4">
+                        {/* Subtotal */}
+                        <div className="flex justify-between items-center mb-2">
+                          <p className="text-lg sm:text-xl font-medium text-amber-900">Subtotal:</p>
+                          <p className="text-lg sm:text-xl font-medium text-amber-900">${calculateSubtotal().toFixed(2)}</p>
+                        </div>
+                        
+                        {/* Discount */}
+                        {promoCodeDiscount > 0 && (
+                          <div className="flex justify-between items-center mb-2">
+                            <p className="text-sm text-green-700">Discount ({appliedPromoCode}):</p>
+                            <p className="text-sm text-green-700">-${promoCodeDiscount.toFixed(2)}</p>
+                          </div>
+                        )}
+                        
+                        {/* Final Total */}
+                        <div className="flex justify-between items-center">
+                          <p className="text-lg sm:text-xl font-bold text-amber-900">Total:</p>
+                          <p className="text-xl sm:text-2xl font-bold text-rose-600">${calculateTotal().toFixed(2)}</p>
+                        </div>
+                        <p className="text-xs sm:text-sm text-amber-700 mt-2">
+                          Final price may vary based on pet size and condition
+                        </p>
+                      </div>
+                    )}
 
                     {/* Breed Categories Info */}
                     <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-white/50 rounded-lg sm:rounded-xl">

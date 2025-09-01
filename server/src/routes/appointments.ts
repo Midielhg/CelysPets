@@ -165,6 +165,7 @@ router.post('/', async (req, res) => {
 // Get all appointments (no auth required for now - can add later)
 router.get('/', async (req, res) => {
   try {
+    console.log('=== Appointments route called ===');
     const { date } = req.query;
     console.log('Fetching appointments with query:', { date });
     
@@ -184,19 +185,17 @@ router.get('/', async (req, res) => {
       };
       console.log('Filtering by date range:', { from: targetDate, to: nextDay });
     }
+
+    console.log('Attempting to fetch appointments with client associations...');
     
+    // Query WITH associations to include client data
     const appointments = await Appointment.findAll({
       where: whereClause,
       include: [
-        { 
-          model: Client, 
-          as: 'client' 
-        },
         {
-          model: User,
-          as: 'groomer',
-          attributes: ['id', 'name', 'email'],
-          required: false
+          model: Client,
+          as: 'client',
+          attributes: ['id', 'name', 'email', 'phone', 'address']
         }
       ],
       order: [['date', 'ASC'], ['time', 'ASC']]
@@ -217,6 +216,7 @@ router.get('/', async (req, res) => {
       return appointmentData;
     });
     
+    console.log('Successfully formatted appointments');
     res.json(formattedAppointments);
   } catch (error) {
     console.error('Error fetching appointments:', error);

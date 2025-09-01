@@ -3,6 +3,8 @@ import { Appointment } from './AppointmentMySQL';
 import { User } from './UserMySQL';
 import { Breed } from './BreedMySQL';
 import { AdditionalService } from './AdditionalServiceMySQL';
+import { PromoCode } from './PromoCodeMySQL';
+import { PromoCodeUsage } from './PromoCodeUsageMySQL';
 import Pet from './PetMySQL';
 
 // Set up associations
@@ -38,6 +40,39 @@ Pet.belongsTo(User, {
   as: 'owner'
 });
 
+// Promo Code associations
+PromoCode.hasMany(PromoCodeUsage, {
+  foreignKey: 'promoCodeId',
+  as: 'usages'
+});
+
+PromoCodeUsage.belongsTo(PromoCode, {
+  foreignKey: 'promoCodeId',
+  as: 'promoCode'
+});
+
+// Appointment and PromoCode association
+PromoCode.hasMany(Appointment, {
+  foreignKey: 'promoCodeId',
+  as: 'appointments'
+});
+
+Appointment.belongsTo(PromoCode, {
+  foreignKey: 'promoCodeId',
+  as: 'promoCode'
+});
+
+// Appointment and PromoCodeUsage association
+Appointment.hasMany(PromoCodeUsage, {
+  foreignKey: 'appointmentId',
+  as: 'promoCodeUsages'
+});
+
+PromoCodeUsage.belongsTo(Appointment, {
+  foreignKey: 'appointmentId',
+  as: 'appointment'
+});
+
 // Export models for easier importing
 export {
   Client,
@@ -45,5 +80,7 @@ export {
   User,
   Breed,
   AdditionalService,
+  PromoCode,
+  PromoCodeUsage,
   Pet
 };

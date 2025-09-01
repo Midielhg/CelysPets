@@ -4,6 +4,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiUrl } from '../../config/api';
 import type { Breed, AdditionalService } from '../../types/pricing';
+import PromoCodeInput from './PromoCodeInput';
 
 // Validation functions
 const validateEmail = (email: string): boolean => {
@@ -88,6 +89,10 @@ const BookingPage: React.FC = () => {
   const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
   const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  
+  // Promo code state
+  const [promoCodeDiscount, setPromoCodeDiscount] = useState<number>(0);
+  const [appliedPromoCode, setAppliedPromoCode] = useState<string>('');
 
   // Address autocomplete simulation (in production, use Google Places API)
   const handleAddressChange = async (value: string) => {
@@ -306,7 +311,37 @@ const BookingPage: React.FC = () => {
       return sum + (service ? Number(service.price) * petCount : 0);
     }, 0);
 
+    const subtotal = groomingTotal + additionalTotal;
+    return Math.max(0, subtotal - promoCodeDiscount); // Ensure total doesn't go below 0
+  };
+
+  const calculateSubtotal = () => {
+    // Base grooming price for all pets (only if full service is selected)
+    const groomingTotal = formData.includeFullService 
+      ? formData.pets.reduce((sum, pet) => sum + getBreedPrice(pet), 0)
+      : 0;
+    
+    // Additional services (apply to all pets, or 1 if no pets)
+    const petCount = formData.pets.length > 0 ? formData.pets.length : 1;
+    const additionalTotal = formData.additionalServices.reduce((sum, serviceId) => {
+      const service = addons.find(addon => addon.code === serviceId);
+      return sum + (service ? Number(service.price) * petCount : 0);
+    }, 0);
+
     return groomingTotal + additionalTotal;
+  };
+
+  // Promo code handlers
+  const handlePromoCodeApplied = (discount: number, code: string) => {
+    setPromoCodeDiscount(discount);
+    setAppliedPromoCode(code);
+    showToast(`Promo code ${code} applied! You saved $${discount.toFixed(2)}`, 'success');
+  };
+
+  const handlePromoCodeRemoved = () => {
+    setPromoCodeDiscount(0);
+    setAppliedPromoCode('');
+    showToast('Promo code removed', 'info');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -394,7 +429,10 @@ const BookingPage: React.FC = () => {
           date: formData.preferredDate,
           time: formData.preferredTime,
           notes: formData.notes,
-          totalAmount: calculateTotal()
+          totalAmount: calculateTotal(),
+          originalAmount: calculateSubtotal(),
+          promoCode: appliedPromoCode,
+          promoCodeDiscount: promoCodeDiscount
         }),
       });
 
@@ -417,6 +455,10 @@ const BookingPage: React.FC = () => {
         preferredTime: '',
         notes: ''
       });
+      
+      // Reset promo code state
+      setPromoCodeDiscount(0);
+      setAppliedPromoCode('');
 
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Failed to book appointment', 'error');
@@ -845,8 +887,18 @@ const BookingPage: React.FC = () => {
 
         {/* Price Summary Sidebar */}
         <div className="lg:col-span-1">
-          <div className="bg-gradient-to-br from-amber-50 to-rose-50 rounded-2xl shadow-xl p-6 border border-amber-200/50 sticky top-6">
+          <div className="bg-gradient-to-br from-amber-50 to-rose-50 rounded-2xl shadow-xl p-4 lg:p-6 border border-amber-200/50 sticky top-6">
             <h3 className="text-2xl font-semibold text-amber-900 mb-6">Price Summary</h3>
+            
+            {/* Promo Code Input - Always visible for better UX */}
+            <div className="mb-6 w-full overflow-hidden">
+              <PromoCodeInput
+                onPromoCodeApplied={handlePromoCodeApplied}
+                onPromoCodeRemoved={handlePromoCodeRemoved}
+                totalAmount={calculateSubtotal()}
+                customerEmail={formData.email}
+              />
+            </div>
             
             {/* Grooming Services - Only show if full service is selected */}
             {formData.includeFullService && formData.pets.length > 0 && (
@@ -913,15 +965,32 @@ const BookingPage: React.FC = () => {
             )}
 
             {/* Total */}
-            <div className="border-t border-amber-300 pt-4">
-              <div className="flex justify-between items-center">
-                <p className="text-xl font-bold text-amber-900">Total:</p>
-                <p className="text-2xl font-bold text-rose-600">${calculateTotal().toFixed(2)}</p>
+            {(formData.includeFullService || formData.additionalServices.length > 0) && (
+              <div className="border-t border-amber-300 pt-4">
+                {/* Subtotal */}
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-lg font-medium text-amber-900">Subtotal:</p>
+                  <p className="text-lg font-medium text-amber-900">${calculateSubtotal().toFixed(2)}</p>
+                </div>
+                
+                {/* Discount */}
+                {promoCodeDiscount > 0 && (
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm text-green-700">Discount ({appliedPromoCode}):</p>
+                    <p className="text-sm text-green-700">-${promoCodeDiscount.toFixed(2)}</p>
+                  </div>
+                )}
+                
+                {/* Final Total */}
+                <div className="flex justify-between items-center">
+                  <p className="text-xl font-bold text-amber-900">Total:</p>
+                  <p className="text-2xl font-bold text-rose-600">${calculateTotal().toFixed(2)}</p>
+                </div>
+                <p className="text-sm text-amber-700 mt-2">
+                  Final price may vary based on pet size and condition
+                </p>
               </div>
-              <p className="text-sm text-amber-700 mt-2">
-                Final price may vary based on pet size and condition
-              </p>
-            </div>
+            )}
 
             {/* Breed Categories Info */}
             <div className="mt-6 p-4 bg-white/50 rounded-xl">

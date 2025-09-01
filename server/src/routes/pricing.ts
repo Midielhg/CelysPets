@@ -2,6 +2,8 @@ import express from 'express';
 import { Op } from 'sequelize';
 import { Breed } from '../models/BreedMySQL';
 import { AdditionalService } from '../models/AdditionalServiceMySQL';
+import { PromoCode } from '../models/PromoCodeMySQL';
+import { PromoCodeUsage } from '../models/PromoCodeUsageMySQL';
 import { auth } from '../middleware/authMySQL';
 
 const router = express.Router();
@@ -139,6 +141,239 @@ router.get('/breed-lookup/:breedName', async (req, res) => {
   } catch (error) {
     console.error('Error looking up breed:', error);
     res.status(500).json({ message: 'Failed to lookup breed' });
+  }
+});
+
+// ==== PROMO CODE ROUTES ====
+
+// Public: Validate and apply promo code
+router.post('/promo-codes/validate', async (req, res) => {
+  try {
+    const { code, customerEmail, orderTotal } = req.body;
+    
+    if (!code || !customerEmail || orderTotal === undefined) {
+      return res.status(400).json({ message: 'Code, customer email, and order total are required' });
+    }
+
+    // Find the promo code
+    const promoCode = await PromoCode.findOne({
+      where: { 
+        code: code.toUpperCase(),
+        active: true
+      }
+    });
+
+    if (!promoCode) {
+      return res.status(404).json({ message: 'Invalid promo code' });
+    }
+
+    // Check date validity
+    const now = new Date();
+    if (promoCode.validFrom && now < promoCode.validFrom) {
+      return res.status(400).json({ message: 'Promo code is not yet valid' });
+    }
+    if (promoCode.validUntil && now > promoCode.validUntil) {
+      return res.status(400).json({ message: 'Promo code has expired' });
+    }
+
+    // Check minimum amount
+    if (promoCode.minimumAmount && orderTotal < promoCode.minimumAmount) {
+      return res.status(400).json({ 
+        message: `Minimum order amount of $${promoCode.minimumAmount} required` 
+      });
+    }
+
+    // Check total usage limit
+    if (promoCode.currentUsageTotal >= promoCode.maxUsageTotal) {
+      return res.status(400).json({ message: 'Promo code usage limit reached' });
+    }
+
+    // Check customer usage limit
+    const customerUsageCount = await PromoCodeUsage.count({
+      where: {
+        promoCodeId: promoCode.id,
+        customerEmail: customerEmail.toLowerCase()
+      }
+    });
+
+    if (customerUsageCount >= promoCode.maxUsagePerCustomer) {
+      return res.status(400).json({ message: 'You have already used this promo code the maximum number of times' });
+    }
+
+    // Calculate discount
+    let discountAmount = 0;
+    if (promoCode.discountType === 'percentage') {
+      discountAmount = (orderTotal * promoCode.discountValue) / 100;
+    } else {
+      discountAmount = Math.min(promoCode.discountValue, orderTotal);
+    }
+
+    const finalTotal = Math.max(0, orderTotal - discountAmount);
+
+    res.json({
+      valid: true,
+      promoCode: {
+        id: promoCode.id,
+        code: promoCode.code,
+        name: promoCode.name,
+        discountType: promoCode.discountType,
+        discountValue: promoCode.discountValue
+      },
+      discountAmount,
+      finalTotal,
+      savings: discountAmount
+    });
+
+  } catch (error) {
+    console.error('Error validating promo code:', error);
+    res.status(500).json({ message: 'Failed to validate promo code' });
+  }
+});
+
+// Public: Get active promo codes for admin dropdown (only basic info)
+router.get('/promo-codes/active', auth, async (req, res) => {
+  try {
+    const promoCodes = await PromoCode.findAll({
+      where: { active: true },
+      attributes: ['id', 'code', 'name', 'discountType', 'discountValue'],
+      order: [['name', 'ASC']]
+    });
+    res.json(promoCodes);
+  } catch (error) {
+    console.error('Error fetching active promo codes:', error);
+    res.status(500).json({ message: 'Failed to fetch promo codes' });
+  }
+});
+
+// Admin: Get all promo codes
+router.get('/promo-codes', auth, async (req, res) => {
+  try {
+    const promoCodes = await PromoCode.findAll({
+      include: [{
+        model: PromoCodeUsage,
+        as: 'usages',
+        attributes: ['id', 'customerEmail', 'usedAt', 'discountAmount']
+      }],
+      order: [['createdAt', 'DESC']]
+    });
+    res.json(promoCodes);
+  } catch (error) {
+    console.error('Error fetching promo codes:', error);
+    res.status(500).json({ message: 'Failed to fetch promo codes' });
+  }
+});
+
+// Admin: Create promo code
+router.post('/promo-codes', auth, async (req, res) => {
+  try {
+    const {
+      code,
+      name,
+      discountType,
+      discountValue,
+      minimumAmount,
+      maxUsageTotal,
+      maxUsagePerCustomer,
+      validFrom,
+      validUntil,
+      active
+    } = req.body;
+
+    if (!code || !name || !discountType || discountValue === undefined || !maxUsageTotal || !maxUsagePerCustomer) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const promoCode = await PromoCode.create({
+      code: code.toUpperCase(),
+      name,
+      discountType,
+      discountValue,
+      minimumAmount,
+      maxUsageTotal,
+      maxUsagePerCustomer,
+      validFrom: validFrom || null,
+      validUntil: validUntil || null,
+      active: active ?? true
+    });
+
+    res.status(201).json(promoCode);
+  } catch (error: any) {
+    console.error('Error creating promo code:', error);
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({ message: 'Promo code already exists' });
+    }
+    res.status(500).json({ message: 'Failed to create promo code' });
+  }
+});
+
+// Admin: Update promo code
+router.put('/promo-codes/:id', auth, async (req, res) => {
+  try {
+    const promoCode = await PromoCode.findByPk(req.params.id);
+    if (!promoCode) {
+      return res.status(404).json({ message: 'Promo code not found' });
+    }
+
+    // Update code to uppercase if provided
+    const updateData = { ...req.body };
+    if (updateData.code) {
+      updateData.code = updateData.code.toUpperCase();
+    }
+
+    await promoCode.update(updateData);
+    res.json(promoCode);
+  } catch (error: any) {
+    console.error('Error updating promo code:', error);
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({ message: 'Promo code already exists' });
+    }
+    res.status(500).json({ message: 'Failed to update promo code' });
+  }
+});
+
+// Admin: Delete promo code
+router.delete('/promo-codes/:id', auth, async (req, res) => {
+  try {
+    const promoCode = await PromoCode.findByPk(req.params.id);
+    if (!promoCode) {
+      return res.status(404).json({ message: 'Promo code not found' });
+    }
+
+    await promoCode.destroy();
+    res.json({ message: 'Promo code deleted' });
+  } catch (error) {
+    console.error('Error deleting promo code:', error);
+    res.status(500).json({ message: 'Failed to delete promo code' });
+  }
+});
+
+// Admin: Record promo code usage (called when booking is confirmed)
+router.post('/promo-codes/use', auth, async (req, res) => {
+  try {
+    const { promoCodeId, customerEmail, appointmentId, discountAmount } = req.body;
+
+    if (!promoCodeId || !customerEmail || discountAmount === undefined) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Record the usage
+    const usage = await PromoCodeUsage.create({
+      promoCodeId,
+      customerEmail: customerEmail.toLowerCase(),
+      appointmentId,
+      discountAmount,
+      usedAt: new Date()
+    });
+
+    // Increment the total usage count
+    await PromoCode.increment('currentUsageTotal', {
+      where: { id: promoCodeId }
+    });
+
+    res.status(201).json(usage);
+  } catch (error) {
+    console.error('Error recording promo code usage:', error);
+    res.status(500).json({ message: 'Failed to record promo code usage' });
   }
 });
 

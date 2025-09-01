@@ -6,7 +6,8 @@ import {
   Calendar, 
   Users, 
   Settings,
-  User
+  User,
+  Tag
 } from 'lucide-react';
 import Logo from './Logo';
 
@@ -41,6 +42,12 @@ const Navbar: React.FC = () => {
       label: 'Users',
       icon: User,
       path: '/admin/users'
+    },
+    {
+      id: 'promo-codes',
+      label: 'Promo Codes',
+      icon: Tag,
+      path: '/admin/promo-codes'
     },
     {
       id: 'settings',

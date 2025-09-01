@@ -14,6 +14,9 @@ interface AppointmentAttributes {
   status: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled';
   notes?: string;
   totalAmount?: number;
+  promoCodeId?: number; // Foreign key to PromoCode
+  promoCodeDiscount?: number; // Discount amount applied
+  originalAmount?: number; // Original amount before discount
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -34,6 +37,9 @@ class Appointment extends Model<AppointmentAttributes, AppointmentCreationAttrib
   public status!: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled';
   public notes?: string;
   public totalAmount?: number;
+  public promoCodeId?: number;
+  public promoCodeDiscount?: number;
+  public originalAmount?: number;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -96,6 +102,25 @@ Appointment.init(
     totalAmount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true,
+    },
+    promoCodeId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'promo_codes',
+        key: 'id',
+      },
+      comment: 'Reference to applied promo code'
+    },
+    promoCodeDiscount: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      comment: 'Discount amount applied from promo code'
+    },
+    originalAmount: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      comment: 'Original amount before promo code discount'
     },
   },
   {
