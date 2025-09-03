@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 // Database configuration
-$host = 'mysql.us.cloudlogin.co';
+$host = 'localhost';
 $dbname = 'celyspets_celypets';
 $username = 'celyspets_celypets';
 $password = 'nCvCE42v6_';
@@ -115,32 +115,15 @@ function initializeDatabase($pdo) {
         // Create additional_services table if it doesn't exist
         $pdo->exec("CREATE TABLE IF NOT EXISTS additional_services (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            service_code VARCHAR(100) NOT NULL UNIQUE,
-            service_name VARCHAR(255) NOT NULL,
+            code VARCHAR(100) NOT NULL UNIQUE,
+            name VARCHAR(255) NOT NULL,
             price DECIMAL(10, 2) NOT NULL DEFAULT 0,
-            duration INT DEFAULT 30,
             description TEXT NULL,
             active BOOLEAN DEFAULT TRUE,
             createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            INDEX idx_code (service_code),
+            INDEX idx_code (code),
             INDEX idx_active (active)
-        )");
-        
-        // Create pricing_breeds table if it doesn't exist
-        $pdo->exec("CREATE TABLE IF NOT EXISTS pricing_breeds (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            species ENUM('dog', 'cat') NOT NULL,
-            breed VARCHAR(255) NOT NULL,
-            size_category ENUM('small', 'medium', 'large', 'extra-large') NOT NULL,
-            full_groom_price DECIMAL(10, 2) NOT NULL,
-            duration INT DEFAULT 60,
-            active BOOLEAN DEFAULT TRUE,
-            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            INDEX idx_species (species),
-            INDEX idx_breed (breed),
-            INDEX idx_size (size_category)
         )");
 
         // Check if admin user exists, if not create one
@@ -330,16 +313,8 @@ switch ($path) {
         handleDatabaseSetup($pdo);
         break;
         
-    case 'setup/create-tables':
-        handleCreateMissingTables($pdo);
-        break;
-        
     case 'auth/login':
         handleLogin($pdo, $input);
-        break;
-        
-    case 'auth/me':
-        handleAuthMe($pdo);
         break;
         
     case 'auth/register':
@@ -356,18 +331,6 @@ switch ($path) {
         
     case 'users/stats/overview':
         handleUserStats($pdo);
-        break;
-        
-    case 'dashboard/stats':
-        handleDashboardStats($pdo);
-        break;
-        
-    case 'pricing/breeds':
-        handlePricingBreeds($pdo, $method, $input);
-        break;
-        
-    case 'pricing/additional-services':
-        handlePricingAdditionalServices($pdo, $method, $input);
         break;
         
     case 'clients':
@@ -482,96 +445,6 @@ function handleLogin($pdo, $input) {
     }
 }
 
-function handleAuthMe($pdo) {
-    // Get the Authorization header - handle different server configurations
-    $authHeader = '';
-    
-    // Try multiple ways to get the Authorization header
-    if (function_exists('getallheaders')) {
-        $headers = getallheaders();
-        $authHeader = isset($headers['Authorization']) ? $headers['Authorization'] : 
-                     (isset($headers['authorization']) ? $headers['authorization'] : '');
-    }
-    
-    // Fallback to $_SERVER if getallheaders() doesn't work
-    if (!$authHeader) {
-        if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
-            $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
-        } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
-            $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
-        }
-    }
-    
-    $token = '';
-    
-    // Extract token from Authorization header
-    if ($authHeader && preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
-        $token = $matches[1];
-    }
-    
-    // Fallback: try to get token from query parameter
-    if (!$token && isset($_GET['token'])) {
-        $token = $_GET['token'];
-    }
-    
-    if (!$token) {
-        http_response_code(401);
-        echo json_encode([
-            'error' => 'Authorization token required',
-            'debug' => [
-                'authHeader' => $authHeader,
-                'headers_available' => function_exists('getallheaders'),
-                'server_auth' => isset($_SERVER['HTTP_AUTHORIZATION']) ? 'yes' : 'no',
-                'all_headers' => function_exists('getallheaders') ? getallheaders() : 'not available',
-                'query_token' => isset($_GET['token']) ? 'present' : 'missing'
-            ]
-        ]);
-        return;
-    }
-    
-    try {
-        // Decode the JWT token (simple base64 decode for now)
-        $parts = explode('.', $token);
-        if (count($parts) !== 3) {
-            http_response_code(401);
-            echo json_encode(['error' => 'Invalid token format']);
-            return;
-        }
-        
-        $payload = json_decode(base64_decode($parts[1]), true);
-        if (!$payload || !isset($payload['user_id'])) {
-            http_response_code(401);
-            echo json_encode(['error' => 'Invalid token payload']);
-            return;
-        }
-        
-        // Get user from database
-        $stmt = $pdo->prepare("SELECT id, email, name, role FROM users WHERE id = ?");
-        $stmt->execute([$payload['user_id']]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if (!$user) {
-            http_response_code(401);
-            echo json_encode(['error' => 'User not found']);
-            return;
-        }
-        
-        // Return user information
-        echo json_encode([
-            'user' => [
-                'id' => (int)$user['id'],
-                'email' => $user['email'],
-                'name' => $user['name'],
-                'role' => $user['role']
-            ]
-        ]);
-        
-    } catch (Exception $e) {
-        http_response_code(401);
-        echo json_encode(['error' => 'Token validation failed: ' . $e->getMessage()]);
-    }
-}
-
 function handleRegister($pdo, $input) {
     if (!$input || !isset($input['email']) || !isset($input['password'])) {
         http_response_code(400);
@@ -607,96 +480,6 @@ function handleRegister($pdo, $input) {
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Registration failed: ' . $e->getMessage()]);
-    }
-}
-
-// Create missing tables for pricing functionality
-function handleCreateMissingTables($pdo) {
-    try {
-        // Create pricing_breeds table
-        $pdo->exec("CREATE TABLE IF NOT EXISTS pricing_breeds (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            species ENUM('dog', 'cat') NOT NULL,
-            breed VARCHAR(255) NOT NULL,
-            size_category ENUM('small', 'medium', 'large', 'extra-large') NOT NULL,
-            full_groom_price DECIMAL(10, 2) NOT NULL,
-            duration INT DEFAULT 60,
-            active BOOLEAN DEFAULT TRUE,
-            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            INDEX idx_species (species),
-            INDEX idx_breed (breed),
-            INDEX idx_size (size_category)
-        )");
-        
-        // Create additional_services table
-        $pdo->exec("CREATE TABLE IF NOT EXISTS additional_services (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            service_code VARCHAR(100) NOT NULL UNIQUE,
-            service_name VARCHAR(255) NOT NULL,
-            price DECIMAL(10, 2) NOT NULL DEFAULT 0,
-            duration INT DEFAULT 30,
-            description TEXT NULL,
-            active BOOLEAN DEFAULT TRUE,
-            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            INDEX idx_code (service_code),
-            INDEX idx_active (active)
-        )");
-        
-        // Add some default data to pricing_breeds
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM pricing_breeds");
-        $stmt->execute();
-        $count = $stmt->fetchColumn();
-        
-        if ($count == 0) {
-            $defaultBreeds = [
-                ['dog', 'Golden Retriever', 'large', 75.00, 90],
-                ['dog', 'Labrador Retriever', 'large', 75.00, 90],
-                ['dog', 'German Shepherd', 'large', 80.00, 100],
-                ['dog', 'Chihuahua', 'small', 45.00, 45],
-                ['dog', 'Poodle', 'medium', 65.00, 75],
-                ['cat', 'Persian', 'medium', 55.00, 60],
-                ['cat', 'Maine Coon', 'large', 65.00, 75],
-                ['cat', 'Siamese', 'medium', 50.00, 55]
-            ];
-            
-            $stmt = $pdo->prepare("INSERT INTO pricing_breeds (species, breed, size_category, full_groom_price, duration) VALUES (?, ?, ?, ?, ?)");
-            foreach ($defaultBreeds as $breed) {
-                $stmt->execute($breed);
-            }
-        }
-        
-        // Add some default additional services
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM additional_services");
-        $stmt->execute();
-        $count = $stmt->fetchColumn();
-        
-        if ($count == 0) {
-            $defaultServices = [
-                ['NAIL_TRIM', 'Nail Trimming', 15.00, 15, 'Basic nail trimming service'],
-                ['EAR_CLEAN', 'Ear Cleaning', 10.00, 10, 'Thorough ear cleaning'],
-                ['TEETH_BRUSH', 'Teeth Brushing', 20.00, 20, 'Dental hygiene service'],
-                ['FLEA_TREAT', 'Flea Treatment', 25.00, 30, 'Flea and tick treatment'],
-                ['DE_SHED', 'De-shedding Treatment', 30.00, 45, 'Remove excess undercoat'],
-                ['ANAL_GLAND', 'Anal Gland Expression', 15.00, 10, 'Anal gland cleaning']
-            ];
-            
-            $stmt = $pdo->prepare("INSERT INTO additional_services (service_code, service_name, price, duration, description) VALUES (?, ?, ?, ?, ?)");
-            foreach ($defaultServices as $service) {
-                $stmt->execute($service);
-            }
-        }
-        
-        echo json_encode([
-            'message' => 'Missing tables created successfully',
-            'tables_created' => ['pricing_breeds', 'additional_services'],
-            'default_data_added' => true
-        ]);
-        
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Failed to create tables: ' . $e->getMessage()]);
     }
 }
 
@@ -1149,140 +932,6 @@ function handleDebugTables($pdo) {
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Debug failed: ' . $e->getMessage()]);
-    }
-}
-
-// Dashboard stats for Overview page
-function handleDashboardStats($pdo) {
-    try {
-        // Get appointment counts by status - using correct column name 'date'
-        $stmt = $pdo->query("SELECT 
-            COUNT(*) as total_appointments,
-            SUM(CASE WHEN DATE(date) = CURDATE() THEN 1 ELSE 0 END) as today_appointments,
-            SUM(CASE WHEN DATE(date) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 6 DAY) THEN 1 ELSE 0 END) as week_appointments,
-            SUM(CASE WHEN MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE()) THEN 1 ELSE 0 END) as month_appointments
-            FROM appointments");
-        $appointments = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Get client count
-        $stmt = $pdo->query("SELECT COUNT(*) as total_clients FROM clients");
-        $clients = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Get user count
-        $stmt = $pdo->query("SELECT COUNT(*) as total_users FROM users");
-        $users = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Get recent appointments with correct column names
-        $stmt = $pdo->query("SELECT a.id, a.date, a.time, a.status, a.totalAmount, c.name as client_name 
-                            FROM appointments a 
-                            LEFT JOIN clients c ON a.clientId = c.id 
-                            ORDER BY a.date DESC, a.time DESC LIMIT 5");
-        $recentAppointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        echo json_encode([
-            'appointments' => [
-                'total' => intval($appointments['total_appointments']),
-                'today' => intval($appointments['today_appointments']),
-                'thisWeek' => intval($appointments['week_appointments']),
-                'thisMonth' => intval($appointments['month_appointments'])
-            ],
-            'clients' => intval($clients['total_clients']),
-            'users' => intval($users['total_users']),
-            'recentAppointments' => $recentAppointments
-        ]);
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Failed to fetch dashboard stats: ' . $e->getMessage()]);
-    }
-}
-
-// Pricing breeds for Settings page
-function handlePricingBreeds($pdo, $method, $input) {
-    switch ($method) {
-        case 'GET':
-            try {
-                $stmt = $pdo->query("SELECT * FROM pricing_breeds ORDER BY species, breed");
-                $breeds = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                echo json_encode(['breeds' => $breeds]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to fetch breeds: ' . $e->getMessage()]);
-            }
-            break;
-            
-        case 'POST':
-            if (!$input) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Breed data required']);
-                return;
-            }
-            
-            try {
-                $stmt = $pdo->prepare("INSERT INTO pricing_breeds (species, breed, size_category, full_groom_price, duration) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([
-                    $input['species'],
-                    $input['breed'],
-                    $input['size_category'],
-                    $input['full_groom_price'],
-                    $input['duration'] ?? 60
-                ]);
-                
-                echo json_encode(['message' => 'Breed added successfully', 'id' => $pdo->lastInsertId()]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to add breed: ' . $e->getMessage()]);
-            }
-            break;
-            
-        default:
-            http_response_code(405);
-            echo json_encode(['error' => 'Method not allowed']);
-            break;
-    }
-}
-
-// Additional services for Settings page
-function handlePricingAdditionalServices($pdo, $method, $input) {
-    switch ($method) {
-        case 'GET':
-            try {
-                $stmt = $pdo->query("SELECT * FROM additional_services ORDER BY service_code");
-                $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                echo json_encode(['services' => $services]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to fetch additional services: ' . $e->getMessage()]);
-            }
-            break;
-            
-        case 'POST':
-            if (!$input) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Service data required']);
-                return;
-            }
-            
-            try {
-                $stmt = $pdo->prepare("INSERT INTO additional_services (service_code, service_name, price, duration, description) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([
-                    $input['service_code'],
-                    $input['service_name'],
-                    $input['price'],
-                    $input['duration'] ?? 30,
-                    $input['description'] ?? ''
-                ]);
-                
-                echo json_encode(['message' => 'Service added successfully', 'id' => $pdo->lastInsertId()]);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Failed to add service: ' . $e->getMessage()]);
-            }
-            break;
-            
-        default:
-            http_response_code(405);
-            echo json_encode(['error' => 'Method not allowed']);
-            break;
     }
 }
 ?>
