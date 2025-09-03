@@ -23,7 +23,7 @@ const MobileAppointmentManagement: React.FC<MobileAppointmentManagementProps> = 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day' | 'agenda'>('month');
   const [filter, setFilter] = useState<'all' | 'today' | 'pending' | 'confirmed' | 'completed'>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -406,6 +406,167 @@ const MobileAppointmentManagement: React.FC<MobileAppointmentManagementProps> = 
     );
   };
 
+  const renderAgendaView = () => {
+    // Group appointments by date
+    const groupedAppointments = filteredAppointments.reduce((groups, appointment) => {
+      const date = appointment.date ? appointment.date.split('T')[0] : '';
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(appointment);
+      return groups;
+    }, {} as Record<string, Appointment[]>);
+
+    // Sort dates
+    const sortedDates = Object.keys(groupedAppointments).sort();
+
+    return (
+      <div className="flex-1 bg-gray-50 overflow-y-auto">
+        {sortedDates.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Calendar className="w-16 h-16 mb-4 text-gray-300" />
+            <p className="text-xl font-medium text-gray-500">No appointments</p>
+            <p className="text-sm text-gray-400">No appointments found for the current filter</p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {sortedDates.map((dateStr) => {
+              const date = new Date(dateStr + 'T00:00:00');
+              const dayAppointments = groupedAppointments[dateStr].sort((a, b) => {
+                const timeA = new Date(`2000-01-01 ${a.time}`).getTime();
+                const timeB = new Date(`2000-01-01 ${b.time}`).getTime();
+                return timeA - timeB;
+              });
+
+              const totalDuration = dayAppointments.reduce((total) => {
+                // Estimate 1 hour per appointment if no duration specified
+                return total + 60; 
+              }, 0);
+
+              const totalDistance = dayAppointments.length * 2.5; // Estimate 2.5 miles between appointments
+
+              return (
+                <div key={dateStr} className="bg-white">
+                  {/* Date Header */}
+                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-4 py-3 border-b border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-blue-900">
+                          {date.toLocaleDateString('en-US', { 
+                            weekday: 'long', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </h3>
+                        <p className="text-sm text-blue-700">
+                          {dayAppointments.length} appointment{dayAppointments.length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center space-x-4 text-sm text-blue-700">
+                          <div className="flex items-center space-x-1">
+                            <Clock className="w-4 h-4" />
+                            <span>{Math.floor(totalDuration / 60)}h {totalDuration % 60}m</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <MapPin className="w-4 h-4" />
+                            <span>{totalDistance.toFixed(1)} mi</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Appointments List */}
+                  <div className="divide-y divide-gray-100">
+                    {dayAppointments.map((appointment, index) => {
+                      const estimatedDriveTime = index === 0 ? 0 : 8; // 8 minutes between appointments
+                      const estimatedDistance = index === 0 ? 0 : 2.5; // 2.5 miles between appointments
+
+                      return (
+                        <div
+                          key={appointment.id}
+                          className="px-4 py-4 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                          onClick={() => {
+                            setSelectedAppointment(appointment);
+                            setShowAppointmentDetail(true);
+                          }}
+                        >
+                          <div className="flex items-center space-x-3">
+                            {/* Time indicator */}
+                            <div className="flex-shrink-0">
+                              <div className="text-right">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {appointment.time}
+                                </div>
+                                {estimatedDriveTime > 0 && (
+                                  <div className="flex items-center justify-end space-x-1 mt-1">
+                                    <div className="bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
+                                      <span>{estimatedDriveTime} mins</span>
+                                      <span>{estimatedDistance} mi</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Status indicator */}
+                            <div className="flex-shrink-0">
+                              <div className={`w-3 h-3 rounded-full ${
+                                appointment.status === 'confirmed' ? 'bg-green-500' :
+                                appointment.status === 'pending' ? 'bg-yellow-500' :
+                                appointment.status === 'completed' ? 'bg-blue-500' :
+                                'bg-red-500'
+                              }`}></div>
+                            </div>
+
+                            {/* Appointment details */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {appointment.client?.name}
+                                </p>
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
+                                  statusColors[appointment.status as keyof typeof statusColors]
+                                }`}>
+                                  {appointment.status?.toUpperCase()}
+                                </span>
+                              </div>
+                              
+                              <div className="mt-1">
+                                <p className="text-sm text-gray-600">
+                                  {Array.isArray(appointment.services) 
+                                    ? appointment.services.join(', ') 
+                                    : 'No services listed'}
+                                </p>
+                                {appointment.client?.address && (
+                                  <p className="text-xs text-gray-500 flex items-center mt-1">
+                                    <MapPin className="w-3 h-3 mr-1" />
+                                    {appointment.client.address}
+                                  </p>
+                                )}
+                                {appointment.client?.phone && (
+                                  <p className="text-xs text-gray-500 flex items-center mt-1">
+                                    <Phone className="w-3 h-3 mr-1" />
+                                    {appointment.client.phone}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="h-screen bg-gray-50 flex items-center justify-center">
@@ -468,7 +629,7 @@ const MobileAppointmentManagement: React.FC<MobileAppointmentManagementProps> = 
         {/* View mode selector */}
         <div className="flex justify-center mt-3">
           <div className="bg-gray-100 rounded-lg p-1 flex space-x-1">
-            {['month', 'week', 'day'].map((mode) => (
+            {['month', 'week', 'day', 'agenda'].map((mode) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode as any)}
@@ -514,6 +675,7 @@ const MobileAppointmentManagement: React.FC<MobileAppointmentManagementProps> = 
       {viewMode === 'month' && renderMonthView()}
       {viewMode === 'week' && renderWeekView()}
       {viewMode === 'day' && renderDayView()}
+      {viewMode === 'agenda' && renderAgendaView()}
 
       {/* Floating Add Button */}
       <button

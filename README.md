@@ -7,6 +7,37 @@
 - **API**: https://celyspets.com/api.php
 - **Admin Login**: admin@celyspets.com / admin123
 
+## 🗺️ Google Maps Integration
+
+The Agenda view includes an interactive route map powered by Google Maps. To enable this feature:
+
+### 1. Get Google Maps API Key
+1. Go to [Google Cloud Console](https://console.cloud.google.com/google/maps-apis)
+2. Create a new project or select existing one
+3. Enable these APIs:
+   - Maps JavaScript API
+   - Geocoding API
+   - Directions API
+4. Create credentials (API Key)
+5. Restrict the API key to your domain for security
+
+### 2. Configure Environment
+1. Copy `.env.example` to `.env`
+2. Add your API key:
+```bash
+VITE_GOOGLE_MAPS_API_KEY=your_actual_api_key_here
+```
+
+### 3. Features
+- **Route Optimization**: Shows appointments in optimal order
+- **Interactive Map**: Click markers for appointment details
+- **Travel Time**: Displays estimated travel between stops
+- **Fuel Estimates**: Calculates fuel consumption and costs
+
+**Note**: Without the API key, the map will show a fallback view with route information.
+
+## 🚀 Development Setup
+
 To create the production build and prepare for deployment:
 
 ```bash

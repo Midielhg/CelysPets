@@ -10,8 +10,12 @@ import { connectDatabase } from './config/database';
 // Import models to set up associations
 import './models/index';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables - prioritize .env.development in development
+if (process.env.NODE_ENV === 'development') {
+  dotenv.config({ path: '.env.development' });
+} else {
+  dotenv.config();
+}
 
 // Import routes
 import appointmentsRouter from './routes/appointments';
@@ -191,3 +195,4 @@ process.on('SIGTERM', () => {
 });
 
 startServer();
+// restart trigger

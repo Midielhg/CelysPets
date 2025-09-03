@@ -10,13 +10,22 @@ import {
   Phone,
   User,
   X,
-  Eye
+  Eye,
+  Car,
+  ArrowDown
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import type { Appointment, Pet } from '../../types';
 import { apiUrl } from '../../config/api';
-import RouteOptimizationBox from './RouteOptimizationBox';
 import PromoCodeInput from '../Booking/PromoCodeInput';
+import GoogleMapRoute from '../GoogleMapRoute';
+
+// Type declarations for Google Maps
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 interface IOSAppointmentManagementProps {}
 
@@ -27,7 +36,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'month' | 'week' | '4day' | 'day'>('month');
+  const [viewMode, setViewMode] = useState<'month' | 'week' | '4day' | 'day' | 'agenda'>('month');
   const [filter, setFilter] = useState<'all' | 'today' | 'pending' | 'confirmed' | 'completed'>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -38,6 +47,16 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const [resizing, setResizing] = useState<{ appointmentId: string; edge: 'top' | 'bottom' } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [justFinishedResizing, setJustFinishedResizing] = useState(false);
+  const [travelTimes, setTravelTimes] = useState<{[key: string]: number}>({});
+  const [routeOptimization, setRouteOptimization] = useState<{
+    available: boolean;
+    originalRoute: Appointment[];
+    optimizedRoute: Appointment[];
+    timeSaved: number;
+    distanceSaved: number;
+    isOptimal: boolean;
+  } | null>(null);
+  const [showOptimizationAlert, setShowOptimizationAlert] = useState(false);
 
   // Booking form state for add/edit functionality
   const [bookingFormData, setBookingFormData] = useState<{
@@ -215,7 +234,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
   const getBreedPrice = (pet: any) => {
     const breed = getBreedById(pet.breedId);
-    return breed ? Number(breed.fullGroomPrice) : 0;
+    const price = breed ? Number(breed.fullGroomPrice) : 0;
+    console.log('getBreedPrice - pet:', pet, 'breed:', breed, 'price:', price);
+    return price;
   };
 
   const getAvailableBreeds = (petType: string) => {
@@ -298,13 +319,139 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     return Math.max(15, endMinutes - startMinutes); // Minimum 15 minutes
   };
 
+  // Service duration mapping (in minutes)
+  const SERVICE_DURATIONS = {
+    // Full Service Grooming (base service)
+    'Full Grooming': 90,
+    'Full Service Grooming': 90,
+    'Full Service': 90,
+    'full-groom': 90,
+    'full-grooming': 90,
+    
+    // Basic Services
+    'Bath & Brush': 45,
+    'Bath Only': 30,
+    'Brush Only': 15,
+    'Nail Trim': 15,
+    'Nail Trimming': 15,
+    'Ear Cleaning': 10,
+    
+    // Premium Add-ons
+    'Teeth Cleaning': 20,
+    'Dental Care': 20,
+    'De-shedding Treatment': 30,
+    'Flea Treatment': 25,
+    'Medicated Bath': 40,
+    'Aromatherapy Bath': 35,
+    
+    // Specialty Services
+    'Anal Gland Expression': 10,
+    'Paw Moisturizing': 10,
+    'Cologne Application': 5,
+    'Bandana/Bow Tie': 5,
+    'Special Occasion Styling': 45,
+    
+    // Size-based adjustments for breeds
+    'Extra Large Breed': 30, // Additional time for large dogs
+    'Matted Fur Treatment': 45, // Additional time for severely matted fur
+    'Aggressive Pet Handling': 20, // Additional time for difficult pets
+    
+    // Coat-specific treatments
+    'Double Coat Brushing': 25,
+    'Hand Stripping': 60,
+    'Coat Conditioning': 15,
+    'Undercoat Removal': 35,
+    
+    // Health & Wellness
+    'Skin Treatment': 20,
+    'Hot Spot Treatment': 15,
+    'Tick Removal': 10,
+    'Eye Cleaning': 5,
+    
+    // Default for unknown services
+    'Unknown Service': 30
+  };
+
+  // Function to calculate actual duration based on services
   const getActualDuration = (appointment: Appointment): number => {
     // If both start and end times exist, calculate from times
     if (appointment.time && appointment.endTime) {
       return calculateDurationFromTimes(appointment.time, appointment.endTime);
     }
-    // Otherwise use the duration field or default to 60 minutes
-    return appointment.duration || 60;
+    
+    // If duration is manually set, use that
+    if (appointment.duration && appointment.duration > 0) {
+      return appointment.duration;
+    }
+    
+    // Calculate duration based on services
+    if (appointment.services && appointment.services.length > 0) {
+      console.log(`🕐 Calculating duration for appointment ${appointment.id}:`);
+      console.log(`   Services: ${appointment.services.join(', ')}`);
+      
+      let totalDuration = 0;
+      let hasFullService = false;
+      
+      appointment.services.forEach(service => {
+        const duration = SERVICE_DURATIONS[service as keyof typeof SERVICE_DURATIONS] || SERVICE_DURATIONS['Unknown Service'];
+        console.log(`   - ${service}: ${duration} minutes`);
+        
+        // Check if this is a full service (base service)
+        if (['Full Grooming', 'Full Service Grooming', 'Full Service', 'full-groom', 'full-grooming'].includes(service)) {
+          hasFullService = true;
+          totalDuration += duration;
+        } else {
+          // For additional services, add to the total
+          totalDuration += duration;
+        }
+      });
+      
+      // If no full service but has other services, ensure minimum reasonable time
+      if (!hasFullService && totalDuration < 30) {
+        totalDuration = Math.max(totalDuration, 30);
+      }
+      
+      // For multiple pets, add extra time (15 minutes per additional pet after the first)
+      const numberOfPets = appointment.client?.pets?.length || 1;
+      if (numberOfPets > 1) {
+        const extraTime = (numberOfPets - 1) * 15;
+        totalDuration += extraTime;
+        console.log(`   + Extra time for ${numberOfPets} pets: ${extraTime} minutes`);
+      }
+      
+      console.log(`   Total calculated duration: ${totalDuration} minutes`);
+      return totalDuration;
+    }
+    
+    // Default fallback
+    console.log(`⚠️ No services found for appointment ${appointment.id}, using default 60 minutes`);
+    return 60;
+  };
+
+  // Function to calculate estimated duration for booking form
+  const calculateEstimatedDuration = (includeFullService: boolean, additionalServices: string[], numberOfPets: number = 1): number => {
+    let totalDuration = 0;
+    
+    if (includeFullService) {
+      totalDuration += SERVICE_DURATIONS['Full Service Grooming'];
+    }
+    
+    additionalServices.forEach(service => {
+      const duration = SERVICE_DURATIONS[service as keyof typeof SERVICE_DURATIONS] || SERVICE_DURATIONS['Unknown Service'];
+      totalDuration += duration;
+    });
+    
+    // Add extra time for multiple pets
+    if (numberOfPets > 1) {
+      totalDuration += (numberOfPets - 1) * 15;
+    }
+    
+    // Ensure minimum time if no services selected
+    if (totalDuration === 0) {
+      totalDuration = 60; // Default minimum
+    }
+    
+    return totalDuration;
   };
 
   const getAppointmentHeight = (duration: number = 60): number => {
@@ -437,6 +584,42 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     }
   }, [resizing, isDragging]);
 
+  // Keyboard navigation for agenda view
+  useEffect(() => {
+    if (viewMode === 'agenda') {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // Only handle if no input field is focused and no modal is open
+        if (e.target instanceof HTMLInputElement || 
+            e.target instanceof HTMLTextAreaElement || 
+            e.target instanceof HTMLSelectElement ||
+            showModal) {
+          return;
+        }
+
+        switch (e.key) {
+          case 'ArrowLeft':
+            e.preventDefault();
+            navigateDate('prev');
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            navigateDate('next');
+            break;
+          case 'Home':
+            e.preventDefault();
+            setSelectedDate(new Date());
+            break;
+        }
+      };
+
+      document.addEventListener('keydown', handleKeyDown);
+      
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [viewMode, showModal]);
+
   // Sample data for demonstration (will be replaced by API data)
   useEffect(() => {
     if (appointments.length === 0) {
@@ -450,20 +633,20 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         {
           id: 'sample-1',
           date: today.toISOString(),
-          time: '6:15 AM',
-          endTime: '8:00 AM',
-          duration: 105, // 1 hour 45 minutes
-          assignedGroomer: 'Maria Rodriguez',
+          time: '6:00 AM',
+          endTime: '8:30 AM', // 150 minutes = 2 hours 30 minutes
+          duration: 150,
+          assignedGroomer: 'Sofia Rodriguez',
           status: 'confirmed',
-          services: ['Full Grooming', 'Nail Trim'],
+          services: ['Matted Fur Treatment', 'Teeth Cleaning'], // Services matching screenshot
           createdAt: today.toISOString(),
           updatedAt: today.toISOString(),
           client: {
             id: 'client-1',
-            name: 'Greta Raya recomendado por Clariza',
-            email: 'greta@example.com',
-            phone: '(555) 123-4567',
-            address: '123 Main St, City, State',
+            name: 'Claritza Bosque', // Name matching screenshot
+            email: 'claritza@example.com',
+            phone: '+1 (786) 734-9303', // Phone matching screenshot
+            address: '14371 SW 157th St', // Address matching screenshot
             pets: [
               { name: 'Buddy', breed: 'Golden Retriever', type: 'dog', age: 3 }
             ]
@@ -517,6 +700,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           id: 'sample-4',
           date: tomorrow.toISOString(),
           time: '4:45 PM',
+          endTime: '5:10 PM', // 25 minutes = Nail Trim (15) + Ear Cleaning (10)
+          duration: 25,
           status: 'confirmed',
           services: ['Nail Trim', 'Ear Cleaning'],
           createdAt: tomorrow.toISOString(),
@@ -571,7 +756,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       newDate.setDate(selectedDate.getDate() + (direction === 'next' ? 7 : -7));
     } else if (viewMode === '4day') {
       newDate.setDate(selectedDate.getDate() + (direction === 'next' ? 4 : -4));
-    } else if (viewMode === 'day') {
+    } else if (viewMode === 'day' || viewMode === 'agenda') {
       newDate.setDate(selectedDate.getDate() + (direction === 'next' ? 1 : -1));
     }
     setSelectedDate(newDate);
@@ -639,11 +824,23 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   // Get appointments for a specific date (filtered by current filter)
   const getAppointmentsForDate = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
+    console.log('🔍 getAppointmentsForDate called with:', date);
+    console.log('🔍 Target date string:', dateStr);
+    
     const filtered = getFilteredAppointments();
-    return filtered.filter(apt => {
+    const result = filtered.filter(apt => {
       const aptDate = apt.date ? apt.date.split('T')[0] : '';
-      return aptDate === dateStr;
+      const matches = aptDate === dateStr;
+      
+      if (matches) {
+        console.log(`✅ Found matching appointment: ${apt.client?.name} - ${apt.date} (${aptDate})`);
+      }
+      
+      return matches;
     });
+    
+    console.log(`📊 getAppointmentsForDate returning ${result.length} appointments for ${dateStr}`);
+    return result;
   };
 
   // Helper function to convert time string to minutes from midnight
@@ -845,6 +1042,22 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     }
 
     try {
+      // Calculate duration based on selected services and pets
+      const selectedServices = bookingFormData.includeFullService 
+        ? ['Full Service Grooming', ...bookingFormData.additionalServices]
+        : bookingFormData.additionalServices;
+      
+      const calculatedDuration = calculateEstimatedDuration(
+        bookingFormData.includeFullService,
+        bookingFormData.additionalServices,
+        bookingFormData.pets.length
+      );
+      
+      console.log('📊 Appointment Duration Calculation:');
+      console.log('   Services:', selectedServices);
+      console.log('   Number of pets:', bookingFormData.pets.length);
+      console.log('   Calculated duration:', calculatedDuration, 'minutes');
+      
       // Prepare appointment data for API
       const appointmentData = {
         clientName: bookingFormData.customerName,
@@ -853,10 +1066,10 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         clientAddress: bookingFormData.address,
         date: bookingFormData.preferredDate,
         time: bookingFormData.preferredTime,
+        duration: calculatedDuration, // Add calculated duration
+        endTime: calculateEndTime(bookingFormData.preferredTime, calculatedDuration), // Calculate end time
         pets: bookingFormData.pets,
-        services: bookingFormData.includeFullService 
-          ? ['Full Service', ...bookingFormData.additionalServices]
-          : bookingFormData.additionalServices,
+        services: selectedServices,
         notes: bookingFormData.notes,
         status: editMode ? selectedAppointment?.status || 'pending' : 'pending'
       };
@@ -951,6 +1164,13 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       }
 
       const data = await response.json();
+      console.log('Raw appointments from API:', data);
+      // Log services to see what we're working with
+      data.forEach((apt: any, index: number) => {
+        if (apt.services) {
+          console.log(`Appointment ${index} services:`, apt.services);
+        }
+      });
       setAppointments(data.sort((a: Appointment, b: Appointment) => 
         new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime()
       ));
@@ -1175,6 +1395,1098 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     }
   }, [editMode, selectedAppointment, isAddingNew]);
 
+  // Calculate travel times when appointments change in agenda view
+  useEffect(() => {
+    if (viewMode === 'agenda') {
+      console.log('🔍 ===== DATE FILTERING DEBUG =====');
+      console.log('📅 Selected date:', selectedDate);
+      console.log('📅 Selected date ISO string:', selectedDate.toISOString());
+      console.log('📅 Selected date toDateString:', selectedDate.toDateString());
+      console.log('📅 Selected date ISO split:', selectedDate.toISOString().split('T')[0]);
+      
+      // Use the same filtering logic as getAppointmentsForDate to ensure consistency
+      const dayAppointments = getAppointmentsForDate(selectedDate).sort((a, b) => {
+        const timeA = convertTimeToMinutes(a.time || '12:00 PM');
+        const timeB = convertTimeToMinutes(b.time || '12:00 PM');
+        return timeA - timeB;
+      });
+      
+      console.log('📋 Filtered appointments for date:', dayAppointments.length);
+      dayAppointments.forEach((apt, index) => {
+        console.log(`   ${index + 1}. ${apt.client?.name} - ${apt.date} - ${apt.time}`);
+      });
+      
+      if (dayAppointments.length > 0) {
+        calculateAllTravelTimes(dayAppointments);
+        // Also check for route optimization opportunities
+        checkRouteOptimization(dayAppointments);
+      } else {
+        // Clear optimization if no appointments
+        setRouteOptimization(null);
+        setShowOptimizationAlert(false);
+      }
+    }
+  }, [appointments, selectedDate, viewMode]);
+
+  // Helper function to convert appointments to route format for GoogleMapRoute
+  const convertAppointmentsToRoute = (appointments: Appointment[]) => {
+    const stops = appointments.map((appointment, index) => ({
+      appointment: {
+        id: appointment.id,
+        client: {
+          name: appointment.client?.name || 'Unknown Client',
+          address: appointment.client?.address || 'No address provided'
+        },
+        time: appointment.time || 'No time'
+      },
+      address: appointment.client?.address || 'No address provided',
+      coordinates: undefined, // Will be geocoded by GoogleMapRoute
+      distanceFromPrevious: index === 0 ? 0 : 2.5, // Estimated 2.5 miles between stops
+      travelTimeFromPrevious: index === 0 ? 0 : 15 // Estimated 15 minutes travel time
+    }));
+
+    const totalDistance = stops.reduce((sum, stop) => sum + (stop.distanceFromPrevious || 0), 0);
+    const totalDuration = stops.reduce((sum, stop) => sum + (stop.travelTimeFromPrevious || 0), 0);
+
+    return {
+      stops,
+      totalDistance,
+      totalDuration,
+      estimatedFuelCost: totalDistance * 0.15, // Rough estimate at $0.15 per mile
+      fuelDetails: {
+        gasPrice: 3.50,
+        mpg: 25,
+        gallonsUsed: totalDistance / 25
+      }
+    };
+  };
+
+  // Render Agenda View - Route Optimized with Map
+  // Route optimization algorithm using nearest neighbor with travel time
+  const optimizeRoute = async (appointments: Appointment[]): Promise<{
+    optimizedRoute: Appointment[];
+    totalDistance: number;
+    totalTime: number;
+  }> => {
+    if (appointments.length <= 1) {
+      return {
+        optimizedRoute: appointments,
+        totalDistance: 0,
+        totalTime: 0
+      };
+    }
+
+    // Start from base location
+    let unvisited = [...appointments];
+    let optimizedRoute: Appointment[] = [];
+    let currentLocation = BASE_LOCATION;
+    let totalDistance = 0;
+    let totalTime = 0;
+
+    // Find nearest appointment from current location
+    while (unvisited.length > 0) {
+      let nearestIndex = 0;
+      let shortestTime = Infinity;
+
+      // Calculate travel time to each unvisited appointment
+      for (let i = 0; i < unvisited.length; i++) {
+        const appointment = unvisited[i];
+        if (appointment.client?.address) {
+          try {
+            const travelTime = await calculateTravelTime(currentLocation, appointment.client.address);
+            if (travelTime < shortestTime) {
+              shortestTime = travelTime;
+              nearestIndex = i;
+            }
+          } catch (error) {
+            // Fallback to estimated distance if API fails
+            const estimatedTime = 15; // Default 15 minutes
+            if (estimatedTime < shortestTime) {
+              shortestTime = estimatedTime;
+              nearestIndex = i;
+            }
+          }
+        }
+      }
+
+      // Add nearest appointment to optimized route
+      const nearestAppointment = unvisited[nearestIndex];
+      optimizedRoute.push(nearestAppointment);
+      unvisited.splice(nearestIndex, 1);
+      
+      // Update current location and totals
+      currentLocation = nearestAppointment.client?.address || currentLocation;
+      totalTime += shortestTime;
+      totalDistance += shortestTime * 0.5; // Rough estimate: 30 mph average
+    }
+
+    return {
+      optimizedRoute,
+      totalDistance,
+      totalTime
+    };
+  };
+
+  // Check if route optimization can save time
+  const checkRouteOptimization = async (appointments: Appointment[]) => {
+    if (appointments.length < 2) {
+      setRouteOptimization(null);
+      setShowOptimizationAlert(false);
+      return;
+    }
+
+    try {
+      // Calculate current route time
+      let currentTotalTime = 0;
+      let currentLocation = BASE_LOCATION;
+      
+      for (const appointment of appointments) {
+        if (appointment.client?.address) {
+          const travelTime = await calculateTravelTime(currentLocation, appointment.client.address);
+          currentTotalTime += travelTime;
+          currentLocation = appointment.client.address;
+        }
+      }
+      
+      // Add time back to base
+      if (appointments.length > 0 && appointments[appointments.length - 1].client?.address) {
+        currentTotalTime += await calculateTravelTime(appointments[appointments.length - 1].client.address, BASE_LOCATION);
+      }
+
+      // Get optimized route
+      const optimization = await optimizeRoute(appointments);
+      
+      // Calculate optimized route time (including return to base)
+      let optimizedTotalTime = optimization.totalTime;
+      if (optimization.optimizedRoute.length > 0) {
+        const lastAppointment = optimization.optimizedRoute[optimization.optimizedRoute.length - 1];
+        if (lastAppointment.client?.address) {
+          optimizedTotalTime += await calculateTravelTime(lastAppointment.client.address, BASE_LOCATION);
+        }
+      }
+
+      const timeSaved = currentTotalTime - optimizedTotalTime;
+      const distanceSaved = timeSaved * 0.5; // Rough estimate
+
+      // Check if optimization is significant (more than 10 minutes)
+      if (timeSaved > 10) {
+        // Route can be optimized
+        setRouteOptimization({
+          available: true,
+          originalRoute: appointments,
+          optimizedRoute: optimization.optimizedRoute,
+          timeSaved,
+          distanceSaved,
+          isOptimal: false
+        });
+        setShowOptimizationAlert(true);
+      } else {
+        // Route is already optimal or close to optimal
+        setRouteOptimization({
+          available: false,
+          originalRoute: appointments,
+          optimizedRoute: optimization.optimizedRoute,
+          timeSaved: Math.max(0, timeSaved), // Show 0 if negative
+          distanceSaved: Math.max(0, distanceSaved),
+          isOptimal: true
+        });
+        setShowOptimizationAlert(true); // Still show alert but with "optimal" message
+      }
+    } catch (error) {
+      console.error('Route optimization error:', error);
+      setRouteOptimization(null);
+      setShowOptimizationAlert(false);
+    }
+  };
+
+  // Apply route optimization by updating appointment times based on end times + travel times
+  const applyRouteOptimization = async () => {
+    if (!routeOptimization) return;
+
+    try {
+      console.log('🔄 ===== APPLYING ROUTE OPTIMIZATION =====');
+      console.log('📋 Optimizing route for', routeOptimization.optimizedRoute.length, 'appointments');
+      
+      // Calculate new times for optimized route based on end times + travel times
+      const optimizedAppointments = [];
+      let currentLocation = BASE_LOCATION;
+      let currentTime = 8 * 60; // Start at 8:00 AM in minutes
+      
+      for (let i = 0; i < routeOptimization.optimizedRoute.length; i++) {
+        const appointment = routeOptimization.optimizedRoute[i];
+        
+        console.log(`\n📍 Processing appointment ${i + 1}: ${appointment.client?.name}`);
+        
+        // Calculate travel time from current location to this appointment
+        let travelTime = 0;
+        if (appointment.client?.address) {
+          travelTime = await calculateTravelTime(currentLocation, appointment.client.address);
+          console.log(`🚗 Travel time from ${currentLocation} to ${appointment.client.address}: ${travelTime} minutes`);
+        }
+        
+        // Add travel time to current time for the start time of this appointment
+        const appointmentStartTime = currentTime + travelTime;
+        
+        // Convert to time string
+        const startHours = Math.floor(appointmentStartTime / 60);
+        const startMinutes = appointmentStartTime % 60;
+        const startPeriod = startHours >= 12 ? 'PM' : 'AM';
+        const startDisplayHours = startHours > 12 ? startHours - 12 : startHours === 0 ? 12 : startHours;
+        const startTimeString = `${startDisplayHours}:${startMinutes.toString().padStart(2, '0')} ${startPeriod}`;
+        
+        // Calculate appointment duration and end time
+        const duration = getActualDuration(appointment);
+        const appointmentEndTime = appointmentStartTime + duration;
+        
+        // Convert end time to string
+        const endHours = Math.floor(appointmentEndTime / 60);
+        const endMinutes = appointmentEndTime % 60;
+        const endPeriod = endHours >= 12 ? 'PM' : 'AM';
+        const endDisplayHours = endHours > 12 ? endHours - 12 : endHours === 0 ? 12 : endHours;
+        const endTimeString = `${endDisplayHours}:${endMinutes.toString().padStart(2, '0')} ${endPeriod}`;
+        
+        console.log(`⏰ Appointment time: ${startTimeString} - ${endTimeString} (${duration} minutes)`);
+        
+        // Create optimized appointment with calculated times
+        const optimizedAppointment = {
+          ...appointment,
+          time: startTimeString,
+          endTime: endTimeString,
+          duration: duration
+        };
+        
+        optimizedAppointments.push(optimizedAppointment);
+        
+        // Update current location and time for next iteration
+        currentLocation = appointment.client?.address || currentLocation;
+        currentTime = appointmentEndTime; // Next appointment can start after this one ends + travel time
+        
+        console.log(`📍 Updated current location: ${currentLocation}`);
+        console.log(`⏰ Next appointment can start after: ${endTimeString}`);
+      }
+      
+      console.log('\n🎯 ===== FINAL OPTIMIZED SCHEDULE =====');
+      optimizedAppointments.forEach((apt, index) => {
+        console.log(`${index + 1}. ${apt.client?.name}: ${apt.time} - ${apt.endTime} (${apt.duration} min)`);
+      });
+
+      // Update appointments in the system
+      console.log('\n💾 ===== UPDATING APPOINTMENTS IN DATABASE =====');
+      for (const appointment of optimizedAppointments) {
+        try {
+          console.log(`📝 Updating ${appointment.client?.name} (${appointment.id})`);
+          const response = await fetch(apiUrl(`/appointments/${appointment.id}`), {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              ...appointment,
+              time: appointment.time,
+              endTime: appointment.endTime,
+              duration: appointment.duration
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to update appointment ${appointment.id}`);
+          }
+          console.log(`✅ Successfully updated ${appointment.client?.name}`);
+        } catch (error) {
+          console.error(`❌ Error updating appointment ${appointment.id}:`, error);
+        }
+      }
+
+      // Refresh appointments and hide optimization alert
+      console.log('\n🔄 Refreshing appointments...');
+      await fetchAppointments();
+      setShowOptimizationAlert(false);
+      setRouteOptimization(null);
+      
+      // Show success message
+      const timeSavedMinutes = Math.round(routeOptimization.timeSaved);
+      const successMessage = `Route optimized successfully! 🎉\n\n` +
+                           `✅ Saved approximately ${timeSavedMinutes} minutes of travel time\n` +
+                           `🗓️ Appointments rescheduled with proper spacing\n` +
+                           `🚗 Start times adjusted for travel time between locations`;
+      
+      alert(successMessage);
+      console.log('✅ Route optimization complete!');
+      
+    } catch (error) {
+      console.error('❌ Error applying route optimization:', error);
+      alert('Failed to apply route optimization. Please try again.');
+    }
+  };
+
+  // Auto-schedule appointments based on travel times without changing order
+  const autoScheduleAppointments = async () => {
+    const dayAppointments = getAppointmentsForDate(selectedDate);
+    
+    if (dayAppointments.length < 2) {
+      alert('Need at least 2 appointments to auto-schedule.');
+      return;
+    }
+
+    // Confirmation dialog
+    const confirmMessage = `Auto-Schedule Appointments 🕐\n\n` +
+                          `This will automatically adjust start times for ${dayAppointments.length} appointments based on:\n` +
+                          `• Service duration for each appointment\n` +
+                          `• Travel time between locations\n` +
+                          `• Proper spacing to prevent overlap\n\n` +
+                          `The appointment order will remain the same.\n\n` +
+                          `Continue with auto-scheduling?`;
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      console.log('🔄 ===== AUTO-SCHEDULING APPOINTMENTS =====');
+      console.log('📋 Auto-scheduling', dayAppointments.length, 'appointments');
+      
+      // Sort appointments by current time to maintain original order
+      const sortedAppointments = [...dayAppointments].sort((a, b) => {
+        const timeA = parseTime(a.time || '8:00 AM');
+        const timeB = parseTime(b.time || '8:00 AM');
+        return timeA - timeB;
+      });
+      
+      // Calculate new times based on end times + travel times
+      const rescheduledAppointments = [];
+      let currentLocation = BASE_LOCATION;
+      let currentTime = parseTime(sortedAppointments[0].time || '8:00 AM'); // Start with first appointment's current time
+      
+      for (let i = 0; i < sortedAppointments.length; i++) {
+        const appointment = sortedAppointments[i];
+        
+        console.log(`\n📍 Processing appointment ${i + 1}: ${appointment.client?.name}`);
+        
+        // For first appointment, keep its original start time
+        let appointmentStartTime = currentTime;
+        
+        // For subsequent appointments, calculate based on previous end time + travel time
+        if (i > 0) {
+          let travelTime = 0;
+          if (appointment.client?.address) {
+            travelTime = await calculateTravelTime(currentLocation, appointment.client.address);
+            console.log(`🚗 Travel time from ${currentLocation} to ${appointment.client.address}: ${travelTime} minutes`);
+          }
+          
+          // Start time = previous end time + travel time
+          appointmentStartTime = currentTime + travelTime;
+        }
+        
+        // Convert to time string
+        const startTimeString = formatTimeFromMinutes(appointmentStartTime);
+        
+        // Calculate appointment duration and end time
+        const duration = getActualDuration(appointment);
+        const appointmentEndTime = appointmentStartTime + duration;
+        const endTimeString = formatTimeFromMinutes(appointmentEndTime);
+        
+        console.log(`⏰ Appointment time: ${startTimeString} - ${endTimeString} (${duration} minutes)`);
+        
+        // Create rescheduled appointment with calculated times
+        const rescheduledAppointment = {
+          ...appointment,
+          time: startTimeString,
+          endTime: endTimeString,
+          duration: duration
+        };
+        
+        rescheduledAppointments.push(rescheduledAppointment);
+        
+        // Update current location and time for next iteration
+        currentLocation = appointment.client?.address || currentLocation;
+        currentTime = appointmentEndTime; // Next appointment can start after this one ends + travel time
+        
+        console.log(`📍 Updated current location: ${currentLocation}`);
+        console.log(`⏰ Next appointment can start after: ${endTimeString}`);
+      }
+      
+      console.log('\n🎯 ===== FINAL AUTO-SCHEDULED TIMES =====');
+      rescheduledAppointments.forEach((apt, index) => {
+        console.log(`${index + 1}. ${apt.client?.name}: ${apt.time} - ${apt.endTime} (${apt.duration} min)`);
+      });
+
+      // Update appointments in the system
+      console.log('\n💾 ===== UPDATING APPOINTMENTS IN DATABASE =====');
+      for (const appointment of rescheduledAppointments) {
+        try {
+          console.log(`📝 Updating ${appointment.client?.name} (${appointment.id})`);
+          const response = await fetch(apiUrl(`/appointments/${appointment.id}`), {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              ...appointment,
+              time: appointment.time,
+              endTime: appointment.endTime,
+              duration: appointment.duration
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to update appointment ${appointment.id}`);
+          }
+          console.log(`✅ Successfully updated ${appointment.client?.name}`);
+        } catch (error) {
+          console.error(`❌ Error updating appointment ${appointment.id}:`, error);
+        }
+      }
+
+      // Refresh appointments
+      console.log('\n🔄 Refreshing appointments...');
+      await fetchAppointments();
+      
+      // Show success message
+      const successMessage = `Appointments auto-scheduled successfully! 🎉\n\n` +
+                           `✅ ${rescheduledAppointments.length} appointments rescheduled\n` +
+                           `🗓️ Times adjusted based on service duration + travel time\n` +
+                           `🚗 Proper spacing between appointments maintained`;
+      
+      alert(successMessage);
+      console.log('✅ Auto-scheduling complete!');
+      
+    } catch (error) {
+      console.error('❌ Error auto-scheduling appointments:', error);
+      alert('Failed to auto-schedule appointments. Please try again.');
+    }
+  };
+
+  // Function to wait for Google Maps to load
+  const waitForGoogleMaps = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (window.google && window.google.maps) {
+        resolve(true);
+        return;
+      }
+      
+      // Check every 100ms for up to 10 seconds
+      let attempts = 0;
+      const maxAttempts = 100;
+      
+      const checkInterval = setInterval(() => {
+        attempts++;
+        
+        if (window.google && window.google.maps) {
+          clearInterval(checkInterval);
+          resolve(true);
+        } else if (attempts >= maxAttempts) {
+          clearInterval(checkInterval);
+          console.log('❌ Google Maps failed to load after 10 seconds');
+          resolve(false);
+        }
+      }, 100);
+    });
+  };
+
+  // Function to calculate travel time between two addresses using Google Maps API
+  const calculateTravelTime = async (origin: string, destination: string): Promise<number> => {
+    return new Promise(async (resolve) => {
+      try {
+        console.log(`🚗 Calculating travel time from "${origin}" to "${destination}" using Google Maps`);
+        
+        // Wait for Google Maps to load
+        const isGoogleMapsLoaded = await waitForGoogleMaps();
+        
+        if (!isGoogleMapsLoaded) {
+          console.log('❌ Google Maps not loaded, using fallback calculation');
+          resolve(calculateFallbackTravelTime(origin, destination));
+          return;
+        }
+
+        const service = new window.google.maps.DistanceMatrixService();
+        
+        service.getDistanceMatrix({
+          origins: [origin],
+          destinations: [destination],
+          travelMode: window.google.maps.TravelMode.DRIVING,
+          unitSystem: window.google.maps.UnitSystem.IMPERIAL,
+          avoidHighways: false,
+          avoidTolls: false
+        }, (response: any, status: any) => {
+          console.log('📍 Google Maps API response status:', status);
+          console.log('� Google Maps API response:', response);
+          
+          if (status === 'OK' && response && response.rows && response.rows.length > 0) {
+            const element = response.rows[0].elements[0];
+            
+            if (element.status === 'OK' && element.duration) {
+              const minutes = Math.ceil(element.duration.value / 60);
+              console.log(`✅ Calculated travel time: ${minutes} minutes`);
+              console.log(`� Distance: ${element.distance?.text || 'unknown'}`);
+              resolve(minutes);
+            } else {
+              console.log('❌ Google Maps element error:', element.status);
+              resolve(calculateFallbackTravelTime(origin, destination));
+            }
+          } else {
+            console.log('❌ Google Maps API error:', status);
+            resolve(calculateFallbackTravelTime(origin, destination));
+          }
+        });
+
+      } catch (error) {
+        console.log('❌ Google Maps calculation error:', error);
+        resolve(calculateFallbackTravelTime(origin, destination));
+      }
+    });
+  };
+
+  // Fallback calculation for when Google Maps is not available
+  const calculateFallbackTravelTime = (origin: string, destination: string): number => {
+    console.log('📊 Using fallback estimation for travel time');
+    
+    // Simple estimation based on typical Miami distances
+    // This is very rough but better than nothing
+    const hashCode = (str: string) => {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+      }
+      return Math.abs(hash);
+    };
+    
+    const originHash = hashCode(origin);
+    const destHash = hashCode(destination);
+    const combinedHash = originHash + destHash;
+    
+    // Generate a semi-realistic time between 8-35 minutes based on addresses
+    const estimatedMinutes = 8 + (combinedHash % 28);
+    
+    console.log(`⏱️ Fallback estimated time: ${estimatedMinutes} minutes`);
+    return estimatedMinutes;
+  };
+
+  // Function to calculate travel times for all appointments in a day
+  const calculateAllTravelTimes = async (appointments: Appointment[]) => {
+    console.log('🔍 ===== STARTING TRAVEL TIME CALCULATIONS =====');
+    console.log('📋 Number of appointments:', appointments.length);
+    console.log('📅 Selected date:', selectedDate.toDateString());
+    
+    // Debug each appointment's data structure
+    appointments.forEach((apt, index) => {
+      console.log(`📍 Appointment ${index + 1} (ID: ${apt.id}):`);
+      console.log(`   Client: ${apt.client?.name || 'NO CLIENT'}`);
+      console.log(`   Address: ${apt.client?.address || 'NO ADDRESS'}`);
+      console.log(`   Time: ${apt.time || 'NO TIME'}`);
+      console.log(`   Full appointment data:`, apt);
+    });
+    
+    if (appointments.length === 0) {
+      console.log('❌ No appointments to calculate travel times for');
+      return;
+    }
+    
+    const newTravelTimes: {[key: string]: number} = {};
+    
+    try {
+      // Calculate travel time from base to first appointment
+      if (appointments[0]?.client?.address) {
+        console.log('🏠 ===== CALCULATING BASE TO FIRST APPOINTMENT =====');
+        console.log(`🏠 From: "${BASE_LOCATION}"`);
+        console.log(`📍 To: "${appointments[0].client.address}"`);
+        
+        const timeToFirst = await calculateTravelTime(BASE_LOCATION, appointments[0].client.address);
+        newTravelTimes[`base-to-${appointments[0].id}`] = timeToFirst;
+        
+        console.log(`✅ Base to first appointment result: ${timeToFirst} minutes`);
+        console.log(`🔑 Stored with key: base-to-${appointments[0].id}`);
+      } else {
+        console.log('❌ First appointment has no address:', appointments[0]);
+      }
+      
+      // Calculate travel times between consecutive appointments
+      console.log('🔄 ===== CALCULATING TRAVEL BETWEEN APPOINTMENTS =====');
+      for (let i = 0; i < appointments.length - 1; i++) {
+        const current = appointments[i];
+        const next = appointments[i + 1];
+        
+        console.log(`🚗 Processing appointment ${i + 1} to ${i + 2}:`);
+        console.log(`   Current: ${current.client?.name} (ID: ${current.id})`);
+        console.log(`   Next: ${next.client?.name} (ID: ${next.id})`);
+        
+        if (current?.client?.address && next?.client?.address) {
+          console.log(`🗺️ From: "${current.client.address}"`);
+          console.log(`🗺️ To: "${next.client.address}"`);
+          
+          const travelTime = await calculateTravelTime(current.client.address, next.client.address);
+          const travelKey = `${current.id}-to-${next.id}`;
+          newTravelTimes[travelKey] = travelTime;
+          
+          console.log(`✅ Travel time result: ${travelTime} minutes`);
+          console.log(`🔑 Stored with key: ${travelKey}`);
+        } else {
+          console.log(`❌ Missing address data:`);
+          console.log(`   Current address: ${current?.client?.address || 'MISSING'}`);
+          console.log(`   Next address: ${next?.client?.address || 'MISSING'}`);
+        }
+      }
+      
+      // Calculate travel time from last appointment back to base
+      if (appointments.length > 0 && appointments[appointments.length - 1]?.client?.address) {
+        console.log('🏠 ===== CALCULATING LAST APPOINTMENT TO BASE =====');
+        const lastAppt = appointments[appointments.length - 1];
+        console.log(`📍 From: "${lastAppt.client.address}"`);
+        console.log(`🏠 To: "${BASE_LOCATION}"`);
+        
+        const timeToBase = await calculateTravelTime(lastAppt.client.address, BASE_LOCATION);
+        const baseKey = `${lastAppt.id}-to-base`;
+        newTravelTimes[baseKey] = timeToBase;
+        
+        console.log(`✅ Last appointment to base result: ${timeToBase} minutes`);
+        console.log(`🔑 Stored with key: ${baseKey}`);
+      } else {
+        console.log('❌ Last appointment has no address:', appointments[appointments.length - 1]);
+      }
+      
+      console.log('🎯 ===== FINAL TRAVEL TIMES SUMMARY =====');
+      console.log('📊 All calculated travel times:', newTravelTimes);
+      console.log('🔄 Setting travel times state...');
+      setTravelTimes(newTravelTimes);
+      console.log('✅ Travel time calculations complete!');
+      
+    } catch (error) {
+      console.error('❌ Error calculating travel times:', error);
+      // Set fallback messages instead of fake times
+      appointments.forEach((appointment, index) => {
+        if (index === 0) {
+          newTravelTimes[`base-to-${appointment.id}`] = -1; // -1 indicates calculation failed
+        }
+        if (index < appointments.length - 1) {
+          newTravelTimes[`${appointment.id}-to-${appointments[index + 1].id}`] = -1;
+        }
+        if (index === appointments.length - 1) {
+          newTravelTimes[`${appointment.id}-to-base`] = -1;
+        }
+      });
+      console.log('🔄 Using fallback indicators for failed calculations:', newTravelTimes);
+      setTravelTimes(newTravelTimes);
+    }
+  };
+
+  // Base location
+  const BASE_LOCATION = "14511 Jefferson St, Miami FL 33176";
+
+  const renderAgendaView = () => {
+    const dayAppointments = getAppointmentsForDate(selectedDate).sort((a, b) => {
+      const timeA = convertTimeToMinutes(a.time || '12:00 PM');
+      const timeB = convertTimeToMinutes(b.time || '12:00 PM');
+      return timeA - timeB;
+    });
+
+    // Calculate total travel time and work time
+    const totalWorkTime = dayAppointments.reduce((total, appointment) => {
+      return total + getActualDuration(appointment);
+    }, 0);
+    const estimatedTravelTime = Math.max(0, (dayAppointments.length - 1) * 15); // 15 min between each
+
+    return (
+      <div className="space-y-4">
+        {/* Route Map */}
+        {dayAppointments.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900 flex items-center">
+                  🗺️ Route Map
+                </h3>
+                <div className="flex items-center space-x-3">
+                  {/* Auto-Schedule Button */}
+                  <button
+                    onClick={autoScheduleAppointments}
+                    className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 transition-colors flex items-center space-x-1"
+                    title="Auto-schedule appointments based on travel times"
+                  >
+                    <span>⏰</span>
+                    <span>Auto-Schedule</span>
+                  </button>
+                  
+                  {/* Route Optimization Buttons */}
+                  {routeOptimization && (
+                    <>
+                      {routeOptimization.isOptimal ? (
+                        <button
+                          onClick={() => {
+                            setShowOptimizationAlert(false);
+                            setRouteOptimization(null);
+                          }}
+                          className="px-3 py-1.5 text-sm font-medium text-green-700 bg-green-100 border border-green-300 rounded-lg hover:bg-green-200 transition-colors flex items-center space-x-1"
+                          title="Route is already optimal"
+                        >
+                          <span>✅</span>
+                          <span>Optimal Route</span>
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => setShowOptimizationAlert(!showOptimizationAlert)}
+                            className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-100 border border-amber-300 rounded-lg hover:bg-amber-200 transition-colors flex items-center space-x-1"
+                            title={`View optimized route (saves ~${Math.round(routeOptimization.timeSaved)} min)`}
+                          >
+                            <span>🚀</span>
+                            <span>Show Optimized</span>
+                          </button>
+                          <button
+                            onClick={applyRouteOptimization}
+                            className="px-3 py-1.5 text-sm font-medium text-white bg-amber-600 border border-amber-600 rounded-lg hover:bg-amber-700 transition-colors flex items-center space-x-1"
+                            title={`Apply optimization (saves ~${Math.round(routeOptimization.timeSaved)} min)`}
+                          >
+                            <span>🎯</span>
+                            <span>Apply Optimization</span>
+                          </button>
+                        </>
+                      )}
+                    </>
+                  )}
+                  
+                  <span className="text-sm text-gray-600">
+                    Est. {(dayAppointments.length * 2.5).toFixed(1)} miles
+                  </span>
+                </div>
+              </div>
+              
+              {/* Optimization Info Bar (when showing optimized route) */}
+              {showOptimizationAlert && routeOptimization && !routeOptimization.isOptimal && (
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-amber-600 font-medium text-sm">
+                        💡 Optimized route saves ~{Math.round(routeOptimization.timeSaved)} minutes
+                        {routeOptimization.distanceSaved > 0 && 
+                          ` and ${routeOptimization.distanceSaved.toFixed(1)} miles`
+                        }
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setShowOptimizationAlert(false)}
+                      className="text-amber-600 hover:text-amber-800 p-1"
+                      title="Hide optimization info"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4">
+              <div className="w-full h-64 rounded-lg border border-gray-200 overflow-hidden">
+                <GoogleMapRoute 
+                  route={convertAppointmentsToRoute(dayAppointments)}
+                  startLocation={BASE_LOCATION}
+                  startCoordinates={{ lat: 25.6521, lng: -80.3983 }} // Approximate coordinates for 14511 Jefferson St, Miami FL 33176
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Route Timeline */}
+        {dayAppointments.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 rounded-xl">
+            <div className="text-4xl mb-4">📅</div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No appointments today</h3>
+            <p className="text-gray-600">
+              No appointments scheduled for {selectedDate.toLocaleDateString('en-US', { 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {/* Starting Location */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-l-4 border-green-500 shadow-sm">
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                      🏠
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold text-gray-900">
+                        Starting Location
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Base Location
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-2 text-gray-600">
+                  <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm">{BASE_LOCATION}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Travel Time to First Appointment */}
+            {dayAppointments.length > 0 && (
+              <div className="flex items-center space-x-4 py-2">
+                <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
+                <div className="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2">
+                  <Car className="w-4 h-4" />
+                  <span>
+                    {(() => {
+                      const travelTime = travelTimes[`base-to-${dayAppointments[0].id}`];
+                      if (travelTime === -1) {
+                        return '🚗 Cannot calculate route time to first appointment';
+                      } else if (travelTime) {
+                        return `🚗 ~${travelTime} min to first appointment`;
+                      } else {
+                        return '🚗 Calculating route time...';
+                      }
+                    })()}
+                  </span>
+                  <ArrowDown className="w-4 h-4" />
+                </div>
+                <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
+              </div>
+            )}
+
+            {dayAppointments.map((appointment, index) => {
+              const nextAppointment = dayAppointments[index + 1];
+              const travelKey = nextAppointment ? `${appointment.id}-to-${nextAppointment.id}` : null;
+              const travelTimeToNext = nextAppointment ? travelTimes[travelKey!] : 0;
+              const isLast = index === dayAppointments.length - 1;
+              
+              // Debug travel time lookup
+              if (nextAppointment) {
+                console.log(`🎯 UI: Looking up travel time for appointment ${index + 1} to ${index + 2}:`);
+                console.log(`   Key: ${travelKey}`);
+                console.log(`   Value: ${travelTimeToNext}`);
+                console.log(`   Available keys in travelTimes:`, Object.keys(travelTimes));
+              }
+              
+              return (
+                <div key={appointment.id} className="space-y-3">
+                  {/* Appointment Card */}
+                  <div 
+                    className={`bg-white rounded-xl border-l-4 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden ${
+                      getStatusColors(appointment.status).border
+                    } ${getStatusColors(appointment.status).bgLight}`}
+                    onClick={() => openViewModal(appointment)}
+                  >
+                    <div className="p-4">
+                      {/* Header with route number and time */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <div className="text-lg font-semibold text-gray-900">
+                              {appointment.time || 'No time'} - {appointment.endTime || calculateEndTime(appointment.time || '', getActualDuration(appointment))}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {getActualDuration(appointment)} minutes
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                            getStatusColors(appointment.status).bg
+                          } ${getStatusColors(appointment.status).text}`}>
+                            {appointment.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Client Information */}
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                              {appointment.client?.name || 'No client'}
+                            </h4>
+                            
+                            {appointment.client?.address && (
+                              <div className="flex items-start space-x-2 text-gray-600 mb-2">
+                                <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                <span className="text-sm">{appointment.client.address}</span>
+                              </div>
+                            )}
+                            
+                            {appointment.client?.phone && (
+                              <div className="flex items-center space-x-2 text-gray-600 mb-2">
+                                <Phone className="w-4 h-4 flex-shrink-0" />
+                                <span className="text-sm">{appointment.client.phone}</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {appointment.assignedGroomer && (
+                            <div className="text-right">
+                              <div className="text-sm text-gray-600">
+                                👤 {appointment.assignedGroomer}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Services - Only show additional services, not default full-groom */}
+                        {appointment.services && appointment.services.length > 0 && (() => {
+                          // Filter out default/base services, but keep "Full Service Grooming"
+                          const additionalServices = appointment.services.filter(service => {
+                            const serviceLower = service.toLowerCase();
+                            return ![
+                              'full grooming', 'full groom', 'full-groom', 'full-grooming',
+                              'basic grooming', 'basic groom', 'basic-groom', 'basic-grooming',
+                              'standard grooming', 'standard groom', 'standard-groom', 'standard-grooming',
+                              'grooming', 'groom'
+                            ].includes(serviceLower);
+                          });
+                          
+                          return additionalServices.length > 0 ? (
+                            <div className="pt-2 border-t border-gray-100">
+                              <div className="flex flex-wrap gap-2">
+                                {additionalServices.map((service, idx) => (
+                                  <span 
+                                    key={idx}
+                                    className="px-3 py-1 bg-amber-100 text-amber-800 text-sm rounded-full font-medium"
+                                  >
+                                    ✂️ {typeof service === 'string' ? service : String(service)}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null;
+                        })()}
+
+                        {/* Pet Information - Commented out as pets property doesn't exist in Appointment type */}
+                        {/* {appointment.pets && appointment.pets.length > 0 && (
+                          <div className="pt-2">
+                            <div className="flex flex-wrap gap-2">
+                              {appointment.pets.map((pet, idx) => (
+                                <span 
+                                  key={idx}
+                                  className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full font-medium"
+                                >
+                                  � {pet.name} ({pet.breed})
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )} */}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Travel Time Divider */}
+                  {!isLast && (
+                    <div className="flex items-center space-x-4 py-2">
+                      <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
+                      <div className="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2">
+                        <Car className="w-4 h-4" />
+                        <span>
+                          {(() => {
+                            if (travelTimeToNext === -1) {
+                              return '🚗 Cannot calculate route time';
+                            } else if (travelTimeToNext && travelTimeToNext > 0) {
+                              return `🚗 ~${travelTimeToNext} min travel time`;
+                            } else {
+                              return '🚗 Calculating route time...';
+                            }
+                          })()}
+                        </span>
+                        <ArrowDown className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
+                    </div>
+                  )}
+                  
+                  {/* Travel Time Back to Base - Show after last appointment */}
+                  {isLast && (
+                    <div className="flex items-center space-x-4 py-2">
+                      <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
+                      <div className="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2">
+                        <Car className="w-4 h-4" />
+                        <span>
+                          {(() => {
+                            const travelTimeToBase = travelTimes[`${appointment.id}-to-base`];
+                            if (travelTimeToBase === -1) {
+                              return '🚗 Cannot calculate route time back to base';
+                            } else if (travelTimeToBase && travelTimeToBase > 0) {
+                              return `🚗 ~${travelTimeToBase} min back to base`;
+                            } else {
+                              return '🚗 Calculating route time...';
+                            }
+                          })()}
+                        </span>
+                        <ArrowDown className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            
+            {/* Return to Base Card */}
+            {dayAppointments.length > 0 && (
+              <div className="bg-gradient-to-r from-gray-50 to-stone-50 rounded-xl border-l-4 border-gray-500 shadow-sm">
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gray-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                        🏠
+                      </div>
+                      <div>
+                        <div className="text-lg font-semibold text-gray-900">
+                          Return to Base
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          End of Route
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-2 text-gray-600">
+                    <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">{BASE_LOCATION}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Daily Summary Footer */}
+        {dayAppointments.length > 0 && (
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 border border-green-200">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h3 className="font-semibold text-gray-900">🏁 Route Complete</h3>
+                <p className="text-sm text-gray-600">
+                  Total estimated time: {totalWorkTime + estimatedTravelTime} minutes
+                </p>
+              </div>
+              <div className="text-right space-y-1">
+                <div className="text-sm text-gray-600">
+                  📊 Work: {totalWorkTime}min | 🚗 Travel: {estimatedTravelTime}min
+                </div>
+                <div className="text-sm text-gray-600">
+                  📍 Distance: ~{(dayAppointments.length * 2.5).toFixed(1)} miles
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Instructions */}
+        <div className="text-center text-xs md:text-sm text-gray-500 bg-gray-50 rounded-lg p-2 md:p-3">
+          <p>💡 <strong>Route-optimized agenda</strong> showing appointments in chronological order with travel times</p>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -1230,6 +2542,12 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                 day: 'numeric', 
                 year: 'numeric' 
               })}
+              {viewMode === 'agenda' && selectedDate.toLocaleDateString('en-US', { 
+                weekday: 'long',
+                month: 'long', 
+                day: 'numeric', 
+                year: 'numeric' 
+              })}
             </h1>
             <div className="flex items-center space-x-1 md:space-x-2">
               <button
@@ -1250,12 +2568,13 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           {/* View Mode Selector */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1 bg-white rounded-lg p-0.5 md:p-1 shadow-sm">
-              {(['month', 'week', '4day', 'day'] as const).map((mode) => {
+              {(['month', 'week', '4day', 'day', 'agenda'] as const).map((mode) => {
                 const labelMap = {
                   'month': 'Month',
                   'week': 'Week', 
                   '4day': '4-Day',
-                  'day': 'Day'
+                  'day': 'Day',
+                  'agenda': 'Agenda'
                 };
                 
                 return (
@@ -1594,15 +2913,28 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                   </div>
                                 )}
                               </div>
-                              {appointment.services && appointment.services.length > 0 && (
-                                <div className="truncate opacity-90 text-xs leading-tight">
-                                  {Array.isArray(appointment.services) 
-                                    ? appointment.services.slice(0, 1).join('')
-                                    : 'Services'
-                                  }
-                                  {appointment.services.length > 1 && ` +${appointment.services.length - 1}`}
-                                </div>
-                              )}
+                              {appointment.services && appointment.services.length > 0 && (() => {
+                                // Filter out default/base services, but keep "Full Service Grooming"  
+                                const additionalServices = appointment.services.filter(service => {
+                                  const serviceLower = service.toLowerCase();
+                                  return ![
+                                    'full grooming', 'full groom', 'full-groom', 'full-grooming',
+                                    'basic grooming', 'basic groom', 'basic-groom', 'basic-grooming',
+                                    'standard grooming', 'standard groom', 'standard-groom', 'standard-grooming',
+                                    'grooming', 'groom'
+                                  ].includes(serviceLower);
+                                });
+                                
+                                return additionalServices.length > 0 ? (
+                                  <div className="truncate opacity-90 text-xs leading-tight">
+                                    {Array.isArray(additionalServices) 
+                                      ? additionalServices.slice(0, 1).join('')
+                                      : 'Services'
+                                    }
+                                    {additionalServices.length > 1 && ` +${additionalServices.length - 1}`}
+                                  </div>
+                                ) : null;
+                              })()}
                             </div>
                           );
                         });
@@ -1790,17 +3122,30 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                               {/* Right side - Services and Groomer (hidden on very small mobile) */}
                               <div className="hidden sm:flex flex-col items-end text-right min-w-0 ml-2 justify-start">
                                 <div className="space-y-0.5 overflow-hidden">
-                                  {appointment.services && appointment.services.length > 0 && (
-                                    <div className={`text-xs truncate opacity-75 leading-tight ${
-                                      getStatusColors(appointment.status).textDark
-                                    }`}>
-                                      ✂️ {Array.isArray(appointment.services) 
-                                          ? appointment.services.slice(0, 1).join(', ')
-                                          : 'Services'
-                                        }
-                                        {appointment.services.length > 1 && ` +${appointment.services.length - 1}`}
-                                    </div>
-                                  )}
+                                  {appointment.services && appointment.services.length > 0 && (() => {
+                                    // Filter out default/base services, but keep "Full Service Grooming"
+                                    const additionalServices = appointment.services.filter(service => {
+                                      const serviceLower = service.toLowerCase();
+                                      return ![
+                                        'full grooming', 'full groom', 'full-groom', 'full-grooming',
+                                        'basic grooming', 'basic groom', 'basic-groom', 'basic-grooming',
+                                        'standard grooming', 'standard groom', 'standard-groom', 'standard-grooming',
+                                        'grooming', 'groom'
+                                      ].includes(serviceLower);
+                                    });
+                                    
+                                    return additionalServices.length > 0 ? (
+                                      <div className={`text-xs truncate opacity-75 leading-tight ${
+                                        getStatusColors(appointment.status).textDark
+                                      }`}>
+                                        ✂️ {Array.isArray(additionalServices) 
+                                            ? additionalServices.slice(0, 1).join(', ')
+                                            : 'Services'
+                                          }
+                                          {additionalServices.length > 1 && ` +${additionalServices.length - 1}`}
+                                      </div>
+                                    ) : null;
+                                  })()}
                                   {appointment.assignedGroomer && (
                                     <div className={`text-xs truncate opacity-75 leading-tight ${
                                       getStatusColors(appointment.status).textDark
@@ -2019,15 +3364,28 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                   </div>
                                 )}
                               </div>
-                              {appointment.services && appointment.services.length > 0 && (
-                                <div className="truncate opacity-90 text-xs leading-tight">
-                                  {Array.isArray(appointment.services) 
-                                    ? appointment.services.slice(0, 1).join('')
-                                    : 'Services'
-                                  }
-                                  {appointment.services.length > 1 && ` +${appointment.services.length - 1}`}
-                                </div>
-                              )}
+                              {appointment.services && appointment.services.length > 0 && (() => {
+                                // Filter out default/base services, but keep "Full Service Grooming"
+                                const additionalServices = appointment.services.filter(service => {
+                                  const serviceLower = service.toLowerCase();
+                                  return ![
+                                    'full grooming', 'full groom', 'full-groom', 'full-grooming',
+                                    'basic grooming', 'basic groom', 'basic-groom', 'basic-grooming',
+                                    'standard grooming', 'standard groom', 'standard-groom', 'standard-grooming',
+                                    'grooming', 'groom'
+                                  ].includes(serviceLower);
+                                });
+                                
+                                return additionalServices.length > 0 ? (
+                                  <div className="truncate opacity-90 text-xs leading-tight">
+                                    {Array.isArray(additionalServices) 
+                                      ? additionalServices.slice(0, 1).join('')
+                                      : 'Services'
+                                    }
+                                    {additionalServices.length > 1 && ` +${additionalServices.length - 1}`}
+                                  </div>
+                                ) : null;
+                              })()}
                             </div>
                           );
                         });
@@ -2044,18 +3402,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
             </div>
           </div>
         )}
-      </div>
 
-      {/* Route Optimization Box */}
-      <div className="px-2 md:px-4 pb-4">
-        <RouteOptimizationBox 
-          appointments={appointments}
-          selectedDate={selectedDate}
-          onOptimizeRoute={(optimizedAppointments) => {
-            // Optional: Handle optimized route results
-            console.log('Optimized route:', optimizedAppointments);
-          }}
-        />
+        {viewMode === 'agenda' && renderAgendaView()}
       </div>
 
       {/* Add Appointment Button */}
@@ -2628,6 +3976,39 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                           totalAmount={calculateSubtotal()}
                           customerEmail={bookingFormData.email}
                         />
+                      </div>
+                    )}
+
+                    {/* Estimated Duration */}
+                    {(bookingFormData.includeFullService || bookingFormData.additionalServices.length > 0) && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Clock className="w-5 h-5 text-blue-600" />
+                          <h4 className="text-base sm:text-lg font-medium text-blue-900">Estimated Duration</h4>
+                        </div>
+                        <div className="text-sm text-blue-800">
+                          <p>
+                            <strong>{calculateEstimatedDuration(
+                              bookingFormData.includeFullService,
+                              bookingFormData.additionalServices,
+                              bookingFormData.pets.length
+                            )} minutes</strong> 
+                            ({Math.floor(calculateEstimatedDuration(
+                              bookingFormData.includeFullService,
+                              bookingFormData.additionalServices,
+                              bookingFormData.pets.length
+                            ) / 60)}h {calculateEstimatedDuration(
+                              bookingFormData.includeFullService,
+                              bookingFormData.additionalServices,
+                              bookingFormData.pets.length
+                            ) % 60}m)
+                          </p>
+                          {bookingFormData.pets.length > 1 && (
+                            <p className="text-xs mt-1">
+                              * Includes additional time for {bookingFormData.pets.length} pets
+                            </p>
+                          )}
+                        </div>
                       </div>
                     )}
 

@@ -53,6 +53,13 @@ const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({
 
   useEffect(() => {
     const loadGoogleMaps = () => {
+      // Check if API key is available
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        console.warn('Google Maps API key not found. Map will show placeholder.');
+        return;
+      }
+
       if (window.google && window.google.maps) {
         initializeMap();
         return;
@@ -60,12 +67,15 @@ const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({
 
       // Create script element
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&libraries=geometry,places`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places`;
       script.async = true;
       script.defer = true;
       
       window.initGoogleMaps = initializeMap;
       script.onload = initializeMap;
+      script.onerror = () => {
+        console.error('Failed to load Google Maps API');
+      };
       
       document.head.appendChild(script);
     };
@@ -241,60 +251,47 @@ const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({
     loadGoogleMaps();
   }, [route, startLocation, startCoordinates]);
 
+  // Check if Google Maps API key is available
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  
+  if (!apiKey) {
+    return (
+      <div className="w-full h-96 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl border border-blue-200 flex items-center justify-center">
+        <div className="text-center p-8">
+          <div className="text-6xl mb-4">🗺️</div>
+          <h3 className="text-xl font-semibold text-blue-900 mb-2">Route Map</h3>
+          <p className="text-blue-700 mb-4">
+            {route.stops.length} stops • {route.totalDistance.toFixed(1)} miles • {route.totalDuration} min travel
+          </p>
+          <div className="space-y-2 text-sm text-blue-600">
+            {route.stops.map((stop, index) => (
+              <div key={index} className="flex items-center justify-center space-x-2">
+                <span className="w-6 h-6 bg-blue-600 text-white rounded-full text-xs flex items-center justify-center">
+                  {index + 1}
+                </span>
+                <span>{stop.appointment.client.name} - {stop.appointment.time}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-blue-500 mt-4">
+            Configure Google Maps API key to enable interactive map
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
-      <div className="mb-4 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
-        <h3 className="text-lg font-semibold text-amber-900 mb-3">📍 Route Overview</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-rose-600">{route.stops.length}</div>
-            <div className="text-amber-700">Stops</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600">{route.totalDistance.toFixed(1)}</div>
-            <div className="text-amber-700">Miles</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-amber-600">{Math.round(route.totalDuration)}</div>
-            <div className="text-amber-700">Minutes</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-emerald-600">${route.estimatedFuelCost.toFixed(2)}</div>
-            <div className="text-amber-700">Fuel Cost</div>
-          </div>
-        </div>
-        
-        {/* Detailed Fuel Cost Breakdown */}
-        {route.fuelDetails && (
-          <div className="bg-white rounded-lg p-3 border border-amber-200">
-            <h4 className="text-sm font-semibold text-amber-900 mb-2">⛽ Fuel Cost Details</h4>
-            <div className="grid grid-cols-3 gap-4 text-xs">
-              <div className="text-center">
-                <div className="font-semibold text-amber-800">${route.fuelDetails.gasPrice.toFixed(2)}</div>
-                <div className="text-amber-600">Price/Gallon</div>
-              </div>
-              <div className="text-center">
-                <div className="font-semibold text-amber-800">{route.fuelDetails.mpg} MPG</div>
-                <div className="text-amber-600">Vehicle Efficiency</div>
-              </div>
-              <div className="text-center">
-                <div className="font-semibold text-amber-800">{route.fuelDetails.gallonsUsed.toFixed(1)} gal</div>
-                <div className="text-amber-600">Total Fuel</div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      
       <div 
         ref={mapRef} 
-        className="w-full h-96 rounded-xl border border-amber-200 shadow-lg"
+        className="w-full h-96 rounded-xl border border-gray-200 shadow-lg"
         style={{ minHeight: '400px' }}
       />
       
-      <div className="mt-4 text-xs text-amber-600 text-center space-y-1">
+      <div className="mt-2 text-xs text-gray-600 text-center space-y-1">
         <div>🟢 Start Location • 🔴 Appointment Stops • Click markers for details</div>
-        <div className="text-amber-500">
+        <div className="text-gray-500">
           Route optimized for minimum travel time and fuel efficiency
         </div>
       </div>

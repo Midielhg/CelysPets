@@ -1,7 +1,12 @@
 import { Sequelize } from 'sequelize';
 import dotenv from 'dotenv';
 
-dotenv.config();
+// Load environment variables - prioritize .env.development in development
+if (process.env.NODE_ENV === 'development') {
+  dotenv.config({ path: '.env.development' });
+} else {
+  dotenv.config();
+}
 
 // MySQL Database Configuration - Always use MySQL
 console.log('🚀 Using MySQL database');
