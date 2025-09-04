@@ -435,6 +435,10 @@ switch ($path) {
         handlePricingAdditionalServices($pdo, $method);
         break;
         
+    case 'pricing/promo-codes':
+        handlePromoCodeManagement($pdo, $method, $input);
+        break;
+        
     case 'promo-codes/validate':
         handlePromoCodeValidation($pdo, $method, $input);
         break;
@@ -1223,6 +1227,204 @@ function handleDashboardStats($pdo, $method) {
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Failed to fetch dashboard stats: ' . $e->getMessage()]);
+    }
+}
+
+function handlePromoCodeManagement($pdo, $method, $input) {
+    switch ($method) {
+        case 'GET':
+            try {
+                // Handle pagination parameters
+                $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+                $limit = isset($_GET['limit']) ? max(1, min(100, intval($_GET['limit']))) : 10;
+                $search = isset($_GET['search']) ? trim($_GET['search']) : '';
+                $status = isset($_GET['status']) ? trim($_GET['status']) : 'all';
+                $offset = ($page - 1) * $limit;
+                
+                // Build the WHERE clause for search and status filter
+                $whereClause = '';
+                $params = [];
+                $conditions = [];
+                
+                if (!empty($search)) {
+                    $conditions[] = "(code LIKE ? OR name LIKE ?)";
+                    $searchParam = "%$search%";
+                    $params[] = $searchParam;
+                    $params[] = $searchParam;
+                }
+                
+                if ($status !== 'all') {
+                    if ($status === 'active') {
+                        $conditions[] = "active = 1";
+                    } elseif ($status === 'inactive') {
+                        $conditions[] = "active = 0";
+                    }
+                }
+                
+                if (!empty($conditions)) {
+                    $whereClause = "WHERE " . implode(" AND ", $conditions);
+                }
+                
+                // Get total count
+                $countSql = "SELECT COUNT(*) as total FROM promo_codes $whereClause";
+                $countStmt = $pdo->prepare($countSql);
+                $countStmt->execute($params);
+                $totalCount = $countStmt->fetch(PDO::FETCH_ASSOC)['total'];
+                
+                // Get promo codes with pagination
+                $sql = "SELECT * FROM promo_codes $whereClause ORDER BY id DESC LIMIT $limit OFFSET $offset";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
+                $promoCodes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Format the data for the frontend
+                $formattedPromoCodes = array_map(function($promo) {
+                    return [
+                        'id' => (int)$promo['id'],
+                        'code' => $promo['code'],
+                        'name' => $promo['name'],
+                        'discountType' => $promo['discountType'],
+                        'discountValue' => (float)$promo['discountValue'],
+                        'minimumAmount' => $promo['minimumAmount'] ? (float)$promo['minimumAmount'] : null,
+                        'maxUsageTotal' => $promo['maxUsageTotal'] ? (int)$promo['maxUsageTotal'] : null,
+                        'maxUsagePerCustomer' => $promo['maxUsagePerCustomer'] ? (int)$promo['maxUsagePerCustomer'] : null,
+                        'currentUsage' => 0, // TODO: Calculate actual usage from usage table
+                        'validFrom' => $promo['validFrom'],
+                        'validUntil' => $promo['validUntil'],
+                        'active' => (bool)$promo['active'],
+                        'createdAt' => $promo['createdAt'] ?? null,
+                        'updatedAt' => $promo['updatedAt'] ?? null
+                    ];
+                }, $promoCodes);
+                
+                // Calculate pagination info
+                $totalPages = ceil($totalCount / $limit);
+                
+                echo json_encode([
+                    'promoCodes' => $formattedPromoCodes,
+                    'pagination' => [
+                        'page' => $page,
+                        'limit' => $limit,
+                        'total' => intval($totalCount),
+                        'totalPages' => $totalPages,
+                        'hasMore' => $page < $totalPages
+                    ]
+                ]);
+            } catch (PDOException $e) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to fetch promo codes: ' . $e->getMessage()]);
+            }
+            break;
+            
+        case 'POST':
+            try {
+                // Create new promo code
+                $code = $input['code'] ?? '';
+                $name = $input['name'] ?? '';
+                $discountType = $input['discountType'] ?? 'percentage';
+                $discountValue = $input['discountValue'] ?? 0;
+                $minimumAmount = $input['minimumAmount'] ?? null;
+                $maxUsageTotal = $input['maxUsageTotal'] ?? null;
+                $maxUsagePerCustomer = $input['maxUsagePerCustomer'] ?? null;
+                $validFrom = $input['validFrom'] ?? null;
+                $validUntil = $input['validUntil'] ?? null;
+                $active = $input['active'] ?? true;
+                
+                if (empty($code) || empty($name)) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Code and name are required']);
+                    return;
+                }
+                
+                // Check if code already exists
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM promo_codes WHERE code = ?");
+                $stmt->execute([$code]);
+                if ($stmt->fetchColumn() > 0) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Promo code already exists']);
+                    return;
+                }
+                
+                $stmt = $pdo->prepare("INSERT INTO promo_codes (code, name, discountType, discountValue, minimumAmount, maxUsageTotal, maxUsagePerCustomer, validFrom, validUntil, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$code, $name, $discountType, $discountValue, $minimumAmount, $maxUsageTotal, $maxUsagePerCustomer, $validFrom, $validUntil, $active ? 1 : 0]);
+                
+                echo json_encode(['success' => true, 'message' => 'Promo code created successfully']);
+            } catch (PDOException $e) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to create promo code: ' . $e->getMessage()]);
+            }
+            break;
+            
+        case 'PUT':
+            try {
+                // Update existing promo code
+                $id = $input['id'] ?? 0;
+                if ($id <= 0) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Valid promo code ID is required']);
+                    return;
+                }
+                
+                $code = $input['code'] ?? '';
+                $name = $input['name'] ?? '';
+                $discountType = $input['discountType'] ?? 'percentage';
+                $discountValue = $input['discountValue'] ?? 0;
+                $minimumAmount = $input['minimumAmount'] ?? null;
+                $maxUsageTotal = $input['maxUsageTotal'] ?? null;
+                $maxUsagePerCustomer = $input['maxUsagePerCustomer'] ?? null;
+                $validFrom = $input['validFrom'] ?? null;
+                $validUntil = $input['validUntil'] ?? null;
+                $active = $input['active'] ?? true;
+                
+                if (empty($code) || empty($name)) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Code and name are required']);
+                    return;
+                }
+                
+                // Check if code already exists for a different promo code
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM promo_codes WHERE code = ? AND id != ?");
+                $stmt->execute([$code, $id]);
+                if ($stmt->fetchColumn() > 0) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Promo code already exists']);
+                    return;
+                }
+                
+                $stmt = $pdo->prepare("UPDATE promo_codes SET code = ?, name = ?, discountType = ?, discountValue = ?, minimumAmount = ?, maxUsageTotal = ?, maxUsagePerCustomer = ?, validFrom = ?, validUntil = ?, active = ? WHERE id = ?");
+                $stmt->execute([$code, $name, $discountType, $discountValue, $minimumAmount, $maxUsageTotal, $maxUsagePerCustomer, $validFrom, $validUntil, $active ? 1 : 0, $id]);
+                
+                echo json_encode(['success' => true, 'message' => 'Promo code updated successfully']);
+            } catch (PDOException $e) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to update promo code: ' . $e->getMessage()]);
+            }
+            break;
+            
+        case 'DELETE':
+            try {
+                // Delete promo code
+                $id = $input['id'] ?? 0;
+                if ($id <= 0) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Valid promo code ID is required']);
+                    return;
+                }
+                
+                $stmt = $pdo->prepare("DELETE FROM promo_codes WHERE id = ?");
+                $stmt->execute([$id]);
+                
+                echo json_encode(['success' => true, 'message' => 'Promo code deleted successfully']);
+            } catch (PDOException $e) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to delete promo code: ' . $e->getMessage()]);
+            }
+            break;
+            
+        default:
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+            break;
     }
 }
 

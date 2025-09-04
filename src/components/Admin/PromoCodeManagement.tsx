@@ -107,11 +107,15 @@ const PromoCodeManagement: React.FC = () => {
         const data = await response.json();
         console.log('Received promo codes data:', data);
         
-        // Ensure data is an array
-        if (Array.isArray(data)) {
+        // Handle the correct response structure: { promoCodes: [...], pagination: {...} }
+        if (data && data.promoCodes && Array.isArray(data.promoCodes)) {
+          setPromoCodes(data.promoCodes);
+          // TODO: Handle pagination if needed
+        } else if (Array.isArray(data)) {
+          // Fallback for direct array response
           setPromoCodes(data);
         } else {
-          console.error('Expected array of promo codes, got:', typeof data);
+          console.error('Expected promoCodes array in response, got:', data);
           setPromoCodes([]);
           showToast('Invalid data format received', 'error');
         }
