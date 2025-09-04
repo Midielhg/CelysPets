@@ -439,6 +439,14 @@ switch ($path) {
         handlePromoCodeValidation($pdo, $method, $input);
         break;
         
+    case 'appointments/recent':
+        handleRecentAppointments($pdo, $method);
+        break;
+        
+    case 'dashboard/stats':
+        handleDashboardStats($pdo, $method);
+        break;
+        
     default:
         http_response_code(404);
         echo json_encode(['error' => 'Endpoint not found: ' . $path]);
@@ -1119,6 +1127,102 @@ function handlePricingAdditionalServices($pdo, $method) {
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Failed to fetch additional services: ' . $e->getMessage()]);
+    }
+}
+
+function handleRecentAppointments($pdo, $method) {
+    if ($method !== 'GET') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+    
+    try {
+        // Get recent appointments (last 10) ordered by updatedAt
+        $sql = "
+            SELECT 
+                a.id,
+                a.clientId,
+                a.services,
+                a.date,
+                a.time,
+                a.status,
+                a.notes,
+                a.totalAmount,
+                a.createdAt,
+                a.updatedAt,
+                a.groomerId,
+                c.name as client_name,
+                c.email as client_email,
+                c.phone as client_phone,
+                c.address as client_address,
+                c.pets as client_pets
+            FROM appointments a
+            LEFT JOIN clients c ON a.clientId = c.id
+            ORDER BY a.updatedAt DESC 
+            LIMIT 10
+        ";
+        
+        $stmt = $pdo->query($sql);
+        $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Format the data for the frontend
+        $formattedAppointments = array_map(function($appointment) {
+            return [
+                'id' => (int)$appointment['id'],
+                'client' => [
+                    'name' => $appointment['client_name'] ?? 'Unknown Client'
+                ],
+                'updatedAt' => $appointment['updatedAt']
+            ];
+        }, $appointments);
+        
+        echo json_encode($formattedAppointments);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to fetch recent appointments: ' . $e->getMessage()]);
+    }
+}
+
+function handleDashboardStats($pdo, $method) {
+    if ($method !== 'GET') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+    
+    try {
+        // Get current month start and end dates
+        $currentMonth = date('Y-m-01');
+        $nextMonth = date('Y-m-01', strtotime('+1 month'));
+        
+        // Get appointments count for this month
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM appointments WHERE date >= ? AND date < ? AND status != 'cancelled'");
+        $stmt->execute([$currentMonth, $nextMonth]);
+        $appointmentsThisMonth = (int)$stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // Get total revenue for this month
+        $stmt = $pdo->prepare("SELECT SUM(totalAmount) as revenue FROM appointments WHERE date >= ? AND date < ? AND status IN ('completed', 'confirmed', 'in-progress')");
+        $stmt->execute([$currentMonth, $nextMonth]);
+        $revenue = $stmt->fetch(PDO::FETCH_ASSOC)['revenue'];
+        $totalRevenue = $revenue ? (float)$revenue : 0.0;
+        
+        // Get total clients count
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM clients");
+        $totalClients = (int)$stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // For now, use a fixed average rating (can be improved with reviews system)
+        $averageRating = 4.8;
+        
+        echo json_encode([
+            'appointmentsThisMonth' => $appointmentsThisMonth,
+            'totalRevenue' => round($totalRevenue, 2),
+            'totalClients' => $totalClients,
+            'averageRating' => $averageRating
+        ]);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to fetch dashboard stats: ' . $e->getMessage()]);
     }
 }
 
