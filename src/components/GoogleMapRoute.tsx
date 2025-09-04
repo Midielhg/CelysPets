@@ -88,17 +88,22 @@ const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({
       
       if (startCoordinates) {
         // Use provided coordinates
+        console.log('🗺️ Using provided coordinates for start location:', startCoordinates);
         createMap(startCoordinates);
       } else {
         // Geocode the start location
+        console.log('🔍 Geocoding start location:', startLocation);
         geocoder.geocode({ address: startLocation }, (results: any, status: any) => {
           if (status === 'OK' && results[0]) {
             const location = results[0].geometry.location;
             const coords = { lat: location.lat(), lng: location.lng() };
+            console.log('✅ Successfully geocoded start location:', coords);
+            console.log('📍 Formatted address:', results[0].formatted_address);
             createMap(coords);
           } else {
             // Fallback to Miami if geocoding fails
-            console.warn('Geocoding failed for start location:', startLocation);
+            console.error('❌ Geocoding failed for start location:', startLocation, 'Status:', status);
+            console.log('🚨 Using fallback coordinates for Miami');
             createMap({ lat: 25.7617, lng: -80.1918 });
           }
         });
@@ -125,6 +130,7 @@ const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({
       mapInstanceRef.current = map;
 
       // Add start location marker
+      console.log('🏠 Creating start location marker at:', mapCenter, 'for address:', startLocation);
       new window.google.maps.Marker({
         position: mapCenter,
         map: map,

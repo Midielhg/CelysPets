@@ -419,17 +419,21 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     // Calculate duration based on services
     if (appointment.services && appointment.services.length > 0) {
       console.log(`🕐 Calculating duration for appointment ${appointment.id}:`);
-      console.log(`   Services: ${appointment.services.join(', ')}`);
+      console.log(`   Services: ${appointment.services.map(service => 
+        typeof service === 'string' ? service : (service?.name || String(service))
+      ).join(', ')}`);
       
       let totalDuration = 0;
       let hasFullService = false;
       
       appointment.services.forEach(service => {
-        const duration = SERVICE_DURATIONS[service as keyof typeof SERVICE_DURATIONS] || SERVICE_DURATIONS['Unknown Service'];
-        console.log(`   - ${service}: ${duration} minutes`);
+        // Handle both string and object services
+        const serviceString = typeof service === 'string' ? service : (service?.name || String(service));
+        const duration = SERVICE_DURATIONS[serviceString as keyof typeof SERVICE_DURATIONS] || SERVICE_DURATIONS['Unknown Service'];
+        console.log(`   - ${serviceString}: ${duration} minutes`);
         
         // Check if this is a full service (base service)
-        if (['Full Grooming', 'Full Service Grooming', 'Full Service', 'full-groom', 'full-grooming'].includes(service)) {
+        if (['Full Grooming', 'Full Service Grooming', 'Full Service', 'full-groom', 'full-grooming'].includes(serviceString)) {
           hasFullService = true;
           totalDuration += duration;
         } else {
@@ -1588,12 +1592,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       }));
 
       const fullServiceNames = ['Full Service', 'Full Service Grooming', 'Full Grooming', 'full-groom', 'full-grooming'];
-      const hasFullService = selectedAppointment.services.some(service => 
-        fullServiceNames.includes(service)
-      );
-      const additionalServices = selectedAppointment.services.filter(service => 
-        !fullServiceNames.includes(service)
-      );
+      const hasFullService = selectedAppointment.services.some(service => {
+        const serviceString = typeof service === 'string' ? service : (service?.name || '');
+        return fullServiceNames.includes(serviceString);
+      });
+      const additionalServices = selectedAppointment.services.filter(service => {
+        const serviceString = typeof service === 'string' ? service : (service?.name || '');
+        return !fullServiceNames.includes(serviceString);
+      });
       
       console.log('🔧 EDIT MODE - Full service detected:', hasFullService);
       console.log('🔧 EDIT MODE - Additional services:', additionalServices);
@@ -2337,20 +2343,20 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         {/* Route Map */}
         {dayAppointments.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 overflow-visible">
-            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+            <div className="bg-gray-50 px-2 md:px-4 py-2 md:py-3 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900 flex items-center">
+                <h3 className="text-sm md:text-base font-semibold text-gray-900 flex items-center">
                   🗺️ Route Map
                 </h3>
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-1 md:space-x-3">
                   {/* Auto-Schedule Button */}
                   <button
                     onClick={autoScheduleAppointments}
-                    className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 transition-colors flex items-center space-x-1"
+                    className="px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 transition-colors flex items-center space-x-1"
                     title="Auto-schedule appointments based on travel times"
                   >
                     <span>⏰</span>
-                    <span>Auto-Schedule</span>
+                    <span className="hidden sm:inline">Auto-Schedule</span>
                   </button>
                   
                   {/* Route Optimization Buttons */}
@@ -2362,36 +2368,36 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                             setShowOptimizationAlert(false);
                             setRouteOptimization(null);
                           }}
-                          className="px-3 py-1.5 text-sm font-medium text-green-700 bg-green-100 border border-green-300 rounded-lg hover:bg-green-200 transition-colors flex items-center space-x-1"
+                          className="px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm font-medium text-green-700 bg-green-100 border border-green-300 rounded-lg hover:bg-green-200 transition-colors flex items-center space-x-1"
                           title="Route is already optimal"
                         >
                           <span>✅</span>
-                          <span>Optimal Route</span>
+                          <span className="hidden sm:inline">Optimal Route</span>
                         </button>
                       ) : (
                         <>
                           <button
                             onClick={() => setShowOptimizationAlert(!showOptimizationAlert)}
-                            className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-100 border border-amber-300 rounded-lg hover:bg-amber-200 transition-colors flex items-center space-x-1"
+                            className="px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm font-medium text-amber-700 bg-amber-100 border border-amber-300 rounded-lg hover:bg-amber-200 transition-colors flex items-center space-x-1"
                             title={`View optimized route (saves ~${Math.round(routeOptimization.timeSaved)} min)`}
                           >
                             <span>🚀</span>
-                            <span>Show Optimized</span>
+                            <span className="hidden sm:inline">Show Optimized</span>
                           </button>
                           <button
                             onClick={applyRouteOptimization}
-                            className="px-3 py-1.5 text-sm font-medium text-white bg-amber-600 border border-amber-600 rounded-lg hover:bg-amber-700 transition-colors flex items-center space-x-1"
+                            className="px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm font-medium text-white bg-amber-600 border border-amber-600 rounded-lg hover:bg-amber-700 transition-colors flex items-center space-x-1"
                             title={`Apply optimization (saves ~${Math.round(routeOptimization.timeSaved)} min)`}
                           >
                             <span>🎯</span>
-                            <span>Apply Optimization</span>
+                            <span className="hidden sm:inline">Apply Optimization</span>
                           </button>
                         </>
                       )}
                     </>
                   )}
                   
-                  <span className="text-sm text-gray-600">
+                  <span className="text-xs md:text-sm text-gray-600">
                     Est. {(dayAppointments.length * 2.5).toFixed(1)} miles
                   </span>
                 </div>
@@ -2426,7 +2432,6 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                 <GoogleMapRoute 
                   route={convertAppointmentsToRoute(dayAppointments)}
                   startLocation={BASE_LOCATION}
-                  startCoordinates={{ lat: 25.6521, lng: -80.3983 }} // Approximate coordinates for 14511 Jefferson St, Miami FL 33176
                 />
               </div>
             </div>
@@ -2449,25 +2454,25 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           <div className="space-y-3">
             {/* Starting Location */}
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-l-4 border-green-500 shadow-sm">
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+              <div className="p-2 md:p-4">
+                <div className="flex items-center justify-between mb-2 md:mb-3">
+                  <div className="flex items-center space-x-2 md:space-x-3">
+                    <div className="w-8 h-8 md:w-10 md:h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold text-xs md:text-sm">
                       🏠
                     </div>
                     <div>
-                      <div className="text-lg font-semibold text-gray-900">
+                      <div className="text-sm md:text-lg font-semibold text-gray-900">
                         Starting Location
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-xs md:text-sm text-gray-600">
                         Base Location
                       </div>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-start space-x-2 text-gray-600">
-                  <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">{BASE_LOCATION}</span>
+                  <MapPin className="w-3 h-3 md:w-4 md:h-4 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs md:text-sm">{BASE_LOCATION}</span>
                 </div>
               </div>
             </div>
@@ -2519,18 +2524,18 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                     } ${getStatusColors(appointment.status).bgLight}`}
                     onClick={() => openViewModal(appointment)}
                   >
-                    <div className="p-4">
+                    <div className="p-2 md:p-4">
                       {/* Header with route number and time */}
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                      <div className="flex items-center justify-between mb-2 md:mb-3">
+                        <div className="flex items-center space-x-2 md:space-x-3">
+                          <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-xs md:text-sm">
                             {index + 1}
                           </div>
                           <div>
-                            <div className="text-lg font-semibold text-gray-900">
+                            <div className="text-sm md:text-lg font-semibold text-gray-900">
                               {appointment.time || 'No time'} - {appointment.endTime || calculateEndTime(appointment.time || '', getActualDuration(appointment))}
                             </div>
-                            <div className="text-sm text-gray-600">
+                            <div className="text-xs md:text-sm text-gray-600">
                               {getActualDuration(appointment)} minutes
                             </div>
                           </div>
@@ -2547,7 +2552,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                     : { appointmentId: appointment.id, type: 'status' }
                                 );
                               }}
-                              className={`px-3 py-1 text-xs font-medium font-sans rounded-full transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                              className={`px-2 md:px-3 py-0.5 md:py-1 text-xs font-medium font-sans rounded-full transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
                                 getStatusColors(appointment.status).bg
                               } ${getStatusColors(appointment.status).text}`}
                               title="Click to change appointment status"
@@ -2604,7 +2609,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                     : { appointmentId: appointment.id, type: 'payment' }
                                 );
                               }}
-                              className={`px-3 py-1 text-xs font-medium font-sans rounded-full transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                              className={`px-2 md:px-3 py-0.5 md:py-1 text-xs font-medium font-sans rounded-full transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
                                 getPaymentStatusColors(appointment.paymentStatus || 'unpaid').bg
                               } ${getPaymentStatusColors(appointment.paymentStatus || 'unpaid').text}`}
                               title="Click to change payment status"
@@ -2653,31 +2658,31 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                       </div>
 
                       {/* Client Information */}
-                      <div className="space-y-2">
+                      <div className="space-y-1 md:space-y-2">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                            <h4 className="text-sm md:text-lg font-semibold text-gray-900 mb-1">
                               {appointment.client?.name || 'No client'}
                             </h4>
                             
                             {appointment.client?.address && (
-                              <div className="flex items-start space-x-2 text-gray-600 mb-2">
-                                <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                <span className="text-sm">{appointment.client.address}</span>
+                              <div className="flex items-start space-x-1 md:space-x-2 text-gray-600 mb-1 md:mb-2">
+                                <MapPin className="w-3 h-3 md:w-4 md:h-4 mt-0.5 flex-shrink-0" />
+                                <span className="text-xs md:text-sm">{appointment.client.address}</span>
                               </div>
                             )}
                             
                             {appointment.client?.phone && (
-                              <div className="flex items-center space-x-2 text-gray-600 mb-2">
-                                <Phone className="w-4 h-4 flex-shrink-0" />
-                                <span className="text-sm">{appointment.client.phone}</span>
+                              <div className="flex items-center space-x-1 md:space-x-2 text-gray-600 mb-1 md:mb-2">
+                                <Phone className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                                <span className="text-xs md:text-sm">{appointment.client.phone}</span>
                               </div>
                             )}
                           </div>
                           
                           {appointment.assignedGroomer && (
                             <div className="text-right">
-                              <div className="text-sm text-gray-600">
+                              <div className="text-xs md:text-sm text-gray-600">
                                 👤 {appointment.assignedGroomer}
                               </div>
                             </div>
@@ -2688,7 +2693,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                         {appointment.services && appointment.services.length > 0 && (() => {
                           // Filter out default/base services, but keep "Full Service Grooming"
                           const additionalServices = appointment.services.filter(service => {
-                            const serviceLower = service.toLowerCase();
+                            // Handle both string and object services
+                            const serviceString = typeof service === 'string' ? service : (service?.name || String(service));
+                            const serviceLower = serviceString.toLowerCase();
                             return ![
                               'full grooming', 'full groom', 'full-groom', 'full-grooming',
                               'basic grooming', 'basic groom', 'basic-groom', 'basic-grooming',
@@ -2698,14 +2705,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                           });
                           
                           return additionalServices.length > 0 ? (
-                            <div className="pt-2 border-t border-gray-100">
-                              <div className="flex flex-wrap gap-2">
+                            <div className="pt-1 md:pt-2 border-t border-gray-100">
+                              <div className="flex flex-wrap gap-1 md:gap-2">
                                 {additionalServices.map((service, idx) => (
                                   <span 
                                     key={idx}
-                                    className="px-3 py-1 bg-amber-100 text-amber-800 text-sm rounded-full font-medium"
+                                    className="px-2 md:px-3 py-0.5 md:py-1 bg-amber-100 text-amber-800 text-xs md:text-sm rounded-full font-medium"
                                   >
-                                    ✂️ {typeof service === 'string' ? service : String(service)}
+                                    ✂️ {typeof service === 'string' ? service : (service?.name || String(service))}
                                   </span>
                                 ))}
                               </div>
@@ -2734,10 +2741,10 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
                   {/* Travel Time Divider */}
                   {!isLast && (
-                    <div className="flex items-center space-x-4 py-2">
+                    <div className="flex items-center space-x-2 md:space-x-4 py-1 md:py-2">
                       <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
-                      <div className="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2">
-                        <Car className="w-4 h-4" />
+                      <div className="bg-indigo-100 text-indigo-800 px-2 md:px-4 py-1 md:py-2 rounded-full text-xs md:text-sm font-medium flex items-center space-x-1 md:space-x-2">
+                        <Car className="w-3 h-3 md:w-4 md:h-4" />
                         <span>
                           {(() => {
                             if (travelTimeToNext === -1) {
@@ -2749,7 +2756,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                             }
                           })()}
                         </span>
-                        <ArrowDown className="w-4 h-4" />
+                        <ArrowDown className="w-3 h-3 md:w-4 md:h-4" />
                       </div>
                       <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
                     </div>
@@ -2757,10 +2764,10 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   
                   {/* Travel Time Back to Base - Show after last appointment */}
                   {isLast && (
-                    <div className="flex items-center space-x-4 py-2">
+                    <div className="flex items-center space-x-2 md:space-x-4 py-1 md:py-2">
                       <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
-                      <div className="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2">
-                        <Car className="w-4 h-4" />
+                      <div className="bg-green-100 text-green-800 px-2 md:px-4 py-1 md:py-2 rounded-full text-xs md:text-sm font-medium flex items-center space-x-1 md:space-x-2">
+                        <Car className="w-3 h-3 md:w-4 md:h-4" />
                         <span>
                           {(() => {
                             const travelTimeToBase = travelTimes[`${appointment.id}-to-base`];
@@ -2773,7 +2780,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                             }
                           })()}
                         </span>
-                        <ArrowDown className="w-4 h-4" />
+                        <ArrowDown className="w-3 h-3 md:w-4 md:h-4" />
                       </div>
                       <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
                     </div>
@@ -2785,17 +2792,17 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
             {/* Return to Base Card */}
             {dayAppointments.length > 0 && (
               <div className="bg-gradient-to-r from-gray-50 to-stone-50 rounded-xl border-l-4 border-gray-500 shadow-sm">
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gray-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                <div className="p-2 md:p-4">
+                  <div className="flex items-center justify-between mb-2 md:mb-3">
+                    <div className="flex items-center space-x-2 md:space-x-3">
+                      <div className="w-8 h-8 md:w-10 md:h-10 bg-gray-600 text-white rounded-full flex items-center justify-center font-bold text-xs md:text-sm">
                         🏠
                       </div>
                       <div>
-                        <div className="text-lg font-semibold text-gray-900">
+                        <div className="text-sm md:text-lg font-semibold text-gray-900">
                           Return to Base
                         </div>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-xs md:text-sm text-gray-600">
                           End of Route
                         </div>
                       </div>
@@ -2813,19 +2820,19 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
         {/* Daily Summary Footer */}
         {dayAppointments.length > 0 && (
-          <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 border border-green-200">
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-2 md:p-4 border border-green-200">
             <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h3 className="font-semibold text-gray-900">🏁 Route Complete</h3>
-                <p className="text-sm text-gray-600">
+              <div className="space-y-0.5 md:space-y-1">
+                <h3 className="text-sm md:text-base font-semibold text-gray-900">🏁 Route Complete</h3>
+                <p className="text-xs md:text-sm text-gray-600">
                   Total estimated time: {totalWorkTime + estimatedTravelTime} minutes
                 </p>
               </div>
-              <div className="text-right space-y-1">
-                <div className="text-sm text-gray-600">
+              <div className="text-right space-y-0.5 md:space-y-1">
+                <div className="text-xs md:text-sm text-gray-600">
                   📊 Work: {totalWorkTime}min | 🚗 Travel: {estimatedTravelTime}min
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-xs md:text-sm text-gray-600">
                   📍 Distance: ~{(dayAppointments.length * 2.5).toFixed(1)} miles
                 </div>
               </div>
@@ -2855,9 +2862,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     <div className="bg-gradient-to-br from-stone-50 to-neutral-50 md:rounded-lg md:shadow-sm md:border md:border-stone-200 overflow-hidden">
       {/* iOS-style Header */}
       <div className="bg-gradient-to-r from-stone-50 to-neutral-50 border-b border-stone-200">
-        <div className="px-2 md:px-4 py-4 md:py-6">
-          <div className="flex items-center justify-between mb-3 md:mb-4">
-            <h1 className="text-lg md:text-2xl font-semibold text-stone-800">
+        <div className="px-1 md:px-4 py-3 md:py-6">
+          <div className="flex items-center justify-between mb-2 md:mb-4">
+            <h1 className="text-base md:text-2xl font-semibold text-stone-800">
               {viewMode === 'month' && selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               {viewMode === 'week' && (() => {
                 const currentDate = new Date(selectedDate);
@@ -2906,7 +2913,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
             <div className="flex items-center space-x-1 md:space-x-2">
               <button
                 onClick={goToToday}
-                className="px-2 md:px-3 py-1 text-xs md:text-sm font-medium text-stone-600 bg-white rounded-full border border-stone-300 hover:bg-stone-50 transition-colors"
+                className="px-1.5 md:px-3 py-0.5 md:py-1 text-xs md:text-sm font-medium text-stone-600 bg-white rounded-full border border-stone-300 hover:bg-stone-50 transition-colors"
               >
                 Today
               </button>
@@ -2921,7 +2928,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
           {/* View Mode Selector */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-1 bg-white rounded-lg p-0.5 md:p-1 shadow-sm">
+            <div className="flex items-center space-x-0.5 md:space-x-1 bg-white rounded-lg p-0.5 md:p-1 shadow-sm">
               {(['month', 'week', '4day', 'day', 'agenda'] as const).map((mode) => {
                 const labelMap = {
                   'month': 'Month',
@@ -2935,7 +2942,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   <button
                     key={mode}
                     onClick={() => setViewMode(mode)}
-                    className={`px-2 md:px-3 py-1 text-xs md:text-sm font-medium rounded-md transition-colors ${
+                    className={`px-1.5 md:px-3 py-0.5 md:py-1 text-xs md:text-sm font-medium rounded-md transition-colors ${
                       viewMode === mode
                         ? 'bg-stone-600 text-white shadow-sm'
                         : 'text-stone-600 hover:text-stone-800 hover:bg-stone-100'
@@ -2995,7 +3002,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   <button
                     key={key}
                     onClick={() => setFilter(key as any)}
-                    className={`px-2 md:px-3 py-1 text-xs md:text-sm font-medium rounded-full transition-colors ${getFilterColors()}`}
+                    className={`px-1.5 md:px-3 py-0.5 md:py-1 text-xs md:text-sm font-medium rounded-full transition-colors ${getFilterColors()}`}
                   >
                     {label}
                   </button>
@@ -3046,14 +3053,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       </div>
 
       {/* Calendar Content */}
-      <div className="p-1 md:p-4">
+      <div className="p-0.5 md:p-4">
         {viewMode === 'month' && (
           <div className="space-y-2 md:space-y-4">
             {/* Month Grid */}
             <div className="grid grid-cols-7 gap-px md:gap-1">
               {/* Day headers */}
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <div key={day} className="p-1 md:p-2 text-center text-xs md:text-sm font-medium text-gray-500">
+                <div key={day} className="p-0.5 md:p-2 text-center text-xs md:text-sm font-medium text-gray-500">
                   {day}
                 </div>
               ))}
@@ -3069,7 +3076,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   <div
                     key={index}
                     onClick={() => setSelectedDate(day)}
-                    className={`relative p-1 md:p-2 min-h-[80px] md:min-h-[100px] cursor-pointer md:rounded-lg border-0 md:border transition-colors ${
+                    className={`relative p-0.5 md:p-2 min-h-[60px] md:min-h-[100px] cursor-pointer md:rounded-lg border-0 md:border transition-colors ${
                       isSelected
                         ? 'bg-stone-100 md:bg-stone-50 md:border-stone-200'
                         : isCurrentMonth
@@ -3080,9 +3087,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                       borderRight: '1px solid #e5e7eb'
                     }}
                   >
-                    <div className={`text-xs md:text-sm font-medium mb-1 flex justify-center ${
+                    <div className={`text-xs md:text-sm font-medium mb-0.5 md:mb-1 flex justify-center ${
                       isTodayDate && isCurrentMonth
-                        ? 'bg-stone-600 text-white rounded-full w-5 h-5 md:w-6 md:h-6 items-center justify-center text-xs mx-auto'
+                        ? 'bg-stone-600 text-white rounded-full w-4 h-4 md:w-6 md:h-6 items-center justify-center text-xs mx-auto'
                         : ''
                     }`}>
                       {day.getDate()}
@@ -3090,11 +3097,11 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                     
                     {/* Appointment indicators - Mobile Optimized */}
                     {dayAppointments.length > 0 && (
-                      <div className="space-y-0.5 md:space-y-1">
-                        {dayAppointments.slice(0, 5).map((apt, aptIndex) => (
+                      <div className="space-y-px md:space-y-1">
+                        {dayAppointments.slice(0, 4).map((apt, aptIndex) => (
                           <div
                             key={aptIndex}
-                            className={`text-xs px-1 py-0.5 rounded cursor-pointer hover:opacity-80 transition-opacity border-l-2 ${
+                            className={`text-xs px-0.5 md:px-1 py-px md:py-0.5 rounded cursor-pointer hover:opacity-80 transition-opacity border-l-1 md:border-l-2 ${
                               getStatusColors(apt.status).bgLight
                             } ${getStatusColors(apt.status).textDark} ${getStatusColors(apt.status).border}`}
                             onClick={(e) => {
@@ -3115,9 +3122,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                             </div>
                           </div>
                         ))}
-                        {dayAppointments.length > 5 && (
+                        {dayAppointments.length > 4 && (
                           <div className="text-xs text-gray-500 text-center font-medium">
-                            +{dayAppointments.length - 5}
+                            +{dayAppointments.length - 4}
                           </div>
                         )}
                       </div>
@@ -3310,7 +3317,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                               {appointment.services && appointment.services.length > 0 && (() => {
                                 // Filter out default/base services, but keep "Full Service Grooming"  
                                 const additionalServices = appointment.services.filter(service => {
-                                  const serviceLower = service.toLowerCase();
+                                  // Handle both string and object services
+                                  const serviceString = typeof service === 'string' ? service : (service?.name || String(service));
+                                  const serviceLower = serviceString.toLowerCase();
                                   return ![
                                     'full grooming', 'full groom', 'full-groom', 'full-grooming',
                                     'basic grooming', 'basic groom', 'basic-groom', 'basic-grooming',
@@ -3519,7 +3528,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                   {appointment.services && appointment.services.length > 0 && (() => {
                                     // Filter out default/base services, but keep "Full Service Grooming"
                                     const additionalServices = appointment.services.filter(service => {
-                                      const serviceLower = service.toLowerCase();
+                                      // Handle both string and object services
+                                      const serviceString = typeof service === 'string' ? service : (service?.name || String(service));
+                                      const serviceLower = serviceString.toLowerCase();
                                       return ![
                                         'full grooming', 'full groom', 'full-groom', 'full-grooming',
                                         'basic grooming', 'basic groom', 'basic-groom', 'basic-grooming',
@@ -3533,7 +3544,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                         getStatusColors(appointment.status).textDark
                                       }`}>
                                         ✂️ {Array.isArray(additionalServices) 
-                                            ? additionalServices.slice(0, 1).join(', ')
+                                            ? additionalServices.slice(0, 1).map(service => 
+                                                typeof service === 'string' ? service : (service?.name || String(service))
+                                              ).join(', ')
                                             : 'Services'
                                           }
                                           {additionalServices.length > 1 && ` +${additionalServices.length - 1}`}
@@ -3761,7 +3774,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                               {appointment.services && appointment.services.length > 0 && (() => {
                                 // Filter out default/base services, but keep "Full Service Grooming"
                                 const additionalServices = appointment.services.filter(service => {
-                                  const serviceLower = service.toLowerCase();
+                                  // Handle both string and object services
+                                  const serviceString = typeof service === 'string' ? service : (service?.name || String(service));
+                                  const serviceLower = serviceString.toLowerCase();
                                   return ![
                                     'full grooming', 'full groom', 'full-groom', 'full-grooming',
                                     'basic grooming', 'basic groom', 'basic-groom', 'basic-grooming',
@@ -3773,7 +3788,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                 return additionalServices.length > 0 ? (
                                   <div className="truncate opacity-90 text-xs leading-tight">
                                     {Array.isArray(additionalServices) 
-                                      ? additionalServices.slice(0, 1).join('')
+                                      ? additionalServices.slice(0, 1).map(service => 
+                                          typeof service === 'string' ? service : (service?.name || String(service))
+                                        ).join('')
                                       : 'Services'
                                     }
                                     {additionalServices.length > 1 && ` +${additionalServices.length - 1}`}

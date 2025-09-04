@@ -406,11 +406,13 @@ const ClientManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:5002/api/clients/${clientId}`, {
+      const response = await fetch(apiUrl(`/clients?id=${clientId}`), {
         method: 'DELETE',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        }
+        },
+        body: JSON.stringify({ id: clientId })
       });
 
       if (!response.ok) {
@@ -418,7 +420,8 @@ const ClientManagement: React.FC = () => {
         throw new Error(errorData.error || 'Failed to delete client');
       }
 
-      showToast('Client deleted successfully', 'success');
+      const result = await response.json();
+      showToast(result.message || 'Client deleted successfully', 'success');
       setShowModal(false);
       fetchClients();
     } catch (error) {
@@ -1012,12 +1015,20 @@ const ClientManagement: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <button
-                      onClick={() => setEditMode(false)}
-                      className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
-                    >
-                      Cancel
-                    </button>
+                    <div className="space-x-2">
+                      <button
+                        onClick={() => deleteClient(selectedClient.id)}
+                        className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+                      >
+                        Delete Client
+                      </button>
+                      <button
+                        onClick={() => setEditMode(false)}
+                        className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                     <button
                       onClick={saveClient}
                       className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-4 py-2 rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all duration-200"

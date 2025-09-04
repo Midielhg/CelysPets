@@ -28,7 +28,7 @@ export interface Client {
 export interface Appointment {
   id: string;
   client: Client;
-  services: string[];
+  services: (string | { name?: string; [key: string]: any })[];
   date: string;
   time: string;
   endTime?: string;

@@ -949,6 +949,73 @@ function handleClients($pdo, $method, $input) {
             }
             break;
             
+        case 'DELETE':
+            try {
+                // Get client ID from input
+                $clientId = null;
+                
+                // Check if ID is in the URL path (e.g., /clients/123)
+                $pathInfo = $_SERVER['PATH_INFO'] ?? '';
+                if (preg_match('/\/clients\/(\d+)$/', $pathInfo, $matches)) {
+                    $clientId = intval($matches[1]);
+                }
+                
+                // Or check if ID is in the request body
+                if (!$clientId && isset($input['id'])) {
+                    $clientId = intval($input['id']);
+                }
+                
+                // Or check if ID is in query parameters
+                if (!$clientId && isset($_GET['id'])) {
+                    $clientId = intval($_GET['id']);
+                }
+                
+                if (!$clientId || $clientId <= 0) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Valid client ID is required']);
+                    return;
+                }
+                
+                // Check if client exists
+                $stmt = $pdo->prepare("SELECT id, name FROM clients WHERE id = ?");
+                $stmt->execute([$clientId]);
+                $client = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$client) {
+                    http_response_code(404);
+                    echo json_encode(['error' => 'Client not found']);
+                    return;
+                }
+                
+                // Check if client has any appointments
+                $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM appointments WHERE clientId = ?");
+                $stmt->execute([$clientId]);
+                $appointmentCount = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+                
+                if ($appointmentCount > 0) {
+                    http_response_code(400);
+                    echo json_encode([
+                        'error' => 'Cannot delete client with existing appointments',
+                        'message' => "This client has {$appointmentCount} appointment(s). Please cancel or reassign their appointments before deleting the client."
+                    ]);
+                    return;
+                }
+                
+                // Delete the client
+                $stmt = $pdo->prepare("DELETE FROM clients WHERE id = ?");
+                $stmt->execute([$clientId]);
+                
+                echo json_encode([
+                    'success' => true,
+                    'message' => "Client '{$client['name']}' has been deleted successfully"
+                ]);
+                
+            } catch (PDOException $e) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to delete client: ' . $e->getMessage()]);
+            }
+            break;
+            
         default:
             http_response_code(405);
             echo json_encode(['error' => 'Method not allowed']);
