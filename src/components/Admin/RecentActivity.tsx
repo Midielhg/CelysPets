@@ -30,7 +30,7 @@ export default function RecentActivity() {
       setError(null);
       const paths = [
         apiUrl('/appointments/recent'),
-        ...(API_BASE_URL.startsWith('http://localhost:5001') ? [] : ['http://localhost:5001/api/appointments/recent'])
+        ...(API_BASE_URL.startsWith('http://localhost:5002') ? [] : ['http://localhost:5002/api/appointments/recent'])
       ];
       let lastErr: any = null;
       for (const url of paths) {

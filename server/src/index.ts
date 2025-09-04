@@ -107,6 +107,28 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Google Maps API proxy to avoid CORS issues
+app.get('/api/maps/autocomplete', async (req, res) => {
+  try {
+    const { input, types = 'address' } = req.query;
+    const API_KEY = process.env.GOOGLE_MAPS_API_KEY || 'AIzaSyAKlC3v4GgU1jRhFdungYa38hbDHm0qQx0';
+    
+    if (!input) {
+      return res.status(400).json({ error: 'Input parameter is required' });
+    }
+
+    const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input as string)}&types=${types}&key=${API_KEY}`;
+    
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    res.json(data);
+  } catch (error) {
+    console.error('Google Maps API error:', error);
+    res.status(500).json({ error: 'Failed to fetch autocomplete data' });
+  }
+});
+
 // API routes
 app.use('/api/appointments', appointmentsRouter);
 app.use('/api/auth', authRouter);

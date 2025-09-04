@@ -29,7 +29,7 @@ const ClientAppointments: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:5001/api/client/appointments', {
+      const response = await fetch('http://localhost:5002/api/client/appointments', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {

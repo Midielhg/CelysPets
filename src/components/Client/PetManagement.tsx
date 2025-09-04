@@ -48,7 +48,7 @@ const PetManagement: React.FC = () => {
 
   const fetchBreeds = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/pricing/breeds');
+      const response = await fetch('http://localhost:5002/api/pricing/breeds');
       if (response.ok) {
         const breedsData = await response.json();
         setBreeds(breedsData);
@@ -62,7 +62,7 @@ const PetManagement: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:5001/api/client/pets', {
+      const response = await fetch('http://localhost:5002/api/client/pets', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -80,8 +80,8 @@ const PetManagement: React.FC = () => {
     try {
       const token = localStorage.getItem('auth_token');
       const url = editingPet 
-        ? `http://localhost:5001/api/client/pets/${editingPet.id}`
-        : 'http://localhost:5001/api/client/pets';
+        ? `http://localhost:5002/api/client/pets/${editingPet.id}`
+        : 'http://localhost:5002/api/client/pets';
       
       const response = await fetch(url, {
         method: editingPet ? 'PUT' : 'POST',

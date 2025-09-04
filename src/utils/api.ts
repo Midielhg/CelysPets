@@ -1,5 +1,5 @@
 // API utility for making requests to the Node.js backend
-const API_BASE_URL = 'http://localhost:5001/api';
+const API_BASE_URL = 'http://localhost:5002/api';
 
 export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('auth_token');

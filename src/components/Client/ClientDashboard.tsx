@@ -43,7 +43,7 @@ const ClientDashboard: React.FC = () => {
       const token = localStorage.getItem('auth_token');
       
       // Fetch client's pets
-      const petsResponse = await fetch('http://localhost:5001/api/client/pets', {
+      const petsResponse = await fetch('http://localhost:5002/api/client/pets', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (petsResponse.ok) {
@@ -54,7 +54,7 @@ const ClientDashboard: React.FC = () => {
       }
 
       // Fetch all appointments
-      const appointmentsResponse = await fetch('http://localhost:5001/api/client/appointments', {
+      const appointmentsResponse = await fetch('http://localhost:5002/api/client/appointments', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (appointmentsResponse.ok) {

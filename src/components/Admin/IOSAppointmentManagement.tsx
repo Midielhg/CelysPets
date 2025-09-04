@@ -37,8 +37,10 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | '4day' | 'day' | 'agenda'>('month');
-  const [filter, setFilter] = useState<'all' | 'today' | 'pending' | 'confirmed' | 'completed'>('all');
+  const [filter, setFilter] = useState<'all' | 'today' | 'pending' | 'confirmed' | 'completed' | 'unpaid' | 'partial' | 'paid' | 'refunded' | 'disputed'>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [statusPopover, setStatusPopover] = useState<{ appointmentId: string; type: 'status' | 'payment' } | null>(null);
+  const [modalStatusPopover, setModalStatusPopover] = useState<{ type: 'status' | 'payment' } | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -106,28 +108,40 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
   // Function to select a client and prefill form
   const selectClient = (client: any) => {
+    console.log('🚨 FUNCTION CALLED - selectClient triggered!');
+    console.log('🎯 PETS PREFILL DEBUG - selectClient called with:', client);
+    console.log('🐕 Client pets data:', client.pets);
+    console.log('🔍 FULL CLIENT OBJECT:', JSON.stringify(client, null, 2));
+    console.log('📋 Available breeds count:', breeds.length);
+    
     setSelectedClient(client);
     setClientSearch(client.name);
     setShowSearchResults(false);
     
     // Prefill form with client data
-    const mappedPets = client.pets ? client.pets.map((pet: any) => {
+    const mappedPets = client.pets ? client.pets.map((pet: any, index: number) => {
+      console.log(`🐾 Processing pet ${index + 1}:`, pet);
       // Find breed by name in the breeds array
       const breedMatch = breeds.find(breed => 
         breed.name.toLowerCase() === (pet.breed || '').toLowerCase()
       );
+      console.log(`🔍 Breed match for "${pet.breed}":`, breedMatch);
       
-      return {
+      const mappedPet = {
         name: pet.name || '',
         type: pet.species || pet.type || 'dog',
         breedId: breedMatch ? breedMatch.id : null,
-        weight: pet.weight ? pet.weight.toString() : '',
-        specialInstructions: pet.notes || pet.specialInstructions || ''
+        weight: pet.weight ? pet.weight.toString() : (pet.age ? '' : ''), // Don't show age as weight
+        specialInstructions: pet.notes || pet.specialInstructions || (pet.age ? `Age: ${pet.age} years` : '')
       };
+      console.log(`✅ Mapped pet ${index + 1}:`, mappedPet);
+      return mappedPet;
     }) : [];
 
-    setBookingFormData(prev => ({
-      ...prev,
+    console.log('🎉 Final mappedPets array:', mappedPets);
+
+    const newFormData = {
+      ...bookingFormData,
       customerName: client.name,
       email: client.email,
       phone: client.phone,
@@ -139,7 +153,10 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         weight: '', 
         specialInstructions: '' 
       }]
-    }));
+    };
+    
+    console.log('📝 Setting booking form data with pets:', newFormData.pets);
+    setBookingFormData(newFormData);
   };
 
   // Function to clear client selection
@@ -235,7 +252,6 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const getBreedPrice = (pet: any) => {
     const breed = getBreedById(pet.breedId);
     const price = breed ? Number(breed.fullGroomPrice) : 0;
-    console.log('getBreedPrice - pet:', pet, 'breed:', breed, 'price:', price);
     return price;
   };
 
@@ -638,6 +654,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           duration: 150,
           assignedGroomer: 'Sofia Rodriguez',
           status: 'confirmed',
+          paymentStatus: 'paid',
           services: ['Matted Fur Treatment', 'Teeth Cleaning'], // Services matching screenshot
           createdAt: today.toISOString(),
           updatedAt: today.toISOString(),
@@ -648,7 +665,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
             phone: '+1 (786) 734-9303', // Phone matching screenshot
             address: '14371 SW 157th St', // Address matching screenshot
             pets: [
-              { name: 'Buddy', breed: 'Golden Retriever', type: 'dog', age: 3 }
+              { 
+                name: 'Buddy', 
+                breed: 'Golden Retriever', 
+                type: 'dog', 
+                age: 3, 
+                weight: '65',
+                specialInstructions: 'Very friendly, loves treats' 
+              }
             ]
           }
         },
@@ -660,6 +684,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           duration: 45,
           assignedGroomer: 'Carlos Martinez',
           status: 'pending',
+          paymentStatus: 'unpaid',
           services: ['Bath & Brush'],
           createdAt: tomorrow.toISOString(),
           updatedAt: tomorrow.toISOString(),
@@ -670,7 +695,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
             phone: '(555) 987-6543',
             address: '456 Oak Ave, City, State',
             pets: [
-              { name: 'Luna', breed: 'Persian', type: 'cat', age: 2 }
+              { 
+                name: 'Luna', 
+                breed: 'Persian', 
+                type: 'cat', 
+                age: 2, 
+                weight: '8',
+                specialInstructions: 'Needs gentle handling, scared of loud noises' 
+              }
             ]
           }
         },
@@ -682,6 +714,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           duration: 105,
           assignedGroomer: 'Ana Silva',
           status: 'completed',
+          paymentStatus: 'partial',
           services: ['Full Grooming', 'Teeth Cleaning'],
           createdAt: today.toISOString(),
           updatedAt: today.toISOString(),
@@ -692,7 +725,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
             phone: '(555) 456-7890',
             address: '789 Pine Rd, City, State',
             pets: [
-              { name: 'Max', breed: 'Poodle', type: 'dog', age: 5 }
+              { 
+                name: 'Max', 
+                breed: 'Poodle', 
+                type: 'dog', 
+                age: 5, 
+                weight: '45',
+                specialInstructions: 'Gets excited easily, needs regular breaks' 
+              }
             ]
           }
         },
@@ -703,6 +743,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           endTime: '5:10 PM', // 25 minutes = Nail Trim (15) + Ear Cleaning (10)
           duration: 25,
           status: 'confirmed',
+          paymentStatus: 'paid',
           services: ['Nail Trim', 'Ear Cleaning'],
           createdAt: tomorrow.toISOString(),
           updatedAt: tomorrow.toISOString(),
@@ -723,6 +764,19 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       setLoading(false);
     }
   }, [appointments.length]);
+
+  // Close status popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setStatusPopover(null);
+      setModalStatusPopover(null);
+    };
+
+    if (statusPopover || modalStatusPopover) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [statusPopover, modalStatusPopover]);
 
   // Date navigation helpers
   const today = new Date();
@@ -804,6 +858,59 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     }
   };
 
+  const getPaymentStatusColors = (paymentStatus: string) => {
+    switch (paymentStatus) {
+      case 'paid':
+        return {
+          bg: 'bg-emerald-200',
+          bgLight: 'bg-emerald-50',
+          border: 'border-emerald-300',
+          text: 'text-emerald-800',
+          textDark: 'text-emerald-700'
+        };
+      case 'partial':
+        return {
+          bg: 'bg-amber-200',
+          bgLight: 'bg-amber-50',
+          border: 'border-amber-300',
+          text: 'text-amber-800',
+          textDark: 'text-amber-700'
+        };
+      case 'unpaid':
+        return {
+          bg: 'bg-red-200',
+          bgLight: 'bg-red-50',
+          border: 'border-red-300',
+          text: 'text-red-800',
+          textDark: 'text-red-700'
+        };
+      case 'refunded':
+        return {
+          bg: 'bg-purple-200',
+          bgLight: 'bg-purple-50',
+          border: 'border-purple-300',
+          text: 'text-purple-800',
+          textDark: 'text-purple-700'
+        };
+      case 'disputed':
+        return {
+          bg: 'bg-orange-200',
+          bgLight: 'bg-orange-50',
+          border: 'border-orange-300',
+          text: 'text-orange-800',
+          textDark: 'text-orange-700'
+        };
+      default:
+        return {
+          bg: 'bg-gray-200',
+          bgLight: 'bg-gray-50',
+          border: 'border-gray-300',
+          text: 'text-gray-800',
+          textDark: 'text-gray-700'
+        };
+    }
+  };
+
   // Filter appointments based on current filter
   const getFilteredAppointments = () => {
     let filtered = appointments;
@@ -814,6 +921,12 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         const aptDate = apt.date ? apt.date.split('T')[0] : '';
         return aptDate === todayStr;
       });
+    } else if (['pending', 'confirmed', 'completed', 'in-progress', 'cancelled'].includes(filter)) {
+      // Appointment status filters
+      filtered = appointments.filter(apt => apt.status === filter);
+    } else if (['unpaid', 'partial', 'paid', 'refunded', 'disputed'].includes(filter)) {
+      // Payment status filters
+      filtered = appointments.filter(apt => (apt.paymentStatus || 'unpaid') === filter);
     } else if (filter !== 'all') {
       filtered = appointments.filter(apt => apt.status === filter);
     }
@@ -1020,6 +1133,96 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     } catch (error) {
       console.error('Error deleting appointment:', error);
       showToast('Failed to delete appointment', 'error');
+    }
+  };
+
+  // Change appointment status
+  const changeAppointmentStatus = async (appointmentId: string, newStatus: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled') => {
+    try {
+      console.log(`🔄 Changing appointment ${appointmentId} status to: ${newStatus}`);
+      
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(apiUrl(`/appointments/${appointmentId}`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update appointment status');
+      }
+
+      // Update the appointment in local state
+      setAppointments(prev => prev.map(apt => 
+        apt.id === appointmentId ? { ...apt, status: newStatus } : apt
+      ));
+
+      // Update selectedAppointment if it's the same appointment being changed
+      if (selectedAppointment && selectedAppointment.id === appointmentId) {
+        setSelectedAppointment(prev => prev ? { ...prev, status: newStatus } : null);
+      }
+
+      // Show success message with status emoji
+      const statusEmoji = newStatus === 'confirmed' ? '✅' : 
+                         newStatus === 'completed' ? '🎉' : 
+                         newStatus === 'in-progress' ? '🔄' :
+                         newStatus === 'pending' ? '⏳' : 
+                         newStatus === 'cancelled' ? '❌' : '📝';
+      
+      showToast(`${statusEmoji} Appointment status changed to ${newStatus}`, 'success');
+      console.log(`✅ Successfully updated appointment status to: ${newStatus}`);
+      
+    } catch (error) {
+      console.error('Error changing appointment status:', error);
+      showToast('Failed to update appointment status', 'error');
+    }
+  };
+
+  // Change payment status
+  const changePaymentStatus = async (appointmentId: string, newPaymentStatus: 'unpaid' | 'partial' | 'paid' | 'refunded' | 'disputed') => {
+    try {
+      console.log(`💳 Changing appointment ${appointmentId} payment status to: ${newPaymentStatus}`);
+      
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(apiUrl(`/appointments/${appointmentId}`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ paymentStatus: newPaymentStatus })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update payment status');
+      }
+
+      // Update the appointment in local state
+      setAppointments(prev => prev.map(apt => 
+        apt.id === appointmentId ? { ...apt, paymentStatus: newPaymentStatus } : apt
+      ));
+
+      // Update selectedAppointment if it's the same appointment being changed
+      if (selectedAppointment && selectedAppointment.id === appointmentId) {
+        setSelectedAppointment(prev => prev ? { ...prev, paymentStatus: newPaymentStatus } : null);
+      }
+
+      // Show success message with payment emoji
+      const paymentEmoji = newPaymentStatus === 'paid' ? '💰' : 
+                          newPaymentStatus === 'partial' ? '💳' : 
+                          newPaymentStatus === 'unpaid' ? '❌' :
+                          newPaymentStatus === 'refunded' ? '↩️' : 
+                          newPaymentStatus === 'disputed' ? '⚠️' : '💸';
+      
+      showToast(`${paymentEmoji} Payment status changed to ${newPaymentStatus}`, 'success');
+      console.log(`✅ Successfully updated payment status to: ${newPaymentStatus}`);
+      
+    } catch (error) {
+      console.error('Error changing payment status:', error);
+      showToast('Failed to update payment status', 'error');
     }
   };
 
@@ -1278,38 +1481,31 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         return;
       }
 
-      console.log('Searching for:', clientSearch);
+      console.log('🔍 Searching for clients in database:', clientSearch);
       setIsLoadingSearch(true);
       try {
-        // Search through existing appointments to find clients
-        const uniqueClients: any[] = [];
-        const seenEmails = new Set();
-
-        console.log('Searching through appointments:', appointments.length);
-        appointments.forEach(appointment => {
-          const client = appointment.client;
-          if (client && !seenEmails.has(client.email)) {
-            const searchLower = clientSearch.toLowerCase();
-            const nameMatch = client.name.toLowerCase().includes(searchLower);
-            const emailMatch = client.email.toLowerCase().includes(searchLower);
-            const phoneMatch = client.phone && client.phone.includes(clientSearch);
-
-            if (nameMatch || emailMatch || phoneMatch) {
-              console.log('Found matching client:', client.name);
-              uniqueClients.push({
-                name: client.name,
-                email: client.email,
-                phone: client.phone,
-                address: client.address || '',
-                pets: client.pets || []
-              });
-              seenEmails.add(client.email);
-            }
+        // Search clients directly from the database API
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(apiUrl(`/clients?search=${encodeURIComponent(clientSearch)}&limit=10`), {
+          headers: {
+            'Authorization': `Bearer ${token}`
           }
         });
 
-        console.log('Search results:', uniqueClients.length);
-        setSearchResults(uniqueClients);
+        if (!response.ok) {
+          throw new Error('Failed to search clients');
+        }
+
+        const data = await response.json();
+        console.log('🎯 API response from /clients:', data);
+        
+        const clients = data.clients || [];
+        console.log('🔍 Found clients with pets data:', clients.map((c: any) => ({
+          name: c.name,
+          pets: c.pets?.length || 0
+        })));
+
+        setSearchResults(clients);
         setShowSearchResults(true);
       } catch (error) {
         console.error('Error searching clients:', error);
@@ -2090,7 +2286,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       <div className="space-y-4">
         {/* Route Map */}
         {dayAppointments.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-visible">
             <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-gray-900 flex items-center">
@@ -2268,7 +2464,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                 <div key={appointment.id} className="space-y-3">
                   {/* Appointment Card */}
                   <div 
-                    className={`bg-white rounded-xl border-l-4 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden ${
+                    className={`bg-white rounded-xl border-l-4 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-visible ${
                       getStatusColors(appointment.status).border
                     } ${getStatusColors(appointment.status).bgLight}`}
                     onClick={() => openViewModal(appointment)}
@@ -2289,12 +2485,120 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                            getStatusColors(appointment.status).bg
-                          } ${getStatusColors(appointment.status).text}`}>
-                            {appointment.status}
-                          </span>
+                        <div className="text-right flex flex-col gap-1">
+                          {/* Appointment Status Badge with Click Menu */}
+                          <div className="relative group">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setStatusPopover(
+                                  statusPopover?.appointmentId === appointment.id && statusPopover?.type === 'status' 
+                                    ? null 
+                                    : { appointmentId: appointment.id, type: 'status' }
+                                );
+                              }}
+                              className={`px-3 py-1 text-xs font-medium font-sans rounded-full transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                                getStatusColors(appointment.status).bg
+                              } ${getStatusColors(appointment.status).text}`}
+                              title="Click to change appointment status"
+                            >
+                              {appointment.status === 'pending' && '⏳'}
+                              {appointment.status === 'confirmed' && '✅'}
+                              {appointment.status === 'in-progress' && '🔄'}
+                              {appointment.status === 'completed' && '🎉'}
+                              {appointment.status === 'cancelled' && '❌'}
+                              <span className="ml-1 capitalize">{appointment.status.replace('-', ' ')}</span>
+                            </button>
+                            
+                            {/* Status Popover */}
+                            {statusPopover?.appointmentId === appointment.id && statusPopover?.type === 'status' && (
+                              <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-xl border border-gray-200 p-2 z-[9999] min-w-[160px]">
+                                <div className="grid gap-1">
+                                  {(['pending', 'confirmed', 'in-progress', 'completed', 'cancelled'] as const).map((status) => (
+                                    <button
+                                      key={status}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        changeAppointmentStatus(appointment.id, status);
+                                        setStatusPopover(null);
+                                      }}
+                                      className={`flex items-center space-x-2 px-3 py-2 text-xs font-medium rounded-md transition-all duration-200 ${
+                                        appointment.status === status
+                                          ? `${getStatusColors(status).bg} ${getStatusColors(status).text}`
+                                          : 'hover:bg-gray-100 text-gray-700'
+                                      }`}
+                                    >
+                                      <span>
+                                        {status === 'pending' && '⏳'}
+                                        {status === 'confirmed' && '✅'}
+                                        {status === 'in-progress' && '🔄'}
+                                        {status === 'completed' && '🎉'}
+                                        {status === 'cancelled' && '❌'}
+                                      </span>
+                                      <span className="capitalize">{status.replace('-', ' ')}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Payment Status Badge with Click Menu */}
+                          <div className="relative group">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setStatusPopover(
+                                  statusPopover?.appointmentId === appointment.id && statusPopover?.type === 'payment' 
+                                    ? null 
+                                    : { appointmentId: appointment.id, type: 'payment' }
+                                );
+                              }}
+                              className={`px-3 py-1 text-xs font-medium font-sans rounded-full transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                                getPaymentStatusColors(appointment.paymentStatus || 'unpaid').bg
+                              } ${getPaymentStatusColors(appointment.paymentStatus || 'unpaid').text}`}
+                              title="Click to change payment status"
+                            >
+                              {(appointment.paymentStatus || 'unpaid') === 'unpaid' && '❌'}
+                              {(appointment.paymentStatus || 'unpaid') === 'partial' && '💳'}
+                              {(appointment.paymentStatus || 'unpaid') === 'paid' && '💰'}
+                              {(appointment.paymentStatus || 'unpaid') === 'refunded' && '↩️'}
+                              {(appointment.paymentStatus || 'unpaid') === 'disputed' && '⚠️'}
+                              <span className="ml-1 capitalize">{(appointment.paymentStatus || 'unpaid').replace('-', ' ')}</span>
+                            </button>
+                            
+                            {/* Payment Status Popover */}
+                            {statusPopover?.appointmentId === appointment.id && statusPopover?.type === 'payment' && (
+                              <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-xl border border-gray-200 p-2 z-[9999] min-w-[160px]">
+                                <div className="grid gap-1">
+                                  {(['unpaid', 'partial', 'paid', 'refunded', 'disputed'] as const).map((paymentStatus) => (
+                                    <button
+                                      key={paymentStatus}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        changePaymentStatus(appointment.id, paymentStatus);
+                                        setStatusPopover(null);
+                                      }}
+                                      className={`flex items-center space-x-2 px-3 py-2 text-xs font-medium rounded-md transition-all duration-200 ${
+                                        (appointment.paymentStatus || 'unpaid') === paymentStatus
+                                          ? `${getPaymentStatusColors(paymentStatus).bg} ${getPaymentStatusColors(paymentStatus).text}`
+                                          : 'hover:bg-gray-100 text-gray-700'
+                                      }`}
+                                    >
+                                      <span>
+                                        {paymentStatus === 'unpaid' && '❌'}
+                                        {paymentStatus === 'partial' && '💳'}
+                                        {paymentStatus === 'paid' && '💰'}
+                                        {paymentStatus === 'refunded' && '↩️'}
+                                        {paymentStatus === 'disputed' && '⚠️'}
+                                      </span>
+                                      <span className="capitalize">{paymentStatus.replace('-', ' ')}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -2614,6 +2918,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         {showFilters && (
           <div className="px-2 md:px-4 pb-3 md:pb-4 border-t border-gray-200 bg-white">
             <div className="flex flex-wrap gap-1 md:gap-2 pt-3 md:pt-4">
+              {/* General & Appointment Status Filters */}
               {[
                 { key: 'all', label: 'All' },
                 { key: 'today', label: 'Today' },
@@ -2641,6 +2946,45 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                     key={key}
                     onClick={() => setFilter(key as any)}
                     className={`px-2 md:px-3 py-1 text-xs md:text-sm font-medium rounded-full transition-colors ${getFilterColors()}`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+              
+              {/* Payment Status Filters */}
+              <div className="w-px h-6 bg-gray-300 mx-1 md:mx-2"></div>
+              {[
+                { key: 'unpaid', label: '❌ Unpaid' },
+                { key: 'partial', label: '💳 Partial' },
+                { key: 'paid', label: '💰 Paid' },
+                { key: 'refunded', label: '↩️ Refunded' },
+                { key: 'disputed', label: '⚠️ Disputed' }
+              ].map(({ key, label }) => {
+                const getPaymentFilterColors = () => {
+                  if (filter !== key) return 'bg-stone-100 text-stone-600 hover:bg-stone-200';
+                  
+                  switch (key) {
+                    case 'paid':
+                      return 'bg-emerald-200 text-emerald-800 border border-emerald-300';
+                    case 'partial':
+                      return 'bg-amber-200 text-amber-800 border border-amber-300';
+                    case 'unpaid':
+                      return 'bg-red-200 text-red-800 border border-red-300';
+                    case 'refunded':
+                      return 'bg-purple-200 text-purple-800 border border-purple-300';
+                    case 'disputed':
+                      return 'bg-orange-200 text-orange-800 border border-orange-300';
+                    default:
+                      return 'bg-stone-200 text-stone-800 border border-stone-300';
+                  }
+                };
+                
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setFilter(key as any)}
+                    className={`px-2 md:px-3 py-1 text-xs md:text-sm font-medium rounded-full transition-colors ${getPaymentFilterColors()}`}
                   >
                     {label}
                   </button>
@@ -3420,7 +3764,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       {/* Appointment Modal */}
       {showModal && (
         <div className="fixed inset-0 backdrop-blur-md bg-black/40 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-          <div className="relative mx-auto rounded-3xl shadow-2xl bg-white border border-gray-200 w-full max-w-2xl max-h-[95vh] overflow-hidden flex flex-col">
+          <div className="relative mx-auto rounded-3xl shadow-2xl bg-white border border-gray-200 w-full max-w-2xl max-h-[95vh] overflow-visible flex flex-col">
             
             {/* Modal Header */}
             <div className="px-8 py-6 border-b border-gray-200">
@@ -3456,12 +3800,127 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                      <span className={`px-3 py-1 text-sm font-medium rounded-full ${
-                        getStatusColors(selectedAppointment.status).bgLight
-                      } ${getStatusColors(selectedAppointment.status).textDark}`}>
-                        {selectedAppointment.status}
-                      </span>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">Status</label>
+                      <div className="relative">
+                        {/* Appointment Status Badge with Click Menu */}
+                        <div className="relative group">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setModalStatusPopover(
+                                modalStatusPopover?.type === 'status' 
+                                  ? null 
+                                  : { type: 'status' }
+                              );
+                            }}
+                            className={`px-4 py-2 text-sm font-medium font-sans rounded-lg transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                              getStatusColors(selectedAppointment.status).bg
+                            } ${getStatusColors(selectedAppointment.status).text}`}
+                            title="Click to change appointment status"
+                          >
+                            {selectedAppointment.status === 'pending' && '⏳'}
+                            {selectedAppointment.status === 'confirmed' && '✅'}
+                            {selectedAppointment.status === 'in-progress' && '🔄'}
+                            {selectedAppointment.status === 'completed' && '🎉'}
+                            {selectedAppointment.status === 'cancelled' && '❌'}
+                            <span className="ml-2 capitalize">{selectedAppointment.status.replace('-', ' ')}</span>
+                          </button>
+                          
+                          {/* Status Popover */}
+                          {modalStatusPopover?.type === 'status' && (
+                            <div className="absolute left-0 top-full mt-2 bg-white rounded-lg shadow-xl border border-gray-200 p-2 z-[9999] min-w-[160px]">
+                              <div className="grid gap-1">
+                                {(['pending', 'confirmed', 'in-progress', 'completed', 'cancelled'] as const).map((status) => (
+                                  <button
+                                    key={status}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      changeAppointmentStatus(selectedAppointment.id, status);
+                                      setModalStatusPopover(null);
+                                    }}
+                                    className={`flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                                      selectedAppointment.status === status
+                                        ? `${getStatusColors(status).bg} ${getStatusColors(status).text}`
+                                        : 'hover:bg-gray-100 text-gray-700'
+                                    }`}
+                                  >
+                                    <span>
+                                      {status === 'pending' && '⏳'}
+                                      {status === 'confirmed' && '✅'}
+                                      {status === 'in-progress' && '🔄'}
+                                      {status === 'completed' && '🎉'}
+                                      {status === 'cancelled' && '❌'}
+                                    </span>
+                                    <span className="capitalize">{status.replace('-', ' ')}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">Payment Status</label>
+                      <div className="relative">
+                        {/* Payment Status Badge with Click Menu */}
+                        <div className="relative group">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setModalStatusPopover(
+                                modalStatusPopover?.type === 'payment' 
+                                  ? null 
+                                  : { type: 'payment' }
+                              );
+                            }}
+                            className={`px-4 py-2 text-sm font-medium font-sans rounded-lg transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                              getPaymentStatusColors(selectedAppointment.paymentStatus || 'unpaid').bg
+                            } ${getPaymentStatusColors(selectedAppointment.paymentStatus || 'unpaid').text}`}
+                            title="Click to change payment status"
+                          >
+                            {(selectedAppointment.paymentStatus || 'unpaid') === 'unpaid' && '❌'}
+                            {(selectedAppointment.paymentStatus || 'unpaid') === 'partial' && '💳'}
+                            {(selectedAppointment.paymentStatus || 'unpaid') === 'paid' && '💰'}
+                            {(selectedAppointment.paymentStatus || 'unpaid') === 'refunded' && '↩️'}
+                            {(selectedAppointment.paymentStatus || 'unpaid') === 'disputed' && '⚠️'}
+                            <span className="ml-2 capitalize">{(selectedAppointment.paymentStatus || 'unpaid').replace('-', ' ')}</span>
+                          </button>
+                          
+                          {/* Payment Status Popover */}
+                          {modalStatusPopover?.type === 'payment' && (
+                            <div className="absolute left-0 top-full mt-2 bg-white rounded-lg shadow-xl border border-gray-200 p-2 z-[9999] min-w-[160px]">
+                              <div className="grid gap-1">
+                                {(['unpaid', 'partial', 'paid', 'refunded', 'disputed'] as const).map((paymentStatus) => (
+                                  <button
+                                    key={paymentStatus}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      changePaymentStatus(selectedAppointment.id, paymentStatus);
+                                      setModalStatusPopover(null);
+                                    }}
+                                    className={`flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                                      (selectedAppointment.paymentStatus || 'unpaid') === paymentStatus
+                                        ? `${getPaymentStatusColors(paymentStatus).bg} ${getPaymentStatusColors(paymentStatus).text}`
+                                        : 'hover:bg-gray-100 text-gray-700'
+                                    }`}
+                                  >
+                                    <span>
+                                      {paymentStatus === 'unpaid' && '❌'}
+                                      {paymentStatus === 'partial' && '💳'}
+                                      {paymentStatus === 'paid' && '💰'}
+                                      {paymentStatus === 'refunded' && '↩️'}
+                                      {paymentStatus === 'disputed' && '⚠️'}
+                                    </span>
+                                    <span className="capitalize">{paymentStatus.replace('-', ' ')}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
 

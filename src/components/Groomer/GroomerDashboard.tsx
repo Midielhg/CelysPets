@@ -51,7 +51,7 @@ const GroomerDashboard: React.FC = () => {
       const token = localStorage.getItem('auth_token');
       
       // Fetch groomer's appointments
-      const appointmentsResponse = await fetch('http://localhost:5001/api/groomers/appointments', {
+      const appointmentsResponse = await fetch('http://localhost:5002/api/groomers/appointments', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -116,7 +116,7 @@ const GroomerDashboard: React.FC = () => {
   const updateAppointmentStatus = async (appointmentId: string, newStatus: string) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:5001/api/groomers/appointments/${appointmentId}/status`, {
+      const response = await fetch(`http://localhost:5002/api/groomers/appointments/${appointmentId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

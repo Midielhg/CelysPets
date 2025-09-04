@@ -35,6 +35,7 @@ export interface Appointment {
   duration?: number; // in minutes
   assignedGroomer?: string;
   status: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled';
+  paymentStatus?: 'unpaid' | 'partial' | 'paid' | 'refunded' | 'disputed';
   notes?: string;
   totalAmount?: number;
   createdAt: string;

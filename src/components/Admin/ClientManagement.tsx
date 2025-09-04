@@ -266,9 +266,14 @@ const ClientManagement: React.FC = () => {
     setAddressVerification(prev => ({ ...prev, isVerifying: true }));
     
     try {
-      // Note: This requires Google Places API key to be configured
+      // Use backend proxy to avoid CORS issues with Google Maps API
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(address)}&types=address&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`
+        `/api/maps/autocomplete?input=${encodeURIComponent(address)}&types=address`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       );
       
       if (response.ok) {
@@ -361,8 +366,8 @@ const ClientManagement: React.FC = () => {
     try {
       const token = localStorage.getItem('auth_token');
       const url = editMode 
-        ? `http://localhost:5001/api/clients?id=${selectedClient?.id}`
-        : `http://localhost:5001/api/clients`;
+        ? `http://localhost:5002/api/clients/${selectedClient?.id}`
+        : `http://localhost:5002/api/clients`;
       
       // Prepare client data with formatted phone number
       const clientData = {
@@ -401,7 +406,7 @@ const ClientManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:5001/api/clients?id=${clientId}`, {
+      const response = await fetch(`http://localhost:5002/api/clients/${clientId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

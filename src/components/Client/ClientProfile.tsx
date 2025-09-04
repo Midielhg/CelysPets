@@ -39,7 +39,7 @@ const ClientProfile: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:5001/api/client/profile', {
+      const response = await fetch('http://localhost:5002/api/client/profile', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -66,7 +66,7 @@ const ClientProfile: React.FC = () => {
     try {
       setSaving(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:5001/api/client/profile', {
+      const response = await fetch('http://localhost:5002/api/client/profile', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -48,7 +48,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
     setIsSearching(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:5001/api/appointments/search-clients?q=${encodeURIComponent(query)}`, {
+      const response = await fetch(`http://localhost:5002/api/appointments/search-clients?q=${encodeURIComponent(query)}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -90,7 +90,7 @@ const ClientSearch: React.FC<ClientSearchProps> = ({
     setIsCreating(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:5001/api/appointments/create-client', {
+      const response = await fetch('http://localhost:5002/api/appointments/create-client', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
