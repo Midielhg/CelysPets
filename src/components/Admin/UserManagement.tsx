@@ -15,13 +15,13 @@ interface User {
 }
 
 interface UserStats {
-  totals: {
+  overview: {
     admins: number;
     clients: number;
-    groomers: number;
     users: number;
   };
   recentUsers: User[];
+  totalUsers: number;
 }
 
 interface Pagination {
@@ -64,22 +64,42 @@ const UserManagement: React.FC = () => {
       });
 
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(apiUrl(`/users?${params}`), {
+      const url = apiUrl(`/users?${params}`);
+      console.log('🔗 Fetching users from:', url);
+      
+      const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
 
+      console.log('📡 Users API Response status:', response.status);
+      console.log('📡 Users API Response headers:', response.headers);
+
       if (!response.ok) {
-        throw new Error('Failed to fetch users');
+        const errorText = await response.text();
+        console.error('❌ Users API Error Response:', errorText);
+        throw new Error(`Failed to fetch users: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('📦 Users API Response data:', data);
+      
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response format - not an object');
+      }
+      
+      if (!data.users) {
+        console.error('❌ Missing users property in response:', data);
+        throw new Error('Invalid response format - missing users property');
+      }
+      
       setUsers(data.users);
       setPagination(data.pagination);
       setError(null);
     } catch (err) {
+      console.error('❌ fetchUsers error:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch users');
     } finally {
       setLoading(false);
@@ -89,21 +109,29 @@ const UserManagement: React.FC = () => {
   const fetchUserStats = useCallback(async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(apiUrl('/users/stats/overview'), {
+      const url = apiUrl('/users/stats/overview');
+      console.log('🔗 Fetching user stats from:', url);
+      
+      const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
 
+      console.log('📡 User Stats API Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to fetch user statistics');
+        const errorText = await response.text();
+        console.error('❌ User Stats API Error Response:', errorText);
+        throw new Error(`Failed to fetch user statistics: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('📦 User Stats API Response data:', data);
       setUserStats(data);
     } catch (err) {
-      console.error('Failed to fetch user stats:', err);
+      console.error('❌ fetchUserStats error:', err);
     }
   }, []); // Empty dependency array
 
@@ -257,7 +285,7 @@ const UserManagement: React.FC = () => {
               <Users className="w-8 h-8 text-gray-600" />
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats.totals.users}</p>
+                <p className="text-2xl font-bold text-gray-900">{userStats.overview?.users || 0}</p>
               </div>
             </div>
           </div>
@@ -266,7 +294,7 @@ const UserManagement: React.FC = () => {
               <UserCheck className="w-8 h-8 text-green-600" />
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Clients</p>
-                                <p className="text-2xl font-bold text-gray-900">{userStats.totals.clients}</p>
+                                <p className="text-2xl font-bold text-gray-900">{userStats.overview?.clients || 0}</p>
               </div>
             </div>
           </div>
@@ -275,7 +303,7 @@ const UserManagement: React.FC = () => {
               <UserCog className="w-8 h-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Groomers</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats.totals.groomers}</p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
               </div>
             </div>
           </div>
@@ -284,7 +312,7 @@ const UserManagement: React.FC = () => {
               <Shield className="w-8 h-8 text-red-600" />
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Admins</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats.totals.admins}</p>
+                <p className="text-2xl font-bold text-gray-900">{userStats.overview?.admins || 0}</p>
               </div>
             </div>
           </div>
