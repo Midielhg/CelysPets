@@ -3830,44 +3830,46 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
       {/* Appointment Modal */}
       {showModal && (
-        <div className="fixed inset-0 backdrop-blur-md bg-black/40 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-          <div className="relative mx-auto rounded-3xl shadow-2xl bg-white border border-gray-200 w-full max-w-2xl max-h-[95vh] overflow-visible flex flex-col">
+        <div className="fixed inset-0 backdrop-blur-sm bg-white/20 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             
             {/* Modal Header */}
-            <div className="px-8 py-6 border-b border-gray-200">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-xl font-medium text-gray-900">
-                    {isAddingNew ? 'New Appointment' : editMode ? 'Edit Appointment' : 'View Appointment'}
-                  </h3>
-                </div>
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-amber-900">
+                  {isAddingNew ? 'New Appointment' : editMode ? 'Edit Appointment' : 'View Appointment'}
+                </h2>
                 <button
                   onClick={closeModal}
-                  className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full p-2 transition-all duration-300"
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
                 >
-                  <X className="w-6 h-6" />
+                  ×
                 </button>
               </div>
             </div>
 
             {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-8">
+            <div className="px-6 pb-6 space-y-4">
               {selectedAppointment && !editMode && !isAddingNew ? (
-                /* View Mode */
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Date & Time</label>
-                      <div className="flex items-center space-x-2 text-gray-900">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span>{selectedAppointment.date || 'No date'}</span>
-                        <Clock className="w-4 h-4 text-gray-400 ml-4" />
-                        <span>{selectedAppointment.time || 'No time'}</span>
+                /* View Mode - Mobile Optimized */
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-amber-700 mb-1">Date & Time</label>
+                    <div className="bg-amber-50 rounded-lg p-3">
+                      <div className="flex items-center space-x-2 text-amber-900 mb-1">
+                        <Calendar className="w-4 h-4 text-amber-600" />
+                        <span className="text-sm">{selectedAppointment.date || 'No date'}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-amber-900">
+                        <Clock className="w-4 h-4 text-amber-600" />
+                        <span className="text-sm">{selectedAppointment.time || 'No time'}</span>
                       </div>
                     </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Status</label>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-amber-700 mb-1">Status</label>
+                    <div className="bg-amber-50 rounded-lg p-3">
                       <div className="relative">
                         {/* Appointment Status Badge with Click Menu */}
                         <div className="relative group">
@@ -3880,22 +3882,28 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                   : { type: 'status' }
                               );
                             }}
-                            className={`px-4 py-2 text-sm font-medium font-sans rounded-lg transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                            className={`w-full px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 ${
                               getStatusColors(selectedAppointment.status).bg
                             } ${getStatusColors(selectedAppointment.status).text}`}
                             title="Click to change appointment status"
                           >
-                            {selectedAppointment.status === 'pending' && '⏳'}
-                            {selectedAppointment.status === 'confirmed' && '✅'}
-                            {selectedAppointment.status === 'in-progress' && '🔄'}
-                            {selectedAppointment.status === 'completed' && '🎉'}
-                            {selectedAppointment.status === 'cancelled' && '❌'}
+                            <div className="flex items-center justify-center space-x-2">
+                              <span>
+                                {selectedAppointment.status === 'pending' && '⏳'}
+                                {selectedAppointment.status === 'confirmed' && '✅'}
+                                {selectedAppointment.status === 'in-progress' && '🔄'}
+                                {selectedAppointment.status === 'completed' && '🎉'}
+                                {selectedAppointment.status === 'cancelled' && '❌'}
+                              </span>
+                              <span className="capitalize">{selectedAppointment.status.replace('-', ' ')}</span>
+                            </div>
+                          </button>
                             <span className="ml-2 capitalize">{selectedAppointment.status.replace('-', ' ')}</span>
                           </button>
                           
                           {/* Status Popover */}
                           {modalStatusPopover?.type === 'status' && (
-                            <div className="absolute left-0 top-full mt-2 bg-white rounded-lg shadow-xl border border-gray-200 p-2 z-[9999] min-w-[160px]">
+                            <div className="absolute left-0 top-full mt-2 bg-white rounded-lg shadow-xl border border-gray-200 p-2 z-[9999] w-full">
                               <div className="grid gap-1">
                                 {(['pending', 'confirmed', 'in-progress', 'completed', 'cancelled'] as const).map((status) => (
                                   <button
@@ -3942,7 +3950,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                   : { type: 'payment' }
                               );
                             }}
-                            className={`px-4 py-2 text-sm font-medium font-sans rounded-lg transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                            className={`w-full px-4 py-2 text-sm font-medium font-sans rounded-lg transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
                               getPaymentStatusColors(selectedAppointment.paymentStatus || 'unpaid').bg
                             } ${getPaymentStatusColors(selectedAppointment.paymentStatus || 'unpaid').text}`}
                             title="Click to change payment status"
@@ -3957,7 +3965,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                           
                           {/* Payment Status Popover */}
                           {modalStatusPopover?.type === 'payment' && (
-                            <div className="absolute left-0 top-full mt-2 bg-white rounded-lg shadow-xl border border-gray-200 p-2 z-[9999] min-w-[160px]">
+                            <div className="absolute left-0 top-full mt-2 bg-white rounded-lg shadow-xl border border-gray-200 p-2 z-[9999] w-full">
                               <div className="grid gap-1">
                                 {(['unpaid', 'partial', 'paid', 'refunded', 'disputed'] as const).map((paymentStatus) => (
                                   <button
