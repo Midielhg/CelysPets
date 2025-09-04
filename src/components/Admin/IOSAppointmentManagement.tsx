@@ -108,7 +108,6 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
   // Payment collection modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'zelle' | 'cashapp' | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrCodeType, setQrCodeType] = useState<'zelle' | 'cashapp' | null>(null);
 
@@ -1247,8 +1246,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   };
 
   // Collect payment function
+  // Collect payment function
   const handleCollectPayment = (paymentMethod: 'zelle' | 'cashapp') => {
-    setSelectedPaymentMethod(paymentMethod);
     setShowPaymentModal(false);
     setQrCodeType(paymentMethod);
     setShowQRModal(true);
@@ -1262,7 +1261,6 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     // You can add actual payment processing logic here
     console.log(`Payment collection initiated via ${paymentMethod}`);
   };
-
   // Form submission handler for add/edit appointments
   const handleFormSubmit = async () => {
     // Basic validation
@@ -1596,10 +1594,12 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         const serviceString = typeof service === 'string' ? service : (service?.name || '');
         return fullServiceNames.includes(serviceString);
       });
-      const additionalServices = selectedAppointment.services.filter(service => {
-        const serviceString = typeof service === 'string' ? service : (service?.name || '');
-        return !fullServiceNames.includes(serviceString);
-      });
+      const additionalServices = selectedAppointment.services
+        .filter(service => {
+          const serviceString = typeof service === 'string' ? service : (service?.name || '');
+          return !fullServiceNames.includes(serviceString);
+        })
+        .map(service => typeof service === 'string' ? service : (service?.name || service?.code || ''));
       
       console.log('🔧 EDIT MODE - Full service detected:', hasFullService);
       console.log('🔧 EDIT MODE - Additional services:', additionalServices);
