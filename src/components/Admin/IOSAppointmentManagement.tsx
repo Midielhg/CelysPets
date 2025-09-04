@@ -106,6 +106,12 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [isLoadingSearch, setIsLoadingSearch] = useState(false);
 
+  // Payment collection modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'zelle' | 'cashapp' | null>(null);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrCodeType, setQrCodeType] = useState<'zelle' | 'cashapp' | null>(null);
+
   // Function to select a client and prefill form
   const selectClient = (client: any) => {
     console.log('🚨 FUNCTION CALLED - selectClient triggered!');
@@ -121,16 +127,26 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     // Prefill form with client data
     const mappedPets = client.pets ? client.pets.map((pet: any, index: number) => {
       console.log(`🐾 Processing pet ${index + 1}:`, pet);
+      console.log(`🔍 Pet breed value:`, pet.breed, 'Type:', typeof pet.breed);
+      console.log(`📋 Available breeds:`, breeds.map(b => ({ id: b.id, name: b.name })));
+      
       // Find breed by name in the breeds array
       const breedMatch = breeds.find(breed => 
         breed.name.toLowerCase() === (pet.breed || '').toLowerCase()
       );
       console.log(`🔍 Breed match for "${pet.breed}":`, breedMatch);
       
+      // Also try matching by breed ID if it exists
+      const breedByIdMatch = pet.breedId ? breeds.find(breed => breed.id === pet.breedId) : null;
+      console.log(`🆔 Breed match by ID (${pet.breedId}):`, breedByIdMatch);
+      
+      const finalBreedId = breedMatch ? breedMatch.id : (breedByIdMatch ? breedByIdMatch.id : null);
+      console.log(`✅ Final breed ID selected:`, finalBreedId);
+      
       const mappedPet = {
         name: pet.name || '',
         type: pet.species || pet.type || 'dog',
-        breedId: breedMatch ? breedMatch.id : null,
+        breedId: finalBreedId,
         weight: pet.weight ? pet.weight.toString() : (pet.age ? '' : ''), // Don't show age as weight
         specialInstructions: pet.notes || pet.specialInstructions || (pet.age ? `Age: ${pet.age} years` : '')
       };
@@ -1226,6 +1242,23 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     }
   };
 
+  // Collect payment function
+  const handleCollectPayment = (paymentMethod: 'zelle' | 'cashapp') => {
+    setSelectedPaymentMethod(paymentMethod);
+    setShowPaymentModal(false);
+    setQrCodeType(paymentMethod);
+    setShowQRModal(true);
+    
+    if (paymentMethod === 'zelle') {
+      showToast('💰 Showing Zelle QR code for payment collection', 'success');
+    } else {
+      showToast('💳 Showing CashApp QR code for payment collection', 'success');
+    }
+    
+    // You can add actual payment processing logic here
+    console.log(`Payment collection initiated via ${paymentMethod}`);
+  };
+
   // Form submission handler for add/edit appointments
   const handleFormSubmit = async () => {
     // Basic validation
@@ -1263,19 +1296,21 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       
       // Prepare appointment data for API
       const appointmentData = {
-        clientName: bookingFormData.customerName,
-        clientEmail: bookingFormData.email,
-        clientPhone: bookingFormData.phone,
-        clientAddress: bookingFormData.address,
+        client: {
+          name: bookingFormData.customerName,
+          email: bookingFormData.email,
+          phone: bookingFormData.phone,
+          address: bookingFormData.address,
+          pets: bookingFormData.pets
+        },
         date: bookingFormData.preferredDate,
         time: bookingFormData.preferredTime,
-        duration: calculatedDuration, // Add calculated duration
-        endTime: calculateEndTime(bookingFormData.preferredTime, calculatedDuration), // Calculate end time
-        pets: bookingFormData.pets,
         services: selectedServices,
         notes: bookingFormData.notes,
-        status: editMode ? selectedAppointment?.status || 'pending' : 'pending'
+        groomerId: null // Can be set later if needed
       };
+
+      console.log('🚀 APPOINTMENT DEBUG - Sending appointment data:', appointmentData);
 
       let response;
       let appointmentResult: Appointment;
@@ -1318,9 +1353,12 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           throw new Error(`Failed to create appointment: ${errorData}`);
         }
 
-        appointmentResult = await response.json();
+        const responseData = await response.json();
+        appointmentResult = responseData.appointment; // Extract appointment from response
         
-        // Add the appointment with calculated duration to local state
+        console.log('🎉 APPOINTMENT DEBUG - Created appointment:', appointmentResult);
+        
+        // Add the appointment to local state
         setAppointments(prev => [...prev, appointmentResult]);
         
         showToast('Appointment created successfully!', 'success');
@@ -1422,6 +1460,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   // Effect to populate form when editing an appointment
   useEffect(() => {
     if (editMode && selectedAppointment && breeds.length > 0) {
+      console.log('🔧 EDIT MODE - Loading appointment services:', selectedAppointment.services);
       console.log('Populating form for edit mode:', selectedAppointment);
       
       // Try to parse pets from the client data
@@ -1548,14 +1587,25 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         specialInstructions: pet.specialInstructions || ''
       }));
 
+      const fullServiceNames = ['Full Service', 'Full Service Grooming', 'Full Grooming', 'full-groom', 'full-grooming'];
+      const hasFullService = selectedAppointment.services.some(service => 
+        fullServiceNames.includes(service)
+      );
+      const additionalServices = selectedAppointment.services.filter(service => 
+        !fullServiceNames.includes(service)
+      );
+      
+      console.log('🔧 EDIT MODE - Full service detected:', hasFullService);
+      console.log('🔧 EDIT MODE - Additional services:', additionalServices);
+
       setBookingFormData({
         customerName: selectedAppointment.client.name || '',
         email: selectedAppointment.client.email || '',
         phone: selectedAppointment.client.phone || '',
         address: selectedAppointment.client.address || '',
         pets: processedPets,
-        includeFullService: selectedAppointment.services.includes('Full Service'),
-        additionalServices: selectedAppointment.services.filter(service => service !== 'Full Service'),
+        includeFullService: hasFullService,
+        additionalServices: additionalServices,
         preferredDate: selectedAppointment.date || '',
         preferredTime: selectedAppointment.time || '',
         notes: selectedAppointment.notes || ''
@@ -3947,6 +3997,20 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   </div>
 
                   <div className="flex justify-end space-x-3 pt-4 border-t">
+                    {/* Collect Payment Button - show unless payment is marked as paid */}
+                    {(() => {
+                      console.log('Payment Status Check:', selectedAppointment.paymentStatus, typeof selectedAppointment.paymentStatus);
+                      return selectedAppointment.paymentStatus?.toLowerCase() !== 'paid';
+                    })() && (
+                      <button
+                        onClick={() => setShowPaymentModal(true)}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                      >
+                        <span>💰</span>
+                        <span>Collect Payment</span>
+                      </button>
+                    )}
+                    
                     <button
                       onClick={() => setEditMode(true)}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -4552,6 +4616,130 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   </div>
                 </form>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Collection Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full mx-4 shadow-2xl">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-gray-800 flex items-center space-x-2">
+                  <span>💰</span>
+                  <span>Collect Payment</span>
+                </h3>
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <p className="text-gray-600 mb-6">
+                Choose a payment method to collect payment for this appointment:
+              </p>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={() => handleCollectPayment('zelle')}
+                  className="w-full p-4 border-2 border-blue-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 flex items-center space-x-4"
+                >
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl">
+                    🏦
+                  </div>
+                  <div className="text-left">
+                    <div className="font-semibold text-gray-800">Zelle</div>
+                    <div className="text-sm text-gray-600">Quick bank transfer</div>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => handleCollectPayment('cashapp')}
+                  className="w-full p-4 border-2 border-green-200 rounded-xl hover:border-green-400 hover:bg-green-50 transition-all duration-200 flex items-center space-x-4"
+                >
+                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-2xl">
+                    💳
+                  </div>
+                  <div className="text-left">
+                    <div className="font-semibold text-gray-800">CashApp</div>
+                    <div className="text-sm text-gray-600">Mobile payment app</div>
+                  </div>
+                </button>
+              </div>
+              
+              <div className="mt-6 pt-4 border-t">
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {showQRModal && qrCodeType && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full mx-4 shadow-2xl">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-gray-800 flex items-center space-x-2">
+                  {qrCodeType === 'zelle' ? (
+                    <>
+                      <span>🏦</span>
+                      <span>Zelle Payment</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>💳</span>
+                      <span>CashApp Payment</span>
+                    </>
+                  )}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowQRModal(false);
+                    setQrCodeType(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <p className="text-gray-600 mb-6 text-center">
+                {qrCodeType === 'zelle' 
+                  ? 'Scan this QR code with your banking app to pay via Zelle.'
+                  : 'Scan this QR code with your CashApp to complete the payment.'
+                }
+              </p>
+              
+              <div className="bg-gray-100 rounded-xl p-4 flex items-center justify-center mb-4">
+                <img 
+                  src={qrCodeType === 'zelle' ? '/zelle-qr.png' : '/CashApp-qr.png'} 
+                  alt={`${qrCodeType === 'zelle' ? 'Zelle' : 'CashApp'} QR Code`} 
+                  className="w-64 h-64 object-contain" 
+                />
+              </div>
+              
+              <div className="mt-6 pt-4 border-t">
+                <button
+                  onClick={() => {
+                    setShowQRModal(false);
+                    setQrCodeType(null);
+                  }}
+                  className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

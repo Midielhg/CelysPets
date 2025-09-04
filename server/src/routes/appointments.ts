@@ -93,7 +93,9 @@ router.post('/', async (req, res) => {
   try {
     const { client: clientData, services, date, time, notes, groomerId } = req.body;
 
-    console.log('Creating appointment with data:', { clientData, services, date, time });
+    console.log('🚀 Creating appointment with data:', { clientData, services, date, time });
+    console.log('🐕 Client pets data received:', clientData.pets);
+    console.log('🛠️ Services data received:', services, 'Type:', typeof services);
 
     // Create or find client
     let client = await Client.findOne({ 
@@ -102,6 +104,7 @@ router.post('/', async (req, res) => {
     
     if (!client) {
       // Create new client
+      console.log('📝 Creating new client with pets:', clientData.pets);
       client = await Client.create({
         name: clientData.name,
         email: clientData.email,
@@ -110,8 +113,11 @@ router.post('/', async (req, res) => {
         pets: clientData.pets || [],
         notes: clientData.notes || null
       });
+      console.log('✅ Created new client:', client.id, 'with pets:', client.pets);
     } else {
       // Update existing client
+      console.log('🔄 Updating existing client with pets:', clientData.pets);
+      console.log('🔍 Current client pets:', client.pets);
       await client.update({
         name: clientData.name,
         phone: clientData.phone,
@@ -119,6 +125,7 @@ router.post('/', async (req, res) => {
         pets: clientData.pets || client.pets,
         notes: clientData.notes || client.notes
       });
+      console.log('✅ Updated client with pets:', client.pets);
     }
 
     // Calculate duration and end time

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Loader2, X, Tag } from 'lucide-react';
+import { apiUrl } from '../../config/api';
 
 interface PromoCodeInputProps {
   onPromoCodeApplied: (discount: number, promoCode: string) => void;
@@ -37,19 +38,28 @@ const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
 
     setIsValidating(true);
     try {
-      const response = await fetch('/api/pricing/promo-codes/validate', {
+      console.log('🎯 PROMO DEBUG - Validating code:', promoCode.trim().toUpperCase());
+      console.log('🎯 PROMO DEBUG - Total amount:', totalAmount);
+      console.log('🎯 PROMO DEBUG - API URL:', apiUrl('/promo-codes/validate'));
+      
+      const response = await fetch(apiUrl('/promo-codes/validate'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           code: promoCode.trim().toUpperCase(),
-          orderAmount: totalAmount,
+          totalAmount: totalAmount,
           customerEmail: customerEmail || 'guest@example.com'
         }),
       });
 
+      console.log('🎯 PROMO DEBUG - Response status:', response.status);
+      console.log('🎯 PROMO DEBUG - Response ok:', response.ok);
+      
       const result: PromoCodeValidationResponse = await response.json();
+      console.log('🎯 PROMO DEBUG - Response data:', result);
+      
       setValidationResult(result);
 
       if (result.valid && result.promoCode) {
@@ -75,13 +85,6 @@ const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
     onPromoCodeRemoved();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!appliedPromoCode) {
-      validatePromoCode();
-    }
-  };
-
   return (
     <div className="border border-amber-200/50 p-4 rounded-xl bg-white/50 backdrop-blur-sm w-full">
       <div className="flex items-center gap-2 mb-3">
@@ -90,7 +93,7 @@ const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
       </div>
 
       {!appliedPromoCode ? (
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="space-y-3">
           <div className="flex flex-col gap-3">
             <input
               type="text"
@@ -104,7 +107,14 @@ const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
               disabled={isValidating}
             />
             <button
-              type="submit"
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!appliedPromoCode) {
+                  validatePromoCode();
+                }
+              }}
               disabled={!promoCode.trim() || isValidating}
               className="w-full px-4 py-2.5 bg-slate-500 hover:bg-slate-600 text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all duration-300 font-medium text-sm"
             >
@@ -144,7 +154,7 @@ const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
               </div>
             </div>
           )}
-        </form>
+        </div>
       ) : (
         <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
           <div className="flex items-center justify-between">
