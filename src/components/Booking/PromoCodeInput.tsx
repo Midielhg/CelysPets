@@ -13,6 +13,7 @@ interface PromoCodeValidationResponse {
   valid: boolean;
   discountAmount: number;
   message: string;
+  error?: string; // Add error field for server error responses
   promoCode?: {
     id: number;
     code: string;
@@ -60,11 +61,18 @@ const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
       const result: PromoCodeValidationResponse = await response.json();
       console.log('🎯 PROMO DEBUG - Response data:', result);
       
-      setValidationResult(result);
-
-      if (result.valid && result.promoCode) {
+      if (response.ok && result.valid && result.promoCode) {
+        // Success case - promo code is valid
+        setValidationResult(result);
         setAppliedPromoCode(result.promoCode.code);
         onPromoCodeApplied(result.discountAmount, result.promoCode.code);
+      } else {
+        // Error case - promo code is invalid or has validation issues
+        setValidationResult({
+          valid: false,
+          discountAmount: 0,
+          message: result.error || result.message || 'Invalid promo code'
+        });
       }
     } catch (error) {
       console.error('Error validating promo code:', error);

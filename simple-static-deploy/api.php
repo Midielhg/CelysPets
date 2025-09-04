@@ -126,6 +126,26 @@ function initializeDatabase($pdo) {
             INDEX idx_active (active)
         )");
 
+        // Create promo_codes table if it doesn't exist
+        $pdo->exec("CREATE TABLE IF NOT EXISTS promo_codes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            code VARCHAR(50) NOT NULL UNIQUE,
+            name VARCHAR(255) NOT NULL,
+            discountType ENUM('percentage', 'fixed') NOT NULL,
+            discountValue DECIMAL(10, 2) NOT NULL,
+            minimumAmount DECIMAL(10, 2) NULL,
+            maxUsageTotal INT NOT NULL DEFAULT 999999,
+            maxUsagePerCustomer INT NOT NULL DEFAULT 1,
+            currentUsageTotal INT NOT NULL DEFAULT 0,
+            validFrom DATETIME NULL,
+            validUntil DATETIME NULL,
+            active BOOLEAN DEFAULT TRUE,
+            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_code (code),
+            INDEX idx_active (active)
+        )");
+
         // Check if admin user exists, if not create one
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE role = 'admin'");
         $stmt->execute();
@@ -136,6 +156,68 @@ function initializeDatabase($pdo) {
             $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
             $stmt = $pdo->prepare("INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)");
             $stmt->execute(['admin@celyspets.com', $adminPassword, 'Admin User', 'admin']);
+        }
+
+        // Add some default breeds if none exist
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM breeds");
+        $stmt->execute();
+        $breedCount = $stmt->fetchColumn();
+        
+        if ($breedCount == 0) {
+            $defaultBreeds = [
+                ['dog', 'Golden Retriever', 'large', 125],
+                ['dog', 'Labrador Retriever', 'large', 125],
+                ['dog', 'Chihuahua', 'small', 75],
+                ['dog', 'German Shepherd', 'xlarge', 150],
+                ['dog', 'Bulldog', 'medium', 100],
+                ['cat', 'Persian', 'all', 85],
+                ['cat', 'Siamese', 'all', 85],
+                ['cat', 'Maine Coon', 'all', 85]
+            ];
+            
+            $stmt = $pdo->prepare("INSERT INTO breeds (species, name, sizeCategory, fullGroomPrice, active) VALUES (?, ?, ?, ?, 1)");
+            foreach ($defaultBreeds as $breed) {
+                $stmt->execute($breed);
+            }
+        }
+        
+        // Add some default additional services if none exist
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM additional_services");
+        $stmt->execute();
+        $serviceCount = $stmt->fetchColumn();
+        
+        if ($serviceCount == 0) {
+            $defaultServices = [
+                ['de-shedding', 'De-Shedding Treatment', 50, 'Reduces shedding for up to 6 weeks'],
+                ['teeth-cleaning', 'Teeth Cleaning', 20, 'Basic dental hygiene service'],
+                ['nail-trim', 'Nail Trim Only', 15, 'Quick nail trimming service'],
+                ['ear-cleaning', 'Ear Cleaning', 10, 'Professional ear cleaning'],
+                ['flea-tick', 'Flea & Tick Treatment', 45, 'Treatment for existing fleas and ticks'],
+                ['special-shampoo', 'Special Shampoos', 25, 'Hypoallergenic/Whitening/Medicated shampoos']
+            ];
+            
+            $stmt = $pdo->prepare("INSERT INTO additional_services (code, name, price, description, active) VALUES (?, ?, ?, ?, 1)");
+            foreach ($defaultServices as $service) {
+                $stmt->execute($service);
+            }
+        }
+        
+        // Add some default promo codes if none exist
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM promo_codes");
+        $stmt->execute();
+        $promoCount = $stmt->fetchColumn();
+        
+        if ($promoCount == 0) {
+            $defaultPromoCodes = [
+                ['WELCOME20', 'Welcome 20% Off', 'percentage', 20.00, 50.00, 100, 1, '2025-01-01 00:00:00', '2025-12-31 23:59:59'],
+                ['SAVE15', 'Save $15 on Any Service', 'fixed', 15.00, 75.00, 50, 2, '2025-01-01 00:00:00', '2025-06-30 23:59:59'],
+                ['FIRSTTIME', 'First Time Customer 25% Off', 'percentage', 25.00, 40.00, 1000, 1, '2025-01-01 00:00:00', '2025-12-31 23:59:59']
+            ];
+            
+            $stmt = $pdo->prepare("INSERT INTO promo_codes (code, name, discountType, discountValue, minimumAmount, maxUsageTotal, maxUsagePerCustomer, validFrom, validUntil, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
+            foreach ($defaultPromoCodes as $promo) {
+                $stmt->execute($promo);
+            }
         }
 
     } catch (PDOException $e) {
@@ -343,6 +425,18 @@ switch ($path) {
         
     case 'debug/frontend':
         handleDebugFrontend($pdo);
+        break;
+        
+    case 'pricing/breeds':
+        handlePricingBreeds($pdo, $method);
+        break;
+        
+    case 'pricing/additional-services':
+        handlePricingAdditionalServices($pdo, $method);
+        break;
+        
+    case 'promo-codes/validate':
+        handlePromoCodeValidation($pdo, $method, $input);
         break;
         
     default:
@@ -585,9 +679,46 @@ function handleAppointments($pdo, $method, $input) {
             }
             
             try {
+                // Handle new booking format with client information
+                $clientId = null;
+                
+                if (isset($input['client'])) {
+                    $client = $input['client'];
+                    
+                    // Check if client already exists by email
+                    $stmt = $pdo->prepare("SELECT id FROM clients WHERE email = ?");
+                    $stmt->execute([$client['email']]);
+                    $existingClient = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($existingClient) {
+                        $clientId = $existingClient['id'];
+                        // Update existing client information
+                        $stmt = $pdo->prepare("UPDATE clients SET name = ?, phone = ?, address = ?, pets = ? WHERE id = ?");
+                        $stmt->execute([
+                            $client['name'],
+                            $client['phone'],
+                            $client['address'],
+                            json_encode($client['pets'] ?? []),
+                            $clientId
+                        ]);
+                    } else {
+                        // Create new client
+                        $stmt = $pdo->prepare("INSERT INTO clients (name, email, phone, address, pets) VALUES (?, ?, ?, ?, ?)");
+                        $stmt->execute([
+                            $client['name'],
+                            $client['email'],
+                            $client['phone'],
+                            $client['address'],
+                            json_encode($client['pets'] ?? [])
+                        ]);
+                        $clientId = $pdo->lastInsertId();
+                    }
+                }
+                
+                // Create appointment with proper field mapping
                 $stmt = $pdo->prepare("INSERT INTO appointments (clientId, services, date, time, status, notes, totalAmount) VALUES (?, ?, ?, ?, ?, ?, ?)");
                 $stmt->execute([
-                    $input['clientId'] ?? 1, // Default to client ID 1 for now
+                    $clientId ?? 1,
                     json_encode($input['services'] ?? []),
                     $input['date'] ?? '',
                     $input['time'] ?? '',
@@ -596,9 +727,11 @@ function handleAppointments($pdo, $method, $input) {
                     $input['totalAmount'] ?? 0
                 ]);
                 
+                $appointmentId = $pdo->lastInsertId();
+                
                 echo json_encode([
                     'success' => true,
-                    'id' => $pdo->lastInsertId(),
+                    'id' => $appointmentId,
                     'message' => 'Appointment created successfully'
                 ]);
             } catch (PDOException $e) {
@@ -932,6 +1065,146 @@ function handleDebugTables($pdo) {
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Debug failed: ' . $e->getMessage()]);
+    }
+}
+
+function handlePricingBreeds($pdo, $method) {
+    if ($method !== 'GET') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+    
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM breeds WHERE active = 1 ORDER BY species ASC, name ASC");
+        $stmt->execute();
+        $breeds = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Convert numeric fields
+        foreach ($breeds as &$breed) {
+            $breed['id'] = (int)$breed['id'];
+            $breed['fullGroomPrice'] = (float)$breed['fullGroomPrice'];
+            $breed['fullGroomDuration'] = (int)($breed['fullGroomDuration'] ?? 90);
+            $breed['active'] = (bool)$breed['active'];
+        }
+        
+        echo json_encode($breeds);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to fetch breeds: ' . $e->getMessage()]);
+    }
+}
+
+function handlePricingAdditionalServices($pdo, $method) {
+    if ($method !== 'GET') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+    
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM additional_services WHERE active = 1 ORDER BY name ASC");
+        $stmt->execute();
+        $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Convert numeric fields
+        foreach ($services as &$service) {
+            $service['id'] = (int)$service['id'];
+            $service['price'] = (float)$service['price'];
+            $service['duration'] = (int)($service['duration'] ?? 30);
+            $service['active'] = (bool)$service['active'];
+        }
+        
+        echo json_encode($services);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to fetch additional services: ' . $e->getMessage()]);
+    }
+}
+
+function handlePromoCodeValidation($pdo, $method, $input) {
+    if ($method !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+    
+    if (!$input || !isset($input['code']) || !isset($input['totalAmount'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Promo code and total amount are required']);
+        return;
+    }
+    
+    try {
+        $code = strtoupper(trim($input['code']));
+        $totalAmount = floatval($input['totalAmount']);
+        $customerEmail = $input['customerEmail'] ?? 'guest@example.com';
+        
+        // Find the promo code
+        $stmt = $pdo->prepare("SELECT * FROM promo_codes WHERE code = ? AND active = 1");
+        $stmt->execute([$code]);
+        $promoCode = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$promoCode) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid promo code']);
+            return;
+        }
+        
+        // Check date validity
+        $now = new DateTime();
+        if ($promoCode['validFrom'] && new DateTime($promoCode['validFrom']) > $now) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Promo code is not yet valid']);
+            return;
+        }
+        
+        if ($promoCode['validUntil'] && new DateTime($promoCode['validUntil']) < $now) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Promo code has expired']);
+            return;
+        }
+        
+        // Check minimum amount
+        if ($promoCode['minimumAmount'] && $totalAmount < floatval($promoCode['minimumAmount'])) {
+            http_response_code(400);
+            echo json_encode([
+                'error' => 'Minimum order amount of $' . number_format($promoCode['minimumAmount'], 2) . ' required'
+            ]);
+            return;
+        }
+        
+        // Check total usage limit
+        if ($promoCode['currentUsageTotal'] >= $promoCode['maxUsageTotal']) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Promo code usage limit reached']);
+            return;
+        }
+        
+        // Calculate discount
+        $discountAmount = 0;
+        if ($promoCode['discountType'] === 'percentage') {
+            $discountAmount = ($totalAmount * floatval($promoCode['discountValue'])) / 100;
+        } else {
+            $discountAmount = min(floatval($promoCode['discountValue']), $totalAmount);
+        }
+        
+        echo json_encode([
+            'valid' => true,
+            'promoCode' => [
+                'id' => (int)$promoCode['id'],
+                'code' => $promoCode['code'],
+                'name' => $promoCode['name'],
+                'discountType' => $promoCode['discountType'],
+                'discountValue' => floatval($promoCode['discountValue'])
+            ],
+            'discountAmount' => $discountAmount,
+            'message' => 'Promo code applied successfully!'
+        ]);
+        
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to validate promo code: ' . $e->getMessage()]);
     }
 }
 ?>

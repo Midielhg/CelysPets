@@ -156,8 +156,33 @@ const BookingPage: React.FC = () => {
           fetch(apiUrl('/pricing/breeds')),
           fetch(apiUrl('/pricing/additional-services')),
         ]);
-        const breedsData = await bRes.json();
-        const addonsData = await aRes.json();
+        
+        let breedsData = [];
+        let addonsData = [];
+        
+        // Handle breeds response
+        if (bRes.ok) {
+          breedsData = await bRes.json();
+          // Ensure it's an array
+          if (!Array.isArray(breedsData)) {
+            console.error('Breeds data is not an array:', breedsData);
+            breedsData = [];
+          }
+        } else {
+          console.error('Failed to fetch breeds:', bRes.status, bRes.statusText);
+        }
+        
+        // Handle addons response
+        if (aRes.ok) {
+          addonsData = await aRes.json();
+          // Ensure it's an array
+          if (!Array.isArray(addonsData)) {
+            console.error('Addons data is not an array:', addonsData);
+            addonsData = [];
+          }
+        } else {
+          console.error('Failed to fetch additional services:', aRes.status, aRes.statusText);
+        }
         
         setBreeds(breedsData);
         setAddons(addonsData);
@@ -167,7 +192,7 @@ const BookingPage: React.FC = () => {
           const token = localStorage.getItem('auth_token');
           
           // Fetch user profile to get phone and address
-          const profileResponse = await fetch('http://localhost:5001/api/client/profile', {
+          const profileResponse = await fetch(apiUrl('/client/profile'), {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
@@ -184,7 +209,7 @@ const BookingPage: React.FC = () => {
           }
 
           // Fetch user's registered pets
-          const petsResponse = await fetch('http://localhost:5001/api/client/pets', {
+          const petsResponse = await fetch(apiUrl('/client/pets'), {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (petsResponse.ok) {
@@ -223,6 +248,9 @@ const BookingPage: React.FC = () => {
         // Note: We no longer need to set a default pet here since we start with one
       } catch (e) {
         console.error('Failed to load data', e);
+        // Ensure arrays are set even on error to prevent UI crashes
+        setBreeds([]);
+        setAddons([]);
       }
     };
     loadData();

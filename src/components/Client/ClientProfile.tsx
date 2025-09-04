@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Mail, MapPin, Edit, Save, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { apiUrl } from '../../config/api';
 
 interface UserProfile {
   id: string;
@@ -39,7 +40,7 @@ const ClientProfile: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:5002/api/client/profile', {
+      const response = await fetch(apiUrl('/client/profile'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -66,11 +67,11 @@ const ClientProfile: React.FC = () => {
     try {
       setSaving(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:5002/api/client/profile', {
+      const response = await fetch(apiUrl('/client/profile'), {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(formData)
       });

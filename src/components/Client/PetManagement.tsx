@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, ArrowLeft } from 'lucide-react';
+import { apiUrl } from '../../config/api';
 
 interface Pet {
   id: string;
@@ -48,7 +49,7 @@ const PetManagement: React.FC = () => {
 
   const fetchBreeds = async () => {
     try {
-      const response = await fetch('http://localhost:5002/api/pricing/breeds');
+      const response = await fetch(apiUrl('/pricing/breeds'));
       if (response.ok) {
         const breedsData = await response.json();
         setBreeds(breedsData);
@@ -62,7 +63,7 @@ const PetManagement: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:5002/api/client/pets', {
+      const response = await fetch(apiUrl('/client/pets'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -80,8 +81,8 @@ const PetManagement: React.FC = () => {
     try {
       const token = localStorage.getItem('auth_token');
       const url = editingPet 
-        ? `http://localhost:5002/api/client/pets/${editingPet.id}`
-        : 'http://localhost:5002/api/client/pets';
+        ? apiUrl(`/client/pets/${editingPet.id}`)
+        : apiUrl('/client/pets');
       
       const response = await fetch(url, {
         method: editingPet ? 'PUT' : 'POST',

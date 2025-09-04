@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit, Calendar } from 'lucide-react';
+import { apiUrl } from '../../config/api';
 
 interface Pet {
   id: string;
@@ -41,7 +42,7 @@ const PetDetails: React.FC = () => {
       const token = localStorage.getItem('auth_token');
 
       // Fetch pet details
-      const petResponse = await fetch(`http://localhost:5002/api/client/pets/${id}`, {
+      const petResponse = await fetch(apiUrl(`/client/pets/${id}`), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (petResponse.ok) {
@@ -49,7 +50,7 @@ const PetDetails: React.FC = () => {
       }
 
       // Fetch pet's appointments
-      const appointmentsResponse = await fetch('http://localhost:5002/api/client/appointments', {
+      const appointmentsResponse = await fetch(apiUrl('/client/appointments'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (appointmentsResponse.ok) {

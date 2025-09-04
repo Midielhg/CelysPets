@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Calendar, Plus, Clock, User, CheckCircle } from 'lucide-react';
+import { apiUrl } from '../../config/api';
 
 interface Pet {
   id: string;
@@ -42,8 +43,8 @@ const ClientDashboard: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('auth_token');
       
-      // Fetch client's pets
-      const petsResponse = await fetch('http://localhost:5002/api/client/pets', {
+            // Fetch pets
+      const petsResponse = await fetch(apiUrl('/client/pets'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (petsResponse.ok) {
@@ -54,7 +55,7 @@ const ClientDashboard: React.FC = () => {
       }
 
       // Fetch all appointments
-      const appointmentsResponse = await fetch('http://localhost:5002/api/client/appointments', {
+      const appointmentsResponse = await fetch(apiUrl('/client/appointments'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (appointmentsResponse.ok) {

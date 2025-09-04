@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock, MapPin, User, Plus, Star, AlertCircle } from 'lucide-react';
+import { apiUrl } from '../../config/api';
 
 interface Appointment {
   id: string;
@@ -29,7 +30,7 @@ const ClientAppointments: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:5002/api/client/appointments', {
+      const response = await fetch(apiUrl('/client/appointments'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {

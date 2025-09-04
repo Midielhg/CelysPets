@@ -38,25 +38,61 @@ VITE_GOOGLE_MAPS_API_KEY=your_actual_api_key_here
 
 ## 🚀 Development Setup
 
+### Environment Configuration
+
+**IMPORTANT:** You must set up the correct environment variables for production deployment.
+
+#### For Production:
+1. Copy `.env.production.example` to `.env.production` 
+2. Set the API URL to your PHP backend:
+```bash
+VITE_API_URL=https://celyspets.com/api.php
+```
+
+#### For Development:
+1. Copy `.env.development.example` to `.env.development`
+2. Set the API URL to your Node.js backend:
+```bash
+VITE_API_URL=http://localhost:5002/api
+```
+
+### Building for Production
+
 To create the production build and prepare for deployment:
 
 ```bash
-# 1. Build the frontend
+# 1. Ensure you have the correct .env.production file
+cp .env.production.example .env.production
+# Edit .env.production with your production API URL
+
+# 2. Build the frontend with production environment
 npm run build
 
-# 2. Prepare deployment folder
+# 3. Prepare deployment folder
 rm -rf simple-static-deploy
 mkdir -p simple-static-deploy
 
-# 3. Copy frontend files
+# 4. Copy frontend files
 cp dist/index.html dist/vite.svg simple-static-deploy/
 cp -r dist/assets simple-static-deploy/
 
-# 4. Copy API backend (with localhost database settings)
+# 5. Copy API backend (with production database settings)
 cp celyspets-php-api.php simple-static-deploy/api.php
 ```
 
 **Upload the `simple-static-deploy` folder contents to your hosting root directory.**
+
+### ✅ Fixed Production Issue
+
+**Previous Issue**: The booking page was crashing because the frontend was making API calls to hardcoded Node.js localhost URLs (`http://localhost:5001`, `http://localhost:5002`) which don't exist in production.
+
+**Solution Applied**:
+1. ✅ Fixed all hardcoded localhost URLs to use the `apiUrl()` function
+2. ✅ Created proper environment variable configuration (`.env.production`)  
+3. ✅ Updated build process to use production environment variables
+4. ✅ Verified the built frontend now correctly points to `https://celyspets.com/api.php`
+
+**Note**: You must rebuild and redeploy the application for these fixes to take effect.
 
 ### Testing & Debugging URLs:
 - **Health Check**: `https://celyspets.com/api.php` 
