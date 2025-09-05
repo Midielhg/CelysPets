@@ -12,7 +12,8 @@ import {
   X,
   Eye,
   Car,
-  ArrowDown
+  ArrowDown,
+  Mail
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import type { Appointment, Pet } from '../../types';
@@ -3851,27 +3852,27 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
             {/* Modal Content */}
             <div className="px-6 pb-6 space-y-4">
               {selectedAppointment && !editMode && !isAddingNew ? (
-                /* View Mode - Mobile Optimized */
-                <>
+                <div className="space-y-6">
+                  {/* Date & Time */}
                   <div>
-                    <label className="block text-sm font-medium text-amber-700 mb-1">Date & Time</label>
+                    <label className="block text-sm font-medium text-amber-700 mb-2">Date & Time</label>
                     <div className="bg-amber-50 rounded-lg p-3">
                       <div className="flex items-center space-x-2 text-amber-900 mb-1">
                         <Calendar className="w-4 h-4 text-amber-600" />
-                        <span className="text-sm">{selectedAppointment.date || 'No date'}</span>
+                        <span className="text-sm">{selectedAppointment?.date || 'No date'}</span>
                       </div>
                       <div className="flex items-center space-x-2 text-amber-900">
                         <Clock className="w-4 h-4 text-amber-600" />
-                        <span className="text-sm">{selectedAppointment.time || 'No time'}</span>
+                        <span className="text-sm">{selectedAppointment?.time || 'No time'}</span>
                       </div>
                     </div>
                   </div>
-                  
+
+                  {/* Status */}
                   <div>
-                    <label className="block text-sm font-medium text-amber-700 mb-1">Status</label>
+                    <label className="block text-sm font-medium text-amber-700 mb-2">Status</label>
                     <div className="bg-amber-50 rounded-lg p-3">
                       <div className="relative">
-                        {/* Appointment Status Badge with Click Menu */}
                         <div className="relative group">
                           <button
                             onClick={(e) => {
@@ -3883,22 +3884,20 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                               );
                             }}
                             className={`w-full px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 ${
-                              getStatusColors(selectedAppointment.status).bg
-                            } ${getStatusColors(selectedAppointment.status).text}`}
+                              getStatusColors(selectedAppointment?.status).bg
+                            } ${getStatusColors(selectedAppointment?.status).text}`}
                             title="Click to change appointment status"
                           >
                             <div className="flex items-center justify-center space-x-2">
                               <span>
-                                {selectedAppointment.status === 'pending' && '⏳'}
-                                {selectedAppointment.status === 'confirmed' && '✅'}
-                                {selectedAppointment.status === 'in-progress' && '🔄'}
-                                {selectedAppointment.status === 'completed' && '🎉'}
-                                {selectedAppointment.status === 'cancelled' && '❌'}
+                                {selectedAppointment?.status === 'pending' && '⏳'}
+                                {selectedAppointment?.status === 'confirmed' && '✅'}
+                                {selectedAppointment?.status === 'in-progress' && '🔄'}
+                                {selectedAppointment?.status === 'completed' && '🎉'}
+                                {selectedAppointment?.status === 'cancelled' && '❌'}
                               </span>
-                              <span className="capitalize">{selectedAppointment.status.replace('-', ' ')}</span>
+                              <span className="capitalize">{selectedAppointment?.status?.replace('-', ' ')}</span>
                             </div>
-                          </button>
-                            <span className="ml-2 capitalize">{selectedAppointment.status.replace('-', ' ')}</span>
                           </button>
                           
                           {/* Status Popover */}
@@ -3910,11 +3909,13 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                     key={status}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      changeAppointmentStatus(selectedAppointment.id, status);
+                                      if (selectedAppointment) {
+                                        changeAppointmentStatus(selectedAppointment.id, status);
+                                      }
                                       setModalStatusPopover(null);
                                     }}
                                     className={`flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                                      selectedAppointment.status === status
+                                      selectedAppointment?.status === status
                                         ? `${getStatusColors(status).bg} ${getStatusColors(status).text}`
                                         : 'hover:bg-gray-100 text-gray-700'
                                     }`}
@@ -3935,11 +3936,13 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Payment Status</label>
+                  {/* Payment Status */}
+                  <div>
+                    <label className="block text-sm font-medium text-amber-700 mb-2">Payment Status</label>
+                    <div className="bg-amber-50 rounded-lg p-3">
                       <div className="relative">
-                        {/* Payment Status Badge with Click Menu */}
                         <div className="relative group">
                           <button
                             onClick={(e) => {
@@ -3950,17 +3953,17 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                   : { type: 'payment' }
                               );
                             }}
-                            className={`w-full px-4 py-2 text-sm font-medium font-sans rounded-lg transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
-                              getPaymentStatusColors(selectedAppointment.paymentStatus || 'unpaid').bg
-                            } ${getPaymentStatusColors(selectedAppointment.paymentStatus || 'unpaid').text}`}
+                            className={`w-full px-4 py-2 text-sm font-medium font-sans rounded-lg transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 ${
+                              getPaymentStatusColors(selectedAppointment?.paymentStatus || 'unpaid').bg
+                            } ${getPaymentStatusColors(selectedAppointment?.paymentStatus || 'unpaid').text}`}
                             title="Click to change payment status"
                           >
-                            {(selectedAppointment.paymentStatus || 'unpaid') === 'unpaid' && '❌'}
-                            {(selectedAppointment.paymentStatus || 'unpaid') === 'partial' && '💳'}
-                            {(selectedAppointment.paymentStatus || 'unpaid') === 'paid' && '💰'}
-                            {(selectedAppointment.paymentStatus || 'unpaid') === 'refunded' && '↩️'}
-                            {(selectedAppointment.paymentStatus || 'unpaid') === 'disputed' && '⚠️'}
-                            <span className="ml-2 capitalize">{(selectedAppointment.paymentStatus || 'unpaid').replace('-', ' ')}</span>
+                            {(selectedAppointment?.paymentStatus || 'unpaid') === 'unpaid' && '❌'}
+                            {(selectedAppointment?.paymentStatus || 'unpaid') === 'partial' && '💳'}
+                            {(selectedAppointment?.paymentStatus || 'unpaid') === 'paid' && '💰'}
+                            {(selectedAppointment?.paymentStatus || 'unpaid') === 'refunded' && '↩️'}
+                            {(selectedAppointment?.paymentStatus || 'unpaid') === 'disputed' && '⚠️'}
+                            <span className="ml-2 capitalize">{(selectedAppointment?.paymentStatus || 'unpaid').replace('-', ' ')}</span>
                           </button>
                           
                           {/* Payment Status Popover */}
@@ -3972,11 +3975,13 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                     key={paymentStatus}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      changePaymentStatus(selectedAppointment.id, paymentStatus);
+                                      if (selectedAppointment) {
+                                        changePaymentStatus(selectedAppointment.id, paymentStatus);
+                                      }
                                       setModalStatusPopover(null);
                                     }}
                                     className={`flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                                      (selectedAppointment.paymentStatus || 'unpaid') === paymentStatus
+                                      (selectedAppointment?.paymentStatus || 'unpaid') === paymentStatus
                                         ? `${getPaymentStatusColors(paymentStatus).bg} ${getPaymentStatusColors(paymentStatus).text}`
                                         : 'hover:bg-gray-100 text-gray-700'
                                     }`}
@@ -3999,34 +4004,118 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Client Information</label>
-                    <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <User className="w-4 h-4 text-gray-400" />
-                        <span className="font-medium">{selectedAppointment.client?.name || 'No client name'}</span>
+                  {/* Services */}
+                  {selectedAppointment?.services && selectedAppointment.services.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-amber-700 mb-2">Services</label>
+                      <div className="bg-amber-50 rounded-lg p-3 space-y-2">
+                        {selectedAppointment.services.map((service, index) => (
+                          <div key={index} className="flex justify-between items-center">
+                            <span className="text-sm text-amber-900">
+                              {typeof service === 'string' ? service : service.name || 'Unknown Service'}
+                            </span>
+                            {typeof service === 'object' && service.price && (
+                              <span className="text-sm font-medium text-amber-700">${service.price}</span>
+                            )}
+                          </div>
+                        ))}
+                        {selectedAppointment.totalAmount && (
+                          <div className="border-t border-amber-200 pt-2 mt-2">
+                            <div className="flex justify-between items-center font-medium">
+                              <span className="text-amber-900">Total</span>
+                              <span className="text-amber-700">${selectedAppointment.totalAmount}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      {selectedAppointment.client?.phone && (
+                    </div>
+                  )}
+
+                  {/* Pet Information */}
+                  {selectedAppointment?.client?.pets && selectedAppointment.client.pets.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-amber-700 mb-2">Pet Information</label>
+                      <div className="bg-amber-50 rounded-lg p-3 space-y-3">
+                        {selectedAppointment.client.pets.map((pet, index) => (
+                          <div key={index} className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Name</span>
+                              <span className="text-sm text-amber-900">{pet.name}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Breed</span>
+                              <span className="text-sm text-amber-900">{pet.breed}</span>
+                            </div>
+                            {pet.age && (
+                              <div className="flex items-center space-x-2">
+                                <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Age</span>
+                                <span className="text-sm text-amber-900">{pet.age} years</span>
+                              </div>
+                            )}
+                            {pet.weight && (
+                              <div className="flex items-center space-x-2">
+                                <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Weight</span>
+                                <span className="text-sm text-amber-900">{pet.weight}</span>
+                              </div>
+                            )}
+                            {pet.specialInstructions && (
+                              <div className="flex items-start space-x-2">
+                                <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Notes</span>
+                                <span className="text-sm text-amber-900">{pet.specialInstructions}</span>
+                              </div>
+                            )}
+                            {selectedAppointment.client.pets.length > 1 && index < selectedAppointment.client.pets.length - 1 && (
+                              <hr className="border-amber-200" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  {selectedAppointment?.notes && (
+                    <div>
+                      <label className="block text-sm font-medium text-amber-700 mb-2">Notes</label>
+                      <div className="bg-amber-50 rounded-lg p-3">
+                        <span className="text-sm text-amber-900">{selectedAppointment.notes}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Client Information */}
+                  <div>
+                    <label className="block text-sm font-medium text-amber-700 mb-2">Client Information</label>
+                    <div className="bg-amber-50 rounded-lg p-3 space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <User className="w-4 h-4 text-amber-600" />
+                        <span className="font-medium text-amber-900">{selectedAppointment?.client?.name || 'No client name'}</span>
+                      </div>
+                      {selectedAppointment?.client?.phone && (
                         <div className="flex items-center space-x-2">
-                          <Phone className="w-4 h-4 text-gray-400" />
-                          <span>{selectedAppointment.client.phone}</span>
+                          <Phone className="w-4 h-4 text-amber-600" />
+                          <span className="text-amber-900">{selectedAppointment.client.phone}</span>
                         </div>
                       )}
-                      {selectedAppointment.client?.address && (
+                      {selectedAppointment?.client?.email && (
                         <div className="flex items-center space-x-2">
-                          <MapPin className="w-4 h-4 text-gray-400" />
-                          <span>{selectedAppointment.client.address}</span>
+                          <Mail className="w-4 h-4 text-amber-600" />
+                          <span className="text-amber-900">{selectedAppointment.client.email}</span>
+                        </div>
+                      )}
+                      {selectedAppointment?.client?.address && (
+                        <div className="flex items-center space-x-2">
+                          <MapPin className="w-4 h-4 text-amber-600" />
+                          <span className="text-amber-900">{selectedAppointment.client.address}</span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex justify-end space-x-3 pt-4 border-t">
+                  {/* Action Buttons */}
+                  <div className="flex justify-end space-x-3 pt-4 border-t border-amber-200">
                     {/* Collect Payment Button - show unless payment is marked as paid */}
-                    {(() => {
-                      console.log('Payment Status Check:', selectedAppointment.paymentStatus, typeof selectedAppointment.paymentStatus);
-                      return selectedAppointment.paymentStatus?.toLowerCase() !== 'paid';
-                    })() && (
+                    {selectedAppointment && selectedAppointment.paymentStatus?.toLowerCase() !== 'paid' && (
                       <button
                         onClick={() => setShowPaymentModal(true)}
                         className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
@@ -4038,16 +4127,18 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                     
                     <button
                       onClick={() => setEditMode(true)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
                     >
                       Edit Appointment
                     </button>
-                    <button
-                      onClick={() => deleteAppointment(selectedAppointment.id)}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                    >
-                      Delete
-                    </button>
+                    {selectedAppointment && (
+                      <button
+                        onClick={() => deleteAppointment(selectedAppointment.id)}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (
