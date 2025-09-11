@@ -2,23 +2,25 @@ import React, { useEffect, useState } from 'react';
 import { apiUrl } from '../../config/api';
 import { useToast } from '../../contexts/ToastContext';
 import { Trash2, Edit, Plus, Tag, TrendingUp, Users, Clock } from 'lucide-react';
+import { PromoCodeService } from '../../services/promoCodeService';
 
-interface PromoCode {
+// Use Supabase database types for PromoCode
+type PromoCode = {
   id: number;
   code: string;
   name: string;
-  discountType: 'percentage' | 'fixed';
-  discountValue: number;
-  minimumAmount?: number;
-  maxUsageTotal: number;
-  maxUsagePerCustomer: number;
-  currentUsageTotal: number;
-  validFrom?: Date;
-  validUntil?: Date;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  minimum_amount?: number | null;
+  max_usage_total: number;
+  max_usage_per_customer: number;
+  current_usage_total: number;
+  valid_from?: string | null;
+  valid_until?: string | null;
   active: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
+  created_at: string;
+  updated_at: string;
+};
 
 interface PromoCodeFormData {
   code: string;
@@ -89,44 +91,15 @@ const PromoCodeManagement: React.FC = () => {
 
   const fetchPromoCodes = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-      console.log('Fetching promo codes with token:', token ? 'Token exists' : 'No token');
-      console.log('API URL:', apiUrl('/pricing/promo-codes'));
+      console.log('Fetching promo codes from Supabase...');
       
-      const response = await fetch(apiUrl('/pricing/promo-codes'), {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Received promo codes data:', data);
-        
-        // Handle the correct response structure: { promoCodes: [...], pagination: {...} }
-        if (data && data.promoCodes && Array.isArray(data.promoCodes)) {
-          setPromoCodes(data.promoCodes);
-          // TODO: Handle pagination if needed
-        } else if (Array.isArray(data)) {
-          // Fallback for direct array response
-          setPromoCodes(data);
-        } else {
-          console.error('Expected promoCodes array in response, got:', data);
-          setPromoCodes([]);
-          showToast('Invalid data format received', 'error');
-        }
-      } else {
-        const errorText = await response.text();
-        console.error('Response error:', errorText);
-        showToast(`Failed to fetch promo codes: ${response.status}`, 'error');
-      }
+      const data = await PromoCodeService.getAll();
+      console.log('✅ Received promo codes from Supabase:', data);
+      setPromoCodes(data);
     } catch (error) {
-      console.error('Error fetching promo codes:', error);
+      console.error('❌ Error fetching promo codes:', error);
       showToast('Failed to load promo codes', 'error');
+      setPromoCodes([]);
     } finally {
       setLoading(false);
     }

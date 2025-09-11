@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Loader2, X, Tag } from 'lucide-react';
-import { apiUrl } from '../../config/api';
+import { PromoCodeService } from '../../services/promoCodeService';
 
 interface PromoCodeInputProps {
   onPromoCodeApplied: (discount: number, promoCode: string) => void;
@@ -41,29 +41,31 @@ const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
     try {
       console.log('🎯 PROMO DEBUG - Validating code:', promoCode.trim().toUpperCase());
       console.log('🎯 PROMO DEBUG - Total amount:', totalAmount);
-      console.log('🎯 PROMO DEBUG - API URL:', apiUrl('/promo-codes/validate'));
       
-      const response = await fetch(apiUrl('/promo-codes/validate'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          code: promoCode.trim().toUpperCase(),
-          totalAmount: totalAmount,
-          customerEmail: customerEmail || 'guest@example.com'
-        }),
-      });
-
-      console.log('🎯 PROMO DEBUG - Response status:', response.status);
-      console.log('🎯 PROMO DEBUG - Response ok:', response.ok);
+      const result = await PromoCodeService.validateCode(
+        promoCode.trim().toUpperCase(),
+        customerEmail || 'guest@example.com',
+        totalAmount
+      );
       
-      const result: PromoCodeValidationResponse = await response.json();
-      console.log('🎯 PROMO DEBUG - Response data:', result);
+      console.log('🎯 PROMO DEBUG - Validation result:', result);
       
-      if (response.ok && result.valid && result.promoCode) {
+      if (result.valid && result.promoCode && result.discountAmount !== undefined) {
         // Success case - promo code is valid
-        setValidationResult(result);
+        const validationResponse: PromoCodeValidationResponse = {
+          valid: true,
+          discountAmount: result.discountAmount,
+          message: 'Promo code applied successfully!',
+          promoCode: {
+            id: result.promoCode.id,
+            code: result.promoCode.code,
+            name: result.promoCode.name,
+            discountType: result.promoCode.discount_type,
+            discountValue: result.promoCode.discount_value
+          }
+        };
+        
+        setValidationResult(validationResponse);
         setAppliedPromoCode(result.promoCode.code);
         onPromoCodeApplied(result.discountAmount, result.promoCode.code);
       } else {
@@ -71,7 +73,7 @@ const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
         setValidationResult({
           valid: false,
           discountAmount: 0,
-          message: result.error || result.message || 'Invalid promo code'
+          message: result.error || 'Invalid promo code'
         });
       }
     } catch (error) {

@@ -28,13 +28,29 @@ const Login: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
 
+    console.log('🚀 Login form submitted with:', { email: formData.email });
+
+    // Add timeout to prevent infinite hanging
+    const timeoutId = setTimeout(() => {
+      console.error('⏰ Login timeout after 10 seconds');
+      setIsLoading(false);
+      showToast('Login timeout. Please check your connection and try again.', 'error');
+    }, 10000);
+
     try {
+      console.log('📞 Calling login function...');
       await login(formData.email, formData.password);
+      console.log('✅ Login function completed successfully');
+      clearTimeout(timeoutId);
       showToast('Logged in successfully!', 'success');
       // Navigation will be handled by useEffect after user state updates
     } catch (error) {
-      showToast('Invalid email or password', 'error');
+      console.error('❌ Login error caught:', error);
+      clearTimeout(timeoutId);
+      const errorMessage = error instanceof Error ? error.message : 'Login failed';
+      showToast(errorMessage, 'error');
     } finally {
+      console.log('🏁 Login form finally block - resetting loading state');
       setIsLoading(false);
     }
   };

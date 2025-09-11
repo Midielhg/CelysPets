@@ -138,6 +138,12 @@ const Navbar: React.FC = () => {
                     Dashboard
                   </Link>
                 )}
+                <Link 
+                  to="/settings" 
+                  className="text-amber-800 hover:text-rose-600 font-medium transition-colors duration-300"
+                >
+                  Settings
+                </Link>
                 <button
                   onClick={logout}
                   className="bg-gradient-to-r from-amber-200 to-orange-200 text-amber-900 px-6 py-2 rounded-full hover:from-amber-300 hover:to-orange-300 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold border border-amber-300/50"
@@ -245,6 +251,13 @@ const Navbar: React.FC = () => {
                     Dashboard
                   </Link>
                 )}
+                <Link 
+                  to="/settings" 
+                  className="block py-3 px-2 text-amber-800 hover:text-rose-600 hover:bg-orange-100/30 rounded-lg font-medium transition-all duration-300"
+                  onClick={closeMobileMenu}
+                >
+                  Settings
+                </Link>
                 <button
                   onClick={() => {
                     logout();

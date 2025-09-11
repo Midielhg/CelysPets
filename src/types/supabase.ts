@@ -1,0 +1,330 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export interface Database {
+  public: {
+    Tables: {
+      users: {
+        Row: {
+          id: number
+          email: string
+          password: string
+          name: string
+          role: 'client' | 'admin' | 'groomer'
+          businessSettings: Json | null
+          googleTokens: Json | null
+          createdAt: string
+          updatedAt: string
+        }
+        Insert: {
+          id?: number
+          email: string
+          password: string
+          name: string
+          role?: 'client' | 'admin' | 'groomer'
+          businessSettings?: Json | null
+          googleTokens?: Json | null
+          createdAt?: string
+          updatedAt?: string
+        }
+        Update: {
+          id?: number
+          email?: string
+          password?: string
+          name?: string
+          role?: 'client' | 'admin' | 'groomer'
+          businessSettings?: Json | null
+          googleTokens?: Json | null
+          createdAt?: string
+          updatedAt?: string
+        }
+      }
+      clients: {
+        Row: {
+          id: number
+          name: string
+          email: string
+          phone: string
+          address: string
+          pets: Json
+          createdAt: string
+          updatedAt: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          email: string
+          phone: string
+          address: string
+          pets: Json
+          createdAt?: string
+          updatedAt?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          email?: string
+          phone?: string
+          address?: string
+          pets?: Json
+          createdAt?: string
+          updatedAt?: string
+        }
+      }
+      appointments: {
+        Row: {
+          id: number
+          clientId: number
+          groomerId: number | null
+          services: Json
+          date: string
+          time: string
+          status: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled'
+          notes: string | null
+          totalAmount: number | null
+          promoCodeId: number | null
+          promoCodeDiscount: number | null
+          originalAmount: number | null
+          createdAt: string
+          updatedAt: string
+        }
+        Insert: {
+          id?: number
+          clientId: number
+          groomerId?: number | null
+          services: Json
+          date: string
+          time: string
+          status?: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled'
+          notes?: string | null
+          totalAmount?: number | null
+          promoCodeId?: number | null
+          promoCodeDiscount?: number | null
+          originalAmount?: number | null
+          createdAt?: string
+          updatedAt?: string
+        }
+        Update: {
+          id?: number
+          clientId?: number
+          groomerId?: number | null
+          services?: Json
+          date?: string
+          time?: string
+          status?: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled'
+          notes?: string | null
+          totalAmount?: number | null
+          promoCodeId?: number | null
+          promoCodeDiscount?: number | null
+          originalAmount?: number | null
+          createdAt?: string
+          updatedAt?: string
+        }
+      }
+      pets: {
+        Row: {
+          id: number
+          ownerId: number
+          name: string
+          species: 'dog' | 'cat'
+          breed: string
+          age: number
+          weight: number
+          notes: string | null
+          createdAt: string
+          updatedAt: string
+        }
+        Insert: {
+          id?: number
+          ownerId: number
+          name: string
+          species: 'dog' | 'cat'
+          breed: string
+          age: number
+          weight: number
+          notes?: string | null
+          createdAt?: string
+          updatedAt?: string
+        }
+        Update: {
+          id?: number
+          ownerId?: number
+          name?: string
+          species?: 'dog' | 'cat'
+          breed?: string
+          age?: number
+          weight?: number
+          notes?: string | null
+          createdAt?: string
+          updatedAt?: string
+        }
+      }
+      breeds: {
+        Row: {
+          id: number
+          name: string
+          species: 'dog' | 'cat'
+          sizeCategory: 'small' | 'medium' | 'large' | 'extra-large'
+          bathOnlyPrice: number
+          fullGroomPrice: number
+          active: boolean
+          createdAt: string
+          updatedAt: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          species: 'dog' | 'cat'
+          sizeCategory: 'small' | 'medium' | 'large' | 'extra-large'
+          bathOnlyPrice: number
+          fullGroomPrice: number
+          active?: boolean
+          createdAt?: string
+          updatedAt?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          species?: 'dog' | 'cat'
+          sizeCategory?: 'small' | 'medium' | 'large' | 'extra-large'
+          bathOnlyPrice?: number
+          fullGroomPrice?: number
+          active?: boolean
+          createdAt?: string
+          updatedAt?: string
+        }
+      }
+      additional_services: {
+        Row: {
+          id: number
+          code: string
+          name: string
+          price: number
+          description: string | null
+          active: boolean
+          createdAt: string
+          updatedAt: string
+        }
+        Insert: {
+          id?: number
+          code: string
+          name: string
+          price?: number
+          description?: string | null
+          active?: boolean
+          createdAt?: string
+          updatedAt?: string
+        }
+        Update: {
+          id?: number
+          code?: string
+          name?: string
+          price?: number
+          description?: string | null
+          active?: boolean
+          createdAt?: string
+          updatedAt?: string
+        }
+      }
+      promo_codes: {
+        Row: {
+          id: number
+          code: string
+          name: string
+          discount_type: 'percentage' | 'fixed'
+          discount_value: number
+          minimum_amount: number | null
+          max_usage_total: number
+          max_usage_per_customer: number
+          current_usage_total: number
+          valid_from: string | null
+          valid_until: string | null
+          active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          code: string
+          name: string
+          discount_type: 'percentage' | 'fixed'
+          discount_value: number
+          minimum_amount?: number | null
+          max_usage_total?: number
+          max_usage_per_customer?: number
+          current_usage_total?: number
+          valid_from?: string | null
+          valid_until?: string | null
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          code?: string
+          name?: string
+          discount_type?: 'percentage' | 'fixed'
+          discount_value?: number
+          minimum_amount?: number | null
+          max_usage_total?: number
+          max_usage_per_customer?: number
+          current_usage_total?: number
+          valid_from?: string | null
+          valid_until?: string | null
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      promo_code_usage: {
+        Row: {
+          id: number
+          promo_code_id: number
+          customer_email: string
+          appointment_id: number | null
+          used_at: string
+          discount_amount: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          promo_code_id: number
+          customer_email: string
+          appointment_id?: number | null
+          used_at?: string
+          discount_amount: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          promo_code_id?: number
+          customer_email?: string
+          appointment_id?: number | null
+          used_at?: string
+          discount_amount?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}

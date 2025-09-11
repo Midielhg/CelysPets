@@ -36,9 +36,11 @@ const Register: React.FC = () => {
 
     try {
       await register(formData.email, formData.password, formData.name);
-      showToast('Account created successfully!', 'success');
+      showToast('Account created successfully! Please check your email to confirm your account.', 'success');
+      // Note: User might need to confirm email before being able to sign in
     } catch (error) {
-      showToast('Failed to create account. Please try again.', 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create account. Please try again.';
+      showToast(errorMessage, 'error');
     } finally {
       setIsLoading(false);
     }
