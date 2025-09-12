@@ -110,6 +110,7 @@ cp celyspets-php-api.php simple-static-deploy/api.php
 
 To start the servers and front end run these two commands on different terminals
 cd server && npm run dev
+npm run dev:client
 
 cd "/Users/midielhenriquez/Library/Mobile Documents/com~apple~CloudDocs/Documents/Investments/CelysPets Inc/dev/server" && npm run dev
 

@@ -1,15 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { apiUrl } from '../../config/api';
+import { DashboardService } from '../../services/dashboardService';
 
-interface ClientInfo { name: string; address: string; }
+interface ClientInfo { 
+  name: string; 
+  email: string;
+  phone: string;
+}
+
+interface GroomerInfo {
+  name: string;
+}
+
 interface AppointmentItem {
   id: number;
   date: string;
   time: string;
   status: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled';
-  client?: ClientInfo;
-  services?: any[];
+  total_amount: number | null;
+  services: any;
+  clients: ClientInfo;
+  users: GroomerInfo | null;
 }
 
 function formatTimeLabel(time: string) {
@@ -22,8 +33,6 @@ export default function TodaySchedule() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const todayISO = useMemo(() => new Date().toISOString().slice(0,10), []);
-
   const fetchSchedule = useCallback(async () => {
     let mounted = true;
     try {
@@ -33,26 +42,18 @@ export default function TodaySchedule() {
       setLoading(true);
       setError(null);
       
-      // Use the same authentication method as AppointmentManagement
-      const token = localStorage.getItem('auth_token');
-      const url = apiUrl(`/appointments?date=${todayISO}`);
-      
-      const res = await fetch(url, { 
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-      const data = (await res.json()) as AppointmentItem[];
-      if (mounted) setItems(data);
+      console.log('TodaySchedule: Fetching schedule from Supabase...');
+      const data = await DashboardService.getTodaySchedule();
+      console.log('TodaySchedule: Received data:', data);
+      if (mounted) setItems(data as AppointmentItem[]);
     } catch (e: any) {
+      console.error('TodaySchedule: Error fetching schedule:', e);
       if (mounted) setError(e?.message || 'Failed to load schedule');
     } finally {
       if (mounted) setLoading(false);
     }
     return () => { mounted = false };
-  }, [isLoading, todayISO]);
+  }, [isLoading]);
 
   useEffect(() => { fetchSchedule(); }, [fetchSchedule]);
 
@@ -80,9 +81,9 @@ export default function TodaySchedule() {
             {items.map((a) => (
               <div key={a.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div>
-                  <p className="font-medium text-gray-900">{formatTimeLabel(a.time)} - {a.client?.name || 'Client'}</p>
-                  <p className="text-sm text-gray-600">{Array.isArray(a.services) ? a.services.map((s: any) => (typeof s === 'string' ? s : s?.name || s?.id)).filter(Boolean).join(', ') : 'Services'}</p>
-                  <p className="text-xs text-gray-500">{a.client?.address || ''}</p>
+                  <p className="font-medium text-gray-900">{formatTimeLabel(a.time)} - {a.clients?.name || 'Client'}</p>
+                  <p className="text-sm text-gray-600">{a.users?.name || 'No groomer assigned'}</p>
+                  <p className="text-xs text-gray-500">{a.clients?.phone || a.clients?.email || ''}</p>
                 </div>
                 <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                   a.status === 'confirmed' ? 'text-blue-800 bg-blue-100' :

@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
-import { apiUrl, API_BASE_URL } from '../../config/api';
+import { DashboardService } from '../../services/dashboardService';
 
 interface ActivityItem {
   id: number;
-  updatedAt: string;
-  client?: { name: string };
+  created_at: string;
+  date: string;
+  time: string;
+  status: string;
+  total_amount: number | null;
+  clients: { 
+    name: string; 
+    email: string;
+  };
 }
 
 function timeAgo(iso: string) {
@@ -28,31 +35,19 @@ export default function RecentActivity() {
     try {
       setLoading(true);
       setError(null);
-      const paths = [
-        apiUrl('/appointments/recent'),
-        ...(API_BASE_URL.startsWith('http://localhost:5002') ? [] : ['http://localhost:5002/api/appointments/recent'])
-      ];
-      let lastErr: any = null;
-      for (const url of paths) {
-        try {
-          const res = await fetch(url);
-          if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-          const data = (await res.json()) as ActivityItem[];
-          if (mounted) setItems(data);
-          lastErr = null;
-          break;
-        } catch (e) {
-          lastErr = e;
-        }
-      }
-      if (lastErr) throw lastErr;
+      
+      console.log('RecentActivity: Fetching activity from Supabase...');
+      const data = await DashboardService.getRecentActivity();
+      console.log('RecentActivity: Received data:', data);
+      if (mounted) setItems(data as ActivityItem[]);
     } catch (e: any) {
+      console.error('RecentActivity: Error fetching activity:', e);
       if (mounted) setError(e?.message || 'Failed to load activity');
     } finally {
       if (mounted) setLoading(false);
     }
     return () => { mounted = false };
-  }, [API_BASE_URL, apiUrl]);
+  }, []);
 
   useEffect(() => { fetchActivity(); }, [fetchActivity]);
 
@@ -81,8 +76,8 @@ export default function RecentActivity() {
               <div key={a.id} className="flex items-start space-x-3">
                 <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
                 <div>
-                  <p className="text-sm text-gray-900">Appointment updated {a.client?.name ? `for ${a.client.name}` : ''}</p>
-                  <p className="text-xs text-gray-500">{timeAgo(a.updatedAt)}</p>
+                  <p className="text-sm text-gray-900">Appointment {a.status} {a.clients?.name ? `for ${a.clients.name}` : ''}</p>
+                  <p className="text-xs text-gray-500">{timeAgo(a.created_at)} - ${a.total_amount || 0}</p>
                 </div>
               </div>
             ))}

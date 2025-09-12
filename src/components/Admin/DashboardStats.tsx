@@ -1,28 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { apiUrl } from '../../config/api';
-
-type Stats = {
-  totalRevenue: number;
-  appointmentsThisMonth: number;
-  totalClients: number;
-  averageRating: number | null;
-};
+import { DashboardService, type DashboardStats as Stats } from '../../services/dashboardService';
 
 const numberFmt = (n: number) => new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(n);
 const currencyFmt = (n: number) => new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(n);
 
 export default function DashboardStats() {
-  const { isLoading, user } = useAuth();
+  const { isLoading } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const token = useMemo(() => localStorage.getItem('auth_token') || '', [user]);
 
   const fetchStats = useCallback(async () => {
-    console.log('DashboardStats: fetchStats called', { token: !!token, isLoading, user: !!user });
-    if (!token || isLoading) {
-      console.log('DashboardStats: Skipping fetch - no token or still loading');
+    console.log('DashboardStats: fetchStats called with Supabase');
+    if (isLoading) {
+      console.log('DashboardStats: Skipping fetch - still loading');
       return;
     }
     let isMounted = true;
@@ -31,24 +23,11 @@ export default function DashboardStats() {
       setLoading(true);
       setError(null);
       
-      const url = apiUrl('/dashboard/stats');
-      const res = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      
-      if (!res.ok) {
-        if (res.status === 401) throw new Error('Please log in to view stats');
-        const text = await res.text();
-        throw new Error(`HTTP ${res.status}: ${text}`);
-      }
-      
-      const data = (await res.json()) as Stats;
-      console.log('DashboardStats: Received data:', data);
+      const data = await DashboardService.getStats();
+      console.log('DashboardStats: Received data from Supabase:', data);
       if (isMounted) setStats(data);
     } catch (e: any) {
+      console.error('DashboardStats: Error fetching stats:', e);
       if (isMounted) setError(e?.message || 'Failed to load stats');
     } finally {
       if (isMounted) setLoading(false);
@@ -57,7 +36,7 @@ export default function DashboardStats() {
     return () => {
       isMounted = false;
     };
-  }, [isLoading, token]);
+  }, [isLoading]);
 
   useEffect(() => {
     fetchStats();
