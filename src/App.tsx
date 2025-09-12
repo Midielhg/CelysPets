@@ -13,18 +13,7 @@ import ClientAppointments from './components/Client/ClientAppointments';
 import ClientProfile from './components/Client/ClientProfile';
 import PetDetails from './components/Client/PetDetails';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
-import SupabaseTest from './components/SupabaseTest';
-import SimpleTest from './components/SimpleTest';
-import HardcodedSupabaseTest from './components/HardcodedSupabaseTest';
-import LoginTest from './components/LoginTest';
-import UserMigration from './components/UserMigration';
-import DirectUserMigration from './components/DirectUserMigration';
-import SimpleUserCheck from './components/SimpleUserCheck';
-import AuthMigration from './components/AuthMigration';
-import ManualAuthSetup from './components/ManualAuthSetup';
 import ProfileSettings from './components/Auth/ProfileSettings';
-import AuthDebugTest from './components/AuthDebugTest';
-import FreshUserSetup from './components/FreshUserSetup';
 
 function App() {
   return (
@@ -36,14 +25,9 @@ function App() {
             <main>
               <Routes>
                 <Route path="/" element={<Home />} />
-                <Route path="/simple-test" element={<SimpleTest />} />
-                <Route path="/hardcoded-test" element={<HardcodedSupabaseTest />} />
-                <Route path="/login-test" element={<LoginTest />} />
-                <Route path="/user-check" element={<SimpleUserCheck />} />
-                <Route path="/auth-migration" element={<AuthMigration />} />
-                <Route path="/manual-auth" element={<ManualAuthSetup />} />
-                <Route path="/auth-debug" element={<AuthDebugTest />} />
-                <Route path="/fresh-setup" element={<FreshUserSetup />} />
+                <Route path="/book" element={<BookingPage />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
                 <Route 
                   path="/settings" 
                   element={
@@ -52,12 +36,6 @@ function App() {
                     </ProtectedRoute>
                   } 
                 />
-                <Route path="/user-migration" element={<UserMigration />} />
-                <Route path="/direct-migration" element={<DirectUserMigration />} />
-                <Route path="/supabase-test" element={<SupabaseTest />} />
-                <Route path="/book" element={<BookingPage />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
                 <Route 
                   path="/dashboard" 
                   element={
