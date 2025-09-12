@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, Mail, Lock, Shield } from 'lucide-react';
-import { apiUrl } from '../../config/api';
+import { UserService } from '../../services/userService';
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -26,39 +26,16 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(apiUrl('/users'), {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          role: formData.role
-        })
+      await UserService.createUser({
+        name: formData.name,
+        email: formData.email,
+        role: formData.role
+        // Password will be set automatically to 'temp123456'
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create user');
-      }
 
       onUserCreated();
       resetForm();
@@ -107,6 +84,15 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
               <p className="text-red-800 text-sm">{error}</p>
             </div>
           )}
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-blue-800 text-sm">
+              📝 <strong>Note:</strong> Users will be created in the system database.
+              <br/>• Email: {formData.email || 'user@example.com'}
+              <br/>• For now, users are created for admin management only.
+              <br/>• Full authentication integration requires database schema updates.
+            </p>
+          </div>
 
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">

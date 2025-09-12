@@ -3,40 +3,14 @@ import { Search, Edit, Trash2, Users, UserCheck, UserCog, Shield } from 'lucide-
 import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
 import DeleteUserModal from './DeleteUserModal';
-import { apiUrl } from '../../config/api';
+import { UserService, type User, type UserStats, type UserPagination } from '../../services/userService';
 
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: 'client' | 'admin' | 'groomer';
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-interface UserStats {
-  overview: {
-    admins: number;
-    clients: number;
-    groomers: number;
-    users: number;
-  };
-  recentUsers: User[];
-  totalUsers: number;
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-  hasMore: boolean;
-}
+// Interfaces are now imported from UserService
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
-  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [pagination, setPagination] = useState<UserPagination | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -57,47 +31,12 @@ const UserManagement: React.FC = () => {
   const fetchUsers = useCallback(async (page = 1, search = '', role = 'all') => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '10',
-        ...(search && { search }),
-        ...(role !== 'all' && { role })
-      });
-
-      const token = localStorage.getItem('auth_token');
-      const url = apiUrl(`/users?${params}`);
-      console.log('🔗 Fetching users from:', url);
+      console.log('� Fetching users...', { page, search, role });
       
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      console.log('📡 Users API Response status:', response.status);
-      console.log('📡 Users API Response headers:', response.headers);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Users API Error Response:', errorText);
-        throw new Error(`Failed to fetch users: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log('📦 Users API Response data:', data);
+      const response = await UserService.getUsers(page, 10, search, role);
       
-      if (!data || typeof data !== 'object') {
-        throw new Error('Invalid response format - not an object');
-      }
-      
-      if (!data.users) {
-        console.error('❌ Missing users property in response:', data);
-        throw new Error('Invalid response format - missing users property');
-      }
-      
-      setUsers(data.users);
-      setPagination(data.pagination);
+      setUsers(response.users);
+      setPagination(response.pagination);
       setError(null);
     } catch (err) {
       console.error('❌ fetchUsers error:', err);
@@ -109,32 +48,13 @@ const UserManagement: React.FC = () => {
 
   const fetchUserStats = useCallback(async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-      const url = apiUrl('/users/stats/overview');
-      console.log('🔗 Fetching user stats from:', url);
-      
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      console.log('📡 User Stats API Response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ User Stats API Error Response:', errorText);
-        throw new Error(`Failed to fetch user statistics: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log('📦 User Stats API Response data:', data);
+      console.log('� Fetching user statistics...');
+      const data = await UserService.getUserStats();
       setUserStats(data);
     } catch (err) {
       console.error('❌ fetchUserStats error:', err);
     }
-  }, []); // Empty dependency array
+  }, []);
 
   useEffect(() => {
     fetchUsers(currentPage, searchTerm, roleFilter);
@@ -185,6 +105,10 @@ const UserManagement: React.FC = () => {
     if (selectedUserIds.length === 0) return;
 
     try {
+      // TODO: Implement bulk update with Supabase
+      console.log('Bulk update not yet implemented for Supabase, newRole:', newRole);
+      setSelectedUserIds([]);
+      /*
       const token = localStorage.getItem('auth_token');
       const response = await fetch(apiUrl('/users/bulk-update-roles'), {
         method: 'PATCH',
@@ -205,6 +129,7 @@ const UserManagement: React.FC = () => {
       fetchUsers(currentPage, searchTerm, roleFilter);
       fetchUserStats();
       setSelectedUserIds([]);
+      */
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update user roles');
     }
@@ -304,7 +229,7 @@ const UserManagement: React.FC = () => {
               <UserCog className="w-8 h-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Groomers</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-2xl font-bold text-gray-900">{userStats.overview?.groomers || 0}</p>
               </div>
             </div>
           </div>
@@ -447,7 +372,7 @@ const UserManagement: React.FC = () => {
                     </span>
                   </td>
                   <td className="hidden sm:table-cell px-3 md:px-6 py-4 text-xs md:text-sm text-gray-500">
-                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                    {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
                   </td>
                   <td className="px-3 md:px-6 py-4">
                     <div className="flex items-center gap-1 md:gap-2">
@@ -530,7 +455,7 @@ const UserManagement: React.FC = () => {
                         <span className="ml-1 capitalize">{user.role}</span>
                       </span>
                       <span className="text-xs text-gray-500">
-                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                        {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
                       </span>
                     </div>
                   </div>

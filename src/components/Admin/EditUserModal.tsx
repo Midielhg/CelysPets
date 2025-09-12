@@ -1,21 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Lock, Shield } from 'lucide-react';
-import { apiUrl } from '../../config/api';
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: 'client' | 'admin' | 'groomer';
-  createdAt?: string;
-  updatedAt?: string;
-}
+import { UserService, type User as UserType } from '../../services/userService';
 
 interface EditUserModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUserUpdated: () => void;
-  user: User;
+  user: UserType;
 }
 
 const EditUserModal: React.FC<EditUserModalProps> = ({
@@ -63,32 +54,15 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
     setError(null);
 
     try {
-      const token = localStorage.getItem('auth_token');
       const updateData: any = {
         name: formData.name,
         email: formData.email,
         role: formData.role
       };
 
-      // Only include password if it was changed
-      if (formData.password) {
-        updateData.password = formData.password;
-      }
+      // Note: Password updates would need to be handled through Supabase Auth
 
-      const response = await fetch(apiUrl(`/users/${user.id}`), {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update user');
-      }
-
+      await UserService.updateUser(user.id, updateData);
       onUserUpdated();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update user');
@@ -246,8 +220,8 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
             <div className="text-xs text-amber-800">
               <strong>User Information:</strong><br />
-              Created: {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}<br />
-              Last Updated: {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : 'N/A'}
+              Created: {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}<br />
+              Last Updated: {user.updated_at ? new Date(user.updated_at).toLocaleDateString() : 'N/A'}
             </div>
           </div>
 

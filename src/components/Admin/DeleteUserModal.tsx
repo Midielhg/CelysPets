@@ -1,19 +1,12 @@
 import React, { useState } from 'react';
 import { AlertTriangle, User } from 'lucide-react';
-import { apiUrl } from '../../config/api';
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: 'client' | 'admin' | 'groomer';
-}
+import { UserService, type User as UserType } from '../../services/userService';
 
 interface DeleteUserModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUserDeleted: () => void;
-  user: User;
+  user: UserType;
 }
 
 const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
@@ -36,20 +29,7 @@ const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
     setError(null);
 
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(apiUrl(`/users/${user.id}`), {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete user');
-      }
-
+      await UserService.deleteUser(user.id);
       onUserDeleted();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete user');
