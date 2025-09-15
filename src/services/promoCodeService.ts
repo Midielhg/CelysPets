@@ -1,9 +1,51 @@
 import { supabase } from '../config/supabase'
-import type { Database } from '../types/supabase'
 
-type PromoCode = Database['public']['Tables']['promo_codes']['Row']
-type PromoCodeInsert = Database['public']['Tables']['promo_codes']['Insert']
-type PromoCodeUpdate = Database['public']['Tables']['promo_codes']['Update']
+export interface PromoCode {
+  id: number
+  code: string
+  name: string
+  discount_type: 'percentage' | 'fixed'
+  discount_value: number
+  minimum_amount: number | null
+  max_usage_total: number
+  max_usage_per_customer: number
+  current_usage_total: number
+  valid_from: string | null
+  valid_until: string | null
+  active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface PromoCodeInsert {
+  code: string
+  name: string
+  discount_type: 'percentage' | 'fixed'
+  discount_value: number
+  minimum_amount?: number | null
+  max_usage_total?: number
+  max_usage_per_customer?: number
+  current_usage_total?: number
+  valid_from?: string | null
+  valid_until?: string | null
+  active?: boolean
+}
+
+export interface PromoCodeUpdate {
+  id?: number
+  code?: string
+  name?: string
+  discount_type?: 'percentage' | 'fixed'
+  discount_value?: number
+  minimum_amount?: number | null
+  max_usage_total?: number
+  max_usage_per_customer?: number
+  current_usage_total?: number
+  valid_from?: string | null
+  valid_until?: string | null
+  active?: boolean
+  updated_at?: string
+}
 
 export class PromoCodeService {
   // Get all promo codes (admin only)

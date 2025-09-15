@@ -9,40 +9,38 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
-      users: {
+      user_profiles: {
         Row: {
-          id: number
+          id: string
           email: string
-          password: string
           name: string
           role: 'client' | 'admin' | 'groomer'
-          businessSettings: Json | null
-          googleTokens: Json | null
-          createdAt: string
-          updatedAt: string
+          business_settings: Json | null
+          google_tokens: Json | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
-          id?: number
+          id?: string
           email: string
-          password: string
           name: string
           role?: 'client' | 'admin' | 'groomer'
-          businessSettings?: Json | null
-          googleTokens?: Json | null
-          createdAt?: string
-          updatedAt?: string
+          business_settings?: Json | null
+          google_tokens?: Json | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
-          id?: number
+          id?: string
           email?: string
-          password?: string
           name?: string
           role?: 'client' | 'admin' | 'groomer'
-          businessSettings?: Json | null
-          googleTokens?: Json | null
-          createdAt?: string
-          updatedAt?: string
+          business_settings?: Json | null
+          google_tokens?: Json | null
+          created_at?: string
+          updated_at?: string
         }
+        Relationships: []
       }
       clients: {
         Row: {

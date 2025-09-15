@@ -114,41 +114,38 @@ const PromoCodeManagement: React.FC = () => {
     e.preventDefault();
     
     try {
-      const token = localStorage.getItem('auth_token');
-      const url = editingId 
-        ? apiUrl(`/pricing/promo-codes/${editingId}`)
-        : apiUrl('/pricing/promo-codes');
+      console.log('🔄 Saving promo code...', { editingId, promoForm });
       
-      const method = editingId ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...promoForm,
-          validFrom: promoForm.validFrom || null,
-          validUntil: promoForm.validUntil || null,
-        }),
-      });
+      // Prepare data with correct field names for Supabase
+      const promoData = {
+        code: promoForm.code.toUpperCase(),
+        name: promoForm.name,
+        discount_type: promoForm.discountType as 'percentage' | 'fixed',
+        discount_value: Number(promoForm.discountValue),
+        minimum_amount: promoForm.minimumAmount > 0 ? Number(promoForm.minimumAmount) : null,
+        max_usage_total: Number(promoForm.maxUsageTotal),
+        max_usage_per_customer: Number(promoForm.maxUsagePerCustomer),
+        valid_from: promoForm.validFrom || null,
+        valid_until: promoForm.validUntil || null,
+        active: promoForm.active,
+      };
 
-      if (response.ok) {
-        showToast(
-          `Promo code ${editingId ? 'updated' : 'created'} successfully!`,
-          'success'
-        );
-        setShowModal(false);
-        setPromoForm(emptyPromoCode);
-        setEditingId(null);
-        fetchPromoCodes();
+      console.log('📝 Promo data prepared:', promoData);
+
+      if (editingId) {
+        await PromoCodeService.update(editingId, promoData);
+        showToast('Promo code updated successfully!', 'success');
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save promo code');
+        await PromoCodeService.create(promoData);
+        showToast('Promo code created successfully!', 'success');
       }
+
+      setShowModal(false);
+      setPromoForm(emptyPromoCode);
+      setEditingId(null);
+      fetchPromoCodes();
     } catch (error: any) {
-      console.error('Error saving promo code:', error);
+      console.error('❌ Error saving promo code:', error);
       showToast(error.message || 'Failed to save promo code', 'error');
     }
   };
@@ -169,13 +166,13 @@ const PromoCodeManagement: React.FC = () => {
     setPromoForm({
       code: promoCode.code,
       name: promoCode.name,
-      discountType: promoCode.discountType,
-      discountValue: Number(promoCode.discountValue) || 0,
-      minimumAmount: Number(promoCode.minimumAmount) || 0,
-      maxUsageTotal: promoCode.maxUsageTotal,
-      maxUsagePerCustomer: promoCode.maxUsagePerCustomer,
-      validFrom: formatDateForInput(promoCode.validFrom),
-      validUntil: formatDateForInput(promoCode.validUntil),
+      discountType: promoCode.discount_type,
+      discountValue: Number(promoCode.discount_value) || 0,
+      minimumAmount: Number(promoCode.minimum_amount) || 0,
+      maxUsageTotal: promoCode.max_usage_total,
+      maxUsagePerCustomer: promoCode.max_usage_per_customer,
+      validFrom: formatDateForInput(promoCode.valid_from),
+      validUntil: formatDateForInput(promoCode.valid_until),
       active: promoCode.active,
     });
     setEditingId(promoCode.id);
@@ -186,39 +183,31 @@ const PromoCodeManagement: React.FC = () => {
     if (!deletingId) return;
 
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(apiUrl(`/pricing/promo-codes/${deletingId}`), {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        showToast('Promo code deleted successfully!', 'success');
-        setShowDeleteModal(false);
-        setDeletingId(null);
-        fetchPromoCodes();
-      } else {
-        throw new Error('Failed to delete promo code');
-      }
+      console.log('🗑️ Deleting promo code...', deletingId);
+      
+      await PromoCodeService.delete(deletingId);
+      
+      showToast('Promo code deleted successfully!', 'success');
+      setShowDeleteModal(false);
+      setDeletingId(null);
+      fetchPromoCodes();
     } catch (error) {
-      console.error('Error deleting promo code:', error);
+      console.error('❌ Error deleting promo code:', error);
       showToast('Failed to delete promo code', 'error');
     }
   };
 
   const formatDiscountValue = (promoCode: PromoCode) => {
-    const value = Number(promoCode.discountValue) || 0;
-    return promoCode.discountType === 'percentage' 
+    const value = Number(promoCode.discount_value) || 0;
+    return promoCode.discount_type === 'percentage' 
       ? `${value}%`
       : `$${value.toFixed(2)}`;
   };
 
   const getExpiryStatus = (promoCode: PromoCode) => {
-    if (!promoCode.validUntil) return { text: 'No expiry', color: 'text-green-600' };
+    if (!promoCode.valid_until) return { text: 'No expiry', color: 'text-green-600' };
     
-    const expiry = new Date(promoCode.validUntil);
+    const expiry = new Date(promoCode.valid_until);
     const now = new Date();
     const daysUntilExpiry = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     
@@ -287,7 +276,7 @@ const PromoCodeManagement: React.FC = () => {
             <div>
               <p className="text-xs sm:text-sm text-amber-700">Total Usage</p>
               <p className="text-xl sm:text-2xl font-bold text-amber-900">
-                {promoCodes.reduce((sum, p) => sum + p.currentUsageTotal, 0)}
+                {promoCodes.reduce((sum, p) => sum + p.current_usage_total, 0)}
               </p>
             </div>
           </div>
@@ -299,8 +288,8 @@ const PromoCodeManagement: React.FC = () => {
               <p className="text-xs sm:text-sm text-amber-700">Expiring Soon</p>
               <p className="text-xl sm:text-2xl font-bold text-amber-900">
                 {promoCodes.filter(p => {
-                  if (!p.validUntil) return false;
-                  const expiry = new Date(p.validUntil);
+                  if (!p.valid_until) return false;
+                  const expiry = new Date(p.valid_until);
                   const now = new Date();
                   const daysUntilExpiry = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
                   return daysUntilExpiry >= 0 && daysUntilExpiry < 7;
@@ -356,19 +345,19 @@ const PromoCodeManagement: React.FC = () => {
                       <div>
                         <span className="text-amber-600">Discount:</span>
                         <div className="font-medium text-amber-900">{formatDiscountValue(promoCode)}</div>
-                        {promoCode.minimumAmount != null && Number(promoCode.minimumAmount) > 0 && (
+                        {promoCode.minimum_amount != null && Number(promoCode.minimum_amount) > 0 && (
                           <div className="text-xs text-amber-600">
-                            Min: ${Number(promoCode.minimumAmount).toFixed(2)}
+                            Min: ${Number(promoCode.minimum_amount).toFixed(2)}
                           </div>
                         )}
                       </div>
                       <div>
                         <span className="text-amber-600">Usage:</span>
                         <div className="font-medium text-amber-900">
-                          {promoCode.currentUsageTotal} / {promoCode.maxUsageTotal}
+                          {promoCode.current_usage_total} / {promoCode.max_usage_total}
                         </div>
                         <div className="text-xs text-amber-600">
-                          Max per customer: {promoCode.maxUsagePerCustomer}
+                          Max per customer: {promoCode.max_usage_per_customer}
                         </div>
                       </div>
                     </div>
@@ -419,18 +408,18 @@ const PromoCodeManagement: React.FC = () => {
                         <div className="text-sm font-medium text-amber-900">
                           {formatDiscountValue(promoCode)}
                         </div>
-                        {promoCode.minimumAmount != null && Number(promoCode.minimumAmount) > 0 && (
+                        {promoCode.minimum_amount != null && Number(promoCode.minimum_amount) > 0 && (
                           <div className="text-xs text-amber-600">
-                            Min: ${Number(promoCode.minimumAmount).toFixed(2)}
+                            Min: ${Number(promoCode.minimum_amount).toFixed(2)}
                           </div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-amber-900">
-                          {promoCode.currentUsageTotal} / {promoCode.maxUsageTotal}
+                          {promoCode.current_usage_total} / {promoCode.max_usage_total}
                         </div>
                         <div className="text-xs text-amber-600">
-                          Max per customer: {promoCode.maxUsagePerCustomer}
+                          Max per customer: {promoCode.max_usage_per_customer}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

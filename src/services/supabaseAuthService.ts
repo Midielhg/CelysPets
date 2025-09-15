@@ -35,28 +35,81 @@ export class SupabaseAuthService {
     }
   }
 
-  // Sign in user
+  // Sign in with email and password
   static async signIn(email: string, password: string) {
     try {
+      console.log('🔐 Attempting to sign in with:', email);
+      console.log('🌐 Attempting Supabase authentication...');
+      
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
+        email: email.trim().toLowerCase(),
+        password: password,
       })
 
-      if (error) throw error
+      console.log('📨 Supabase signIn response:', { data, error });
+
+      if (error) {
+        console.error('❌ Supabase signIn error:', error);
+        throw error;
+      }
+
+      if (!data.user) {
+        console.error('❌ No user returned from signIn');
+        throw new Error('No user returned from authentication');
+      }
+
+      console.log('✅ User authenticated:', data.user.email);
+      console.log('👤 User ID:', data.user.id);
 
       // Get user profile
-      const profile = await this.getUserProfile(data.user.id)
+      const profile = await this.getUserProfile(data.user.id);
+      
+      // If no profile exists, create a basic one
+      if (!profile) {
+        console.log('⚠️  No profile found, creating basic profile for user:', data.user.email);
+        const basicProfile = {
+          id: data.user.id,
+          email: data.user.email || '',
+          name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User',
+          role: 'client' as const,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        // Try to create the profile
+        try {
+          const { data: newProfile, error: createError } = await supabase
+            .from('user_profiles')
+            .insert([basicProfile])
+            .select()
+            .single();
+            
+          if (createError) {
+            console.error('❌ Failed to create profile:', createError);
+            // Continue without profile for now
+          } else {
+            console.log('✅ Created basic profile');
+            return { 
+              user: data.user, 
+              profile: newProfile as UserProfile, 
+              session: data.session,
+              error: null 
+            };
+          }
+        } catch (createErr) {
+          console.error('❌ Profile creation error:', createErr);
+        }
+      }
 
       return { 
         user: data.user, 
         profile, 
         session: data.session,
         error: null 
-      }
+      };
     } catch (error: any) {
-      console.error('Sign in error:', error)
-      return { user: null, profile: null, session: null, error: error.message }
+      console.error('🚫 Sign in error:', error);
+      return { user: null, profile: null, session: null, error: error.message };
     }
   }
 

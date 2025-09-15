@@ -1,12 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
-
-// Create a simple untyped client for easier development
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from '../config/supabase';
 
 export interface User {
-  id: number; // Reverted back to number to match current database schema
+  id: string; // UUID from Supabase user_profiles table
   name: string;
   email: string;
   role: 'client' | 'admin' | 'groomer';
@@ -51,9 +46,9 @@ export class UserService {
     try {
       console.log('👥 UserService: Fetching users...', { page, limit, search, roleFilter });
 
-      // Build query
+      // Build query for user_profiles table (not users)
       let query = supabase
-        .from('users')
+        .from('user_profiles')
         .select('id, name, email, role, created_at, updated_at', { count: 'exact' });
 
       // Apply role filter
@@ -106,9 +101,9 @@ export class UserService {
     try {
       console.log('📊 UserService: Fetching user statistics...');
 
-      // Get user counts by role
+      // Get user counts by role from user_profiles table
       const { data: roleCounts, error: roleError } = await supabase
-        .from('users')
+        .from('user_profiles')
         .select('role')
         .not('role', 'is', null);
 
@@ -146,9 +141,9 @@ export class UserService {
         }
       });
 
-      // Get recent users (last 10)
+      // Get recent users (last 10) from user_profiles table
       const { data: recentUsers, error: recentError } = await supabase
-        .from('users')
+        .from('user_profiles')
         .select('id, name, email, role, created_at')
         .order('created_at', { ascending: false })
         .limit(10);
@@ -179,18 +174,19 @@ export class UserService {
     try {
       console.log('➕ UserService: Creating user with auto-generated ID...', userData);
 
-      // Create user profile in our custom users table (let DB generate ID)
+      // Create user profile in our custom user_profiles table (let DB generate ID)
       const userProfile = {
         email: userData.email,
         name: userData.name,
         role: userData.role,
-        password: 'temp123456' // Required by our table schema
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       console.log('🔄 Creating user profile in database...', userProfile);
 
       const { data: profileData, error: profileError } = await supabase
-        .from('users')
+        .from('user_profiles')
         .insert([userProfile])
         .select()
         .single();
@@ -216,12 +212,12 @@ export class UserService {
   /**
    * Update an existing user
    */
-  static async updateUser(id: number, userData: Partial<User>): Promise<User> {
+  static async updateUser(id: string, userData: Partial<User>): Promise<User> {
     try {
       console.log('✏️ UserService: Updating user...', id, userData);
 
       const { data, error } = await supabase
-        .from('users')
+        .from('user_profiles')
         .update(userData)
         .eq('id', id)
         .select()
@@ -243,12 +239,12 @@ export class UserService {
   /**
    * Delete a user
    */
-  static async deleteUser(id: number): Promise<void> {
+  static async deleteUser(id: string): Promise<void> {
     try {
       console.log('🗑️ UserService: Deleting user...', id);
 
       const { error } = await supabase
-        .from('users')
+        .from('user_profiles')
         .delete()
         .eq('id', id);
 
@@ -267,12 +263,12 @@ export class UserService {
   /**
    * Delete multiple users
    */
-  static async deleteMultipleUsers(ids: number[]): Promise<void> {
+  static async deleteMultipleUsers(ids: string[]): Promise<void> {
     try {
       console.log('🗑️ UserService: Deleting multiple users...', ids);
 
       const { error } = await supabase
-        .from('users')
+        .from('user_profiles')
         .delete()
         .in('id', ids);
 
@@ -291,12 +287,12 @@ export class UserService {
   /**
    * Get a single user by ID
    */
-  static async getUserById(id: number): Promise<User | null> {
+  static async getUserById(id: string): Promise<User | null> {
     try {
       console.log('🔍 UserService: Fetching user by ID...', id);
 
       const { data, error } = await supabase
-        .from('users')
+        .from('user_profiles')
         .select('id, name, email, role, created_at, updated_at')
         .eq('id', id)
         .single();

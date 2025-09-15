@@ -54,17 +54,34 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
     setError(null);
 
     try {
-      const updateData: any = {
+      console.log('🔄 EditUserModal: Starting user update...', {
+        userId: user.id,
+        currentRole: user.role,
+        newRole: formData.role,
         name: formData.name,
-        email: formData.email,
-        role: formData.role
+        email: formData.email
+      });
+
+      const updateData = {
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        role: formData.role,
+        updated_at: new Date().toISOString()
       };
 
-      // Note: Password updates would need to be handled through Supabase Auth
+      console.log('📝 Update data being sent:', updateData);
 
-      await UserService.updateUser(user.id, updateData);
+      const updatedUser = await UserService.updateUser(user.id, updateData);
+      
+      console.log('✅ User update response:', updatedUser);
+      console.log('🎯 Role changed from', user.role, 'to', updatedUser.role);
+
+      // Close modal and refresh list
+      handleClose();
       onUserUpdated();
+      
     } catch (err) {
+      console.error('❌ EditUserModal: Update failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to update user');
     } finally {
       setLoading(false);
@@ -195,7 +212,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
               User Role
             </label>
             <div className="relative">
-              <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
               <select
                 id="role"
                 value={formData.role}
@@ -203,17 +220,23 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
                   ...prev, 
                   role: e.target.value as 'client' | 'admin' | 'groomer' 
                 }))}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent appearance-none"
+                className="w-full pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent appearance-none bg-white cursor-pointer"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                  backgroundPosition: 'right 8px center',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundSize: '16px'
+                }}
               >
-                <option value="client">Client</option>
-                <option value="groomer">Groomer</option>
-                <option value="admin">Admin</option>
+                <option value="client">👤 Client</option>
+                <option value="groomer">✂️ Groomer</option>
+                <option value="admin">🔐 Admin</option>
               </select>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {formData.role === 'client' && 'Can book appointments and manage their profile'}
-              {formData.role === 'groomer' && 'Can view assigned appointments and manage routes'}
-              {formData.role === 'admin' && 'Full access to all features and user management'}
+              {formData.role === 'client' && '👤 Can book appointments and manage their profile'}
+              {formData.role === 'groomer' && '✂️ Can view assigned appointments and manage routes'}
+              {formData.role === 'admin' && '🔐 Full access to all features and user management'}
             </p>
           </div>
 
