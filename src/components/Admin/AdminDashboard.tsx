@@ -22,7 +22,7 @@ const AdminDashboard: React.FC = () => {
       return <ClientManagement />;
     } else if (location.pathname === '/admin/users') {
       return <UserManagement />;
-    } else if (location.pathname === '/admin/settings') {
+    } else if (location.pathname === '/admin/pricings') {
       return <PricingManagement />;
     } else if (location.pathname === '/admin/promo-codes') {
       return <PromoCodeManagement />;

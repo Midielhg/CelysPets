@@ -5,9 +5,9 @@ import {
   BarChart3, 
   Calendar, 
   Users, 
-  Settings,
   User,
-  Tag
+  Tag,
+  DollarSign
 } from 'lucide-react';
 import Logo from './Logo';
 
@@ -50,10 +50,10 @@ const Navbar: React.FC = () => {
       path: '/admin/promo-codes'
     },
     {
-      id: 'settings',
-      label: 'Settings',
-      icon: Settings,
-      path: '/admin/settings'
+      id: 'pricings',
+      label: 'Pricings',
+      icon: DollarSign,
+      path: '/admin/pricings'
     }
   ];
 

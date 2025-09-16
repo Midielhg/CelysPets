@@ -17,6 +17,51 @@ export class ClientService {
     return data || []
   }
 
+  // Get clients with pagination
+  static async getAllWithPagination(options: {
+    page: number;
+    limit: number;
+    search?: string;
+  }): Promise<{
+    clients: Client[];
+    totalCount: number;
+    totalPages: number;
+    currentPage: number;
+  }> {
+    const { page, limit, search } = options;
+    const offset = (page - 1) * limit;
+
+    // Build the query
+    let query = supabase
+      .from('clients')
+      .select('*', { count: 'exact' });
+
+    // Add search filter if provided
+    if (search && search.trim()) {
+      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
+    }
+
+    // Add pagination and ordering
+    const { data, error, count } = await query
+      .order('name', { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Error fetching clients with pagination:', error);
+      throw error;
+    }
+
+    const totalCount = count || 0;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      clients: data || [],
+      totalCount,
+      totalPages,
+      currentPage: page
+    };
+  }
+
   // Get client by ID
   static async getById(id: number): Promise<Client | null> {
     const { data, error } = await supabase
@@ -88,6 +133,11 @@ export class ClientService {
       .eq('id', id)
 
     if (error) throw error
+  }
+
+  // Delete client by ID (alias for delete method)
+  static async deleteById(id: number): Promise<void> {
+    return this.delete(id);
   }
 
   // Search clients by name or email

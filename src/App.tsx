@@ -77,7 +77,7 @@ function App() {
                   } 
                 />
                 <Route 
-                  path="/admin/settings" 
+                  path="/admin/pricings" 
                   element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminDashboard />

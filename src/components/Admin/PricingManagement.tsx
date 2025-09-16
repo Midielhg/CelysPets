@@ -1,18 +1,33 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { apiUrl } from '../../config/api';
 import { useToast } from '../../contexts/ToastContext';
-import type { Breed, AdditionalService, Species, SizeCategory } from '../../types/pricing';
+import { PricingService } from '../../services/pricingService';
+import type { Breed, AdditionalService, BreedInsert, BreedUpdate, AdditionalServiceInsert, AdditionalServiceUpdate } from '../../services/pricingService';
 
-const emptyBreed: Partial<Breed> = { species: 'dog', name: '', sizeCategory: 'small', fullGroomPrice: 0, fullGroomDuration: 90, active: true };
-const emptyAddon: Partial<AdditionalService> = { code: '', name: '', price: 0, duration: 30, description: '', active: true };
+type Species = 'dog' | 'cat';
+type SizeCategory = 'small' | 'medium' | 'large' | 'extra-large';
+
+const emptyBreed: Partial<BreedInsert> = { 
+  species: 'dog', 
+  name: '', 
+  size_category: 'small', 
+  full_groom_price: 0, 
+  bath_only_price: 0,
+  active: true 
+};
+
+const emptyAddon: Partial<AdditionalServiceInsert> = { 
+  code: '', 
+  name: '', 
+  price: 0, 
+  description: '', 
+  active: true 
+};
 
 const sizeLabels: Record<SizeCategory, string> = {
   small: 'Small (0-15 lbs)',
   medium: 'Medium (16-40 lbs)',
   large: 'Large (41-70 lbs)',
-  xlarge: 'X Large (71-90 lbs)',
-  xxlarge: 'XX Large (91+ lbs)',
-  all: 'All sizes',
+  'extra-large': 'X Large (71+ lbs)',
 };
 
 interface ModalProps {
@@ -50,8 +65,8 @@ const PricingManagement: React.FC = () => {
   const [breeds, setBreeds] = useState<Breed[]>([]);
   const [addons, setAddons] = useState<AdditionalService[]>([]);
   const [loading, setLoading] = useState(true);
-  const [breedForm, setBreedForm] = useState<Partial<Breed>>(emptyBreed);
-  const [addonForm, setAddonForm] = useState<Partial<AdditionalService>>(emptyAddon);
+  const [breedForm, setBreedForm] = useState<Partial<Breed>>(emptyBreed as any);
+  const [addonForm, setAddonForm] = useState<Partial<AdditionalService>>(emptyAddon as any);
   const [filterSpecies, setFilterSpecies] = useState<Species | 'all'>('all');
   
   // Modal states
@@ -67,19 +82,19 @@ const PricingManagement: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [bRes, aRes] = await Promise.all([
-        fetch(apiUrl('/pricing/breeds')),
-        fetch(apiUrl('/pricing/additional-services')),
+      console.log('Loading pricing data from Supabase...');
+      const [breedsData, addonsData] = await Promise.all([
+        PricingService.getAllBreeds(),
+        PricingService.getAllAdditionalServices(),
       ]);
       
-      if (!bRes.ok || !aRes.ok) {
-        throw new Error('Failed to load pricing data');
-      }
+      console.log('Loaded breeds:', breedsData);
+      console.log('Loaded additional services:', addonsData);
       
-      setBreeds(await bRes.json());
-      setAddons(await aRes.json());
+      setBreeds(breedsData);
+      setAddons(addonsData);
     } catch (e) {
-      console.error(e);
+      console.error('Error loading pricing data:', e);
       showToast('Failed to load pricing data', 'error');
     } finally {
       setLoading(false);
@@ -89,34 +104,45 @@ const PricingManagement: React.FC = () => {
   useEffect(() => { loadData(); }, []);
 
   const saveBreed = async () => {
-    if (!breedForm.name || !breedForm.fullGroomPrice || !breedForm.species || !breedForm.sizeCategory) {
+    if (!breedForm.name || !breedForm.full_groom_price || !breedForm.species || !breedForm.size_category) {
       showToast('Please fill in all required fields', 'error');
       return;
     }
     
     try {
-      const method = (breedForm as any).id ? 'PUT' : 'POST';
-      const url = (breedForm as any).id ? `/pricing/breeds/${(breedForm as any).id}` : '/pricing/breeds';
-      const token = localStorage.getItem('auth_token');
+      console.log('Saving breed:', breedForm);
       
-      const response = await fetch(apiUrl(url), {
-        method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(breedForm),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Server error:', errorData);
-        throw new Error('Failed to save breed');
+      if ((breedForm as any).id) {
+        // Update existing breed
+        const updates: BreedUpdate = {
+          name: breedForm.name,
+          species: breedForm.species,
+          size_category: breedForm.size_category,
+          full_groom_price: breedForm.full_groom_price,
+          bath_only_price: breedForm.bath_only_price || 0,
+          active: breedForm.active
+        };
+        await PricingService.updateBreed((breedForm as any).id, updates);
+        showToast('Breed updated successfully', 'success');
+      } else {
+        // Create new breed
+        const newBreed: BreedInsert = {
+          name: breedForm.name,
+          species: breedForm.species,
+          size_category: breedForm.size_category,
+          full_groom_price: breedForm.full_groom_price,
+          bath_only_price: breedForm.bath_only_price || 0,
+          active: breedForm.active !== false
+        };
+        await PricingService.createBreed(newBreed);
+        showToast('Breed added successfully', 'success');
       }
       
-      setBreedForm(emptyBreed);
+      setBreedForm(emptyBreed as any);
       setShowBreedModal(false);
       loadData();
-      showToast((breedForm as any).id ? 'Breed updated successfully' : 'Breed added successfully', 'success');
     } catch (e) {
-      console.error(e);
+      console.error('Error saving breed:', e);
       showToast('Failed to save breed', 'error');
     }
   };
@@ -128,26 +154,37 @@ const PricingManagement: React.FC = () => {
     }
     
     try {
-      const method = (addonForm as any).id ? 'PUT' : 'POST';
-      const url = (addonForm as any).id ? `/pricing/additional-services/${(addonForm as any).id}` : '/pricing/additional-services';
-      const token = localStorage.getItem('auth_token');
+      console.log('Saving additional service:', addonForm);
       
-      const response = await fetch(apiUrl(url), {
-        method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(addonForm),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to save service');
+      if ((addonForm as any).id) {
+        // Update existing service
+        const updates: AdditionalServiceUpdate = {
+          code: addonForm.code,
+          name: addonForm.name,
+          price: addonForm.price,
+          description: addonForm.description || '',
+          active: addonForm.active
+        };
+        await PricingService.updateAdditionalService((addonForm as any).id, updates);
+        showToast('Service updated successfully', 'success');
+      } else {
+        // Create new service
+        const newService: AdditionalServiceInsert = {
+          code: addonForm.code,
+          name: addonForm.name,
+          price: addonForm.price,
+          description: addonForm.description || '',
+          active: addonForm.active !== false
+        };
+        await PricingService.createAdditionalService(newService);
+        showToast('Service added successfully', 'success');
       }
       
-      setAddonForm(emptyAddon);
+      setAddonForm(emptyAddon as any);
       setShowAddonModal(false);
       loadData();
-      showToast((addonForm as any).id ? 'Service updated successfully' : 'Service added successfully', 'success');
     } catch (e) {
-      console.error(e);
+      console.error('Error saving additional service:', e);
       showToast('Failed to save service', 'error');
     }
   };
@@ -156,18 +193,12 @@ const PricingManagement: React.FC = () => {
     if (!deleteTarget) return;
     
     try {
-      const token = localStorage.getItem('auth_token');
-      const endpoint = deleteTarget.type === 'breed' 
-        ? `/pricing/breeds/${deleteTarget.id}`
-        : `/pricing/additional-services/${deleteTarget.id}`;
+      console.log('Deleting:', deleteTarget);
       
-      const response = await fetch(apiUrl(endpoint), {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to delete ${deleteTarget.type}`);
+      if (deleteTarget.type === 'breed') {
+        await PricingService.deleteBreed(deleteTarget.id);
+      } else {
+        await PricingService.deleteAdditionalService(deleteTarget.id);
       }
       
       setShowDeleteModal(false);
@@ -175,28 +206,32 @@ const PricingManagement: React.FC = () => {
       loadData();
       showToast(`${deleteTarget.type === 'breed' ? 'Breed' : 'Service'} deleted successfully`, 'success');
     } catch (e) {
-      console.error(e);
+      console.error('Error deleting:', e);
       showToast(`Failed to delete ${deleteTarget?.type}`, 'error');
     }
   };
 
   const openEditBreed = (breed: Breed) => {
+    console.log('Opening edit breed modal for:', breed);
     setBreedForm(breed);
     setShowBreedModal(true);
   };
 
   const openAddBreed = () => {
-    setBreedForm(emptyBreed);
+    console.log('Opening add breed modal');
+    setBreedForm(emptyBreed as any);
     setShowBreedModal(true);
   };
 
   const openEditAddon = (addon: AdditionalService) => {
+    console.log('Opening edit addon modal for:', addon);
     setAddonForm(addon);
     setShowAddonModal(true);
   };
 
   const openAddAddon = () => {
-    setAddonForm(emptyAddon);
+    console.log('Opening add addon modal');
+    setAddonForm(emptyAddon as any);
     setShowAddonModal(true);
   };
 
@@ -262,9 +297,9 @@ const PricingManagement: React.FC = () => {
                 <tr key={breed.id} className="hover:bg-amber-50/50 transition-colors duration-200">
                   <td className="px-6 py-4 capitalize text-amber-800">{breed.species}</td>
                   <td className="px-6 py-4 font-medium text-amber-900">{breed.name}</td>
-                  <td className="px-6 py-4 text-amber-700">{sizeLabels[breed.sizeCategory as SizeCategory]}</td>
-                  <td className="px-6 py-4 font-semibold text-rose-600">${Number(breed.fullGroomPrice).toFixed(2)}</td>
-                  <td className="px-6 py-4 text-amber-700">{breed.fullGroomDuration ? `${breed.fullGroomDuration} min` : 'Not set'}</td>
+                  <td className="px-6 py-4 text-amber-700">{sizeLabels[breed.size_category as SizeCategory]}</td>
+                  <td className="px-6 py-4 font-semibold text-rose-600">${Number(breed.full_groom_price).toFixed(2)}</td>
+                  <td className="px-6 py-4 text-amber-700">Standard</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex justify-center space-x-2">
                       <button 
@@ -314,7 +349,6 @@ const PricingManagement: React.FC = () => {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-amber-900">Code</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-amber-900">Service Name</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-amber-900">Price</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-amber-900">Duration</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-amber-900">Description</th>
                 <th className="px-6 py-4 text-center text-sm font-semibold text-amber-900">Actions</th>
               </tr>
@@ -325,7 +359,6 @@ const PricingManagement: React.FC = () => {
                   <td className="px-6 py-4 font-mono text-sm text-amber-800 bg-amber-50/50 rounded">{addon.code}</td>
                   <td className="px-6 py-4 font-medium text-amber-900">{addon.name}</td>
                   <td className="px-6 py-4 font-semibold text-rose-600">${Number(addon.price).toFixed(2)}</td>
-                  <td className="px-6 py-4 text-amber-700">{addon.duration ? `${addon.duration} min` : 'Not set'}</td>
                   <td className="px-6 py-4 text-sm text-amber-700">{addon.description || '—'}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex justify-center space-x-2">
@@ -393,11 +426,11 @@ const PricingManagement: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-amber-800 mb-2">Size Category</label>
             <select 
-              value={breedForm.sizeCategory || 'small'} 
-              onChange={e => setBreedForm(prev => ({...prev, sizeCategory: e.target.value as SizeCategory}))} 
+              value={breedForm.size_category || 'small'} 
+              onChange={e => setBreedForm(prev => ({...prev, size_category: e.target.value as SizeCategory}))} 
               className="w-full border border-amber-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-400"
             >
-              {(['small','medium','large','xlarge','xxlarge'] as SizeCategory[]).map(size => (
+              {(['small','medium','large','extra-large'] as SizeCategory[]).map(size => (
                 <option value={size} key={size}>{sizeLabels[size]}</option>
               ))}
             </select>
@@ -410,20 +443,21 @@ const PricingManagement: React.FC = () => {
               step="0.01" 
               min="0" 
               placeholder="0.00"
-              value={Number(breedForm.fullGroomPrice) || ''} 
-              onChange={e => setBreedForm(prev => ({...prev, fullGroomPrice: parseFloat(e.target.value) || 0}))} 
+              value={Number(breedForm.full_groom_price) || ''} 
+              onChange={e => setBreedForm(prev => ({...prev, full_groom_price: parseFloat(e.target.value) || 0}))} 
               className="w-full border border-amber-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-400"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-amber-800 mb-2">Full Groom Duration (minutes)</label>
+            <label className="block text-sm font-medium text-amber-800 mb-2">Bath Only Price ($)</label>
             <input 
               type="number" 
-              min="1" 
-              placeholder="90"
-              value={Number(breedForm.fullGroomDuration) || ''} 
-              onChange={e => setBreedForm(prev => ({...prev, fullGroomDuration: parseInt(e.target.value) || 90}))} 
+              step="0.01" 
+              min="0" 
+              placeholder="0.00"
+              value={Number(breedForm.bath_only_price) || ''} 
+              onChange={e => setBreedForm(prev => ({...prev, bath_only_price: parseFloat(e.target.value) || 0}))} 
               className="w-full border border-amber-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-400"
             />
           </div>
@@ -432,7 +466,7 @@ const PricingManagement: React.FC = () => {
             <button 
               onClick={() => {
                 setShowBreedModal(false);
-                setBreedForm(emptyBreed);
+                setBreedForm(emptyBreed as any);
               }}
               className="flex-1 px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors duration-200"
             >
@@ -453,7 +487,7 @@ const PricingManagement: React.FC = () => {
         isOpen={showAddonModal} 
         onClose={() => {
           setShowAddonModal(false);
-          setAddonForm(emptyAddon);
+          setAddonForm(emptyAddon as any);
         }}
         title={(addonForm as any).id ? 'Edit Service' : 'Add New Service'}
       >
@@ -494,18 +528,6 @@ const PricingManagement: React.FC = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-amber-800 mb-2">Duration (minutes)</label>
-            <input 
-              type="number" 
-              min="1" 
-              placeholder="30"
-              value={Number(addonForm.duration) || ''} 
-              onChange={e => setAddonForm(prev => ({...prev, duration: parseInt(e.target.value) || 30}))} 
-              className="w-full border border-amber-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-400"
-            />
-          </div>
-          
-          <div>
             <label className="block text-sm font-medium text-amber-800 mb-2">Description (Optional)</label>
             <textarea 
               placeholder="Brief description of the service..."
@@ -520,7 +542,7 @@ const PricingManagement: React.FC = () => {
             <button 
               onClick={() => {
                 setShowAddonModal(false);
-                setAddonForm(emptyAddon);
+                setAddonForm(emptyAddon as any);
               }}
               className="flex-1 px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors duration-200"
             >

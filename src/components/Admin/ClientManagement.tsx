@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../contexts/ToastContext';
-import type { Pet, Client } from '../../types';
+import type { Pet } from '../../types';
 import { ClientService } from '../../services/clientService';
 import { PricingService } from '../../services/pricingService';
+import type { Database } from '../../types/supabase';
 import { Search, Users, Plus, Edit3, Trash2, Eye, Phone, Mail, MapPin } from 'lucide-react';
+
+type Client = Database['public']['Tables']['clients']['Row'];
+
+// Helper function to safely get pets array
+const getPetsArray = (pets: Client['pets']): Pet[] => {
+  if (!pets) return [];
+  if (Array.isArray(pets)) return pets as unknown as Pet[];
+  return [];
+};
 
 const ClientManagement: React.FC = () => {
   const { showToast } = useToast();
@@ -61,9 +71,9 @@ const ClientManagement: React.FC = () => {
       
       setClients(result.clients);
       setTotalPages(result.totalPages);
-      setTotalClients(result.total);
+      setTotalClients(result.totalCount);
       
-      console.log('Clients loaded:', result.clients.length, 'Total:', result.total);
+      console.log('Clients loaded:', result.clients.length, 'Total:', result.totalCount);
     } catch (error) {
       console.error('Error fetching clients:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -73,7 +83,7 @@ const ClientManagement: React.FC = () => {
     }
   };
 
-  const handleDeleteClient = async (clientId: string) => {
+  const handleDeleteClient = async (clientId: number) => {
     if (!confirm('Are you sure you want to delete this client? This action cannot be undone.')) {
       return;
     }
@@ -155,25 +165,28 @@ const ClientManagement: React.FC = () => {
         </div>
       </div>
 
-      {client.pets && client.pets.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-amber-100">
-          <div className="text-sm font-medium text-amber-800 mb-2">
-            Pets ({client.pets.length})
+      {(() => {
+        const clientPets = getPetsArray(client.pets);
+        return clientPets.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-amber-100">
+            <div className="text-sm font-medium text-amber-800 mb-2">
+              Pets ({clientPets.length})
+            </div>
+            <div className="space-y-1">
+              {clientPets.slice(0, 2).map((pet: Pet, index: number) => (
+                <div key={index} className="text-xs text-amber-600">
+                  {pet.name} - {pet.breed} {pet.type && `(${pet.type})`}
+                </div>
+              ))}
+              {clientPets.length > 2 && (
+                <div className="text-xs text-amber-500">
+                  +{clientPets.length - 2} more pets
+                </div>
+              )}
+            </div>
           </div>
-          <div className="space-y-1">
-            {client.pets.slice(0, 2).map((pet: Pet, index: number) => (
-              <div key={index} className="text-xs text-amber-600">
-                {pet.name} - {pet.breed} {pet.type && `(${pet.type})`}
-              </div>
-            ))}
-            {client.pets.length > 2 && (
-              <div className="text-xs text-amber-500">
-                +{client.pets.length - 2} more pets
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 
@@ -322,18 +335,21 @@ const ClientManagement: React.FC = () => {
                     <p><strong>Email:</strong> {selectedClient.email}</p>
                     <p><strong>Phone:</strong> {formatPhone(selectedClient.phone)}</p>
                     <p><strong>Address:</strong> {selectedClient.address}</p>
-                    {selectedClient.pets && selectedClient.pets.length > 0 && (
-                      <div>
-                        <strong>Pets:</strong>
-                        <ul className="ml-4 list-disc">
-                          {selectedClient.pets.map((pet: Pet, index: number) => (
-                            <li key={index}>
-                              {pet.name} - {pet.breed} {pet.type && `(${pet.type})`}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                    {(() => {
+                      const selectedClientPets = getPetsArray(selectedClient.pets);
+                      return selectedClientPets.length > 0 && (
+                        <div>
+                          <strong>Pets:</strong>
+                          <ul className="ml-4 list-disc">
+                            {selectedClientPets.map((pet: Pet, index: number) => (
+                              <li key={index}>
+                                {pet.name} - {pet.breed} {pet.type && `(${pet.type})`}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
