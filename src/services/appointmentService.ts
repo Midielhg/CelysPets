@@ -19,11 +19,6 @@ export class AppointmentService {
           phone,
           pets
         ),
-        groomers:groomer_id (
-          id,
-          name,
-          email
-        ),
         promo_codes:promo_code_id (
           code,
           name,

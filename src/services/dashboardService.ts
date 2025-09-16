@@ -135,13 +135,11 @@ export class DashboardService {
           status,
           total_amount,
           services,
+          groomer_id,
           clients (
             name,
             email,
             phone
-          ),
-          users!groomer_id (
-            name
           )
         `)
         .eq('date', today)

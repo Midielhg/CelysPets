@@ -8,10 +8,6 @@ interface ClientInfo {
   phone: string;
 }
 
-interface GroomerInfo {
-  name: string;
-}
-
 interface AppointmentItem {
   id: number;
   date: string;
@@ -19,8 +15,8 @@ interface AppointmentItem {
   status: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled';
   total_amount: number | null;
   services: any;
-  clients: ClientInfo;
-  users: GroomerInfo | null;
+  groomer_id: number | null;
+  clients: ClientInfo | null;
 }
 
 function formatTimeLabel(time: string) {
@@ -45,7 +41,7 @@ export default function TodaySchedule() {
       console.log('TodaySchedule: Fetching schedule from Supabase...');
       const data = await DashboardService.getTodaySchedule();
       console.log('TodaySchedule: Received data:', data);
-      if (mounted) setItems(data as AppointmentItem[]);
+      if (mounted) setItems(data as any);
     } catch (e: any) {
       console.error('TodaySchedule: Error fetching schedule:', e);
       if (mounted) setError(e?.message || 'Failed to load schedule');
@@ -82,7 +78,7 @@ export default function TodaySchedule() {
               <div key={a.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div>
                   <p className="font-medium text-gray-900">{formatTimeLabel(a.time)} - {a.clients?.name || 'Client'}</p>
-                  <p className="text-sm text-gray-600">{a.users?.name || 'No groomer assigned'}</p>
+                  <p className="text-sm text-gray-600">{a.groomer_id ? `Groomer ID: ${a.groomer_id}` : 'No groomer assigned'}</p>
                   <p className="text-xs text-gray-500">{a.clients?.phone || a.clients?.email || ''}</p>
                 </div>
                 <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
