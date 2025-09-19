@@ -125,6 +125,30 @@ export class SupabaseAuthService {
     }
   }
 
+  // Refresh the current session
+  static async refreshSession() {
+    try {
+      const { data, error } = await supabase.auth.refreshSession()
+      if (error) throw error
+      return { session: data.session, user: data.user, error: null }
+    } catch (error: any) {
+      console.error('Refresh session error:', error)
+      return { session: null, user: null, error: error.message }
+    }
+  }
+
+  // Get current session
+  static async getSession() {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession()
+      if (error) throw error
+      return session
+    } catch (error: any) {
+      console.error('Get session error:', error)
+      return null
+    }
+  }
+
   // Get current user
   static async getCurrentUser() {
     try {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useToast } from '../../contexts/ToastContext';
 import type { Pet } from '../../types';
 import { ClientService } from '../../services/clientService';
-import { PricingService } from '../../services/pricingService';
+import { PricingService, type Breed } from '../../services/pricingService';
 import type { Database } from '../../types/supabase';
 import { Search, Users, Plus, Edit3, Trash2, Eye, Phone, Mail, MapPin } from 'lucide-react';
 
@@ -27,7 +27,7 @@ const ClientManagement: React.FC = () => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<'view' | 'edit' | 'create'>('view');
-  const [breeds, setBreeds] = useState<any[]>([]);
+  const [breeds, setBreeds] = useState<Breed[]>([]);
   
   const itemsPerPage = 12;
 
@@ -51,7 +51,9 @@ const ClientManagement: React.FC = () => {
 
   const fetchBreeds = async () => {
     try {
+      console.log('ClientManagement: Fetching breeds...');
       const breedsData = await PricingService.getAllBreeds();
+      console.log('ClientManagement: Received breeds:', breedsData);
       setBreeds(breedsData);
     } catch (error) {
       console.error('Error fetching breeds:', error);
@@ -129,7 +131,7 @@ const ClientManagement: React.FC = () => {
             {client.email}
           </div>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex space-x-1">
           <button
             onClick={() => openModal('view', client)}
             className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
@@ -189,6 +191,495 @@ const ClientManagement: React.FC = () => {
       })()}
     </div>
   );
+
+  // Client Modal Component
+  const ClientModal: React.FC = () => {
+    const [formData, setFormData] = useState({
+      name: selectedClient?.name || '',
+      email: selectedClient?.email || '',
+      phone: selectedClient?.phone || '',
+      address: selectedClient?.address || '',
+      pets: selectedClient?.pets ? getPetsArray(selectedClient.pets) : []
+    });
+    
+    const [currentPet, setCurrentPet] = useState<Pet>({
+      name: '',
+      breed: '',
+      breedId: null,
+      age: undefined,
+      type: undefined,
+      weight: '',
+      specialInstructions: ''
+    });
+    
+    const [showPetForm, setShowPetForm] = useState(false);
+    const [editingPetIndex, setEditingPetIndex] = useState<number | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Load breeds when modal opens
+    useEffect(() => {
+      console.log('Modal useEffect: breeds.length =', breeds.length);
+      if (breeds.length === 0) {
+        console.log('Modal: Fetching breeds because array is empty');
+        fetchBreeds();
+      }
+    }, []);
+
+    // Reset form when selectedClient changes
+    useEffect(() => {
+      if (selectedClient) {
+        setFormData({
+          name: selectedClient.name || '',
+          email: selectedClient.email || '',
+          phone: selectedClient.phone || '',
+          address: selectedClient.address || '',
+          pets: getPetsArray(selectedClient.pets)
+        });
+      } else {
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          address: '',
+          pets: []
+        });
+      }
+    }, [selectedClient]);
+
+    const handleInputChange = (field: string, value: string) => {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handlePetInputChange = (field: keyof Pet, value: string | number | undefined) => {
+      setCurrentPet(prev => ({ ...prev, [field]: value }));
+    };
+
+    const addOrUpdatePet = () => {
+      if (!currentPet.name || !currentPet.breed) {
+        showToast('Pet name and breed are required', 'error');
+        return;
+      }
+
+      const updatedPets = [...formData.pets];
+      if (editingPetIndex !== null) {
+        updatedPets[editingPetIndex] = currentPet;
+        showToast('Pet updated successfully', 'success');
+      } else {
+        updatedPets.push(currentPet);
+        showToast('Pet added successfully', 'success');
+      }
+
+      setFormData(prev => ({ ...prev, pets: updatedPets }));
+      setCurrentPet({
+        name: '',
+        breed: '',
+        breedId: null,
+        age: undefined,
+        type: undefined,
+        weight: '',
+        specialInstructions: ''
+      });
+      setShowPetForm(false);
+      setEditingPetIndex(null);
+    };
+
+    const editPet = (index: number) => {
+      const petToEdit = formData.pets[index];
+      setCurrentPet({ ...petToEdit });
+      setEditingPetIndex(index);
+      setShowPetForm(true);
+    };
+
+    const removePet = (index: number) => {
+      const updatedPets = formData.pets.filter((_, i) => i !== index);
+      setFormData(prev => ({ ...prev, pets: updatedPets }));
+      showToast('Pet removed successfully', 'success');
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      if (!formData.name || !formData.email || !formData.phone) {
+        showToast('Name, email, and phone are required', 'error');
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        if (modalMode === 'create') {
+          await ClientService.create({
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            address: formData.address,
+            pets: formData.pets as any
+          });
+          showToast('Client created successfully', 'success');
+        } else if (modalMode === 'edit' && selectedClient) {
+          await ClientService.update(selectedClient.id, {
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            address: formData.address,
+            pets: formData.pets as any
+          });
+          showToast('Client updated successfully', 'success');
+        }
+
+        fetchClients();
+        closeModal();
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        showToast(`Failed to ${modalMode === 'create' ? 'create' : 'update'} client: ${errorMessage}`, 'error');
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    if (modalMode === 'view' && selectedClient) {
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-amber-900">Client Details</h2>
+                <button
+                  onClick={closeModal}
+                  className="text-amber-600 hover:text-amber-800 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-amber-700 mb-1">Name</label>
+                    <p className="text-amber-900">{selectedClient.name}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-amber-700 mb-1">Email</label>
+                    <p className="text-amber-900">{selectedClient.email}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-amber-700 mb-1">Phone</label>
+                    <p className="text-amber-900">{formatPhone(selectedClient.phone)}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-amber-700 mb-1">Address</label>
+                    <p className="text-amber-900">{selectedClient.address}</p>
+                  </div>
+                </div>
+
+                {(() => {
+                  const pets = getPetsArray(selectedClient.pets);
+                  return pets.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-amber-700 mb-2">Pets ({pets.length})</label>
+                      <div className="space-y-2">
+                        {pets.map((pet: Pet, index: number) => (
+                          <div key={index} className="bg-amber-50 p-3 rounded-lg">
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <p><strong>Name:</strong> {pet.name}</p>
+                              <p><strong>Breed:</strong> {pet.breed}</p>
+                              {pet.type && <p><strong>Type:</strong> {pet.type}</p>}
+                              {pet.age && <p><strong>Age:</strong> {pet.age} years</p>}
+                              {pet.weight && <p><strong>Weight:</strong> {pet.weight}</p>}
+                              {pet.specialInstructions && (
+                                <p className="col-span-2"><strong>Special Instructions:</strong> {pet.specialInstructions}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => openModal('edit', selectedClient)}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Edit Client
+                </button>
+                <button
+                  onClick={closeModal}
+                  className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-amber-900">
+                {modalMode === 'create' ? 'Add New Client' : 'Edit Client'}
+              </h2>
+              <button
+                onClick={closeModal}
+                className="text-amber-600 hover:text-amber-800 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Client Information */}
+              <div>
+                <h3 className="text-lg font-medium text-amber-800 mb-3">Client Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-amber-700 mb-1">
+                      Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-rose-400 focus:border-transparent"
+                      placeholder="Client full name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-amber-700 mb-1">
+                      Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-rose-400 focus:border-transparent"
+                      placeholder="client@example.com"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-amber-700 mb-1">
+                      Phone <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-rose-400 focus:border-transparent"
+                      placeholder="(555) 123-4567"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-amber-700 mb-1">Address</label>
+                    <input
+                      type="text"
+                      value={formData.address}
+                      onChange={(e) => handleInputChange('address', e.target.value)}
+                      className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-rose-400 focus:border-transparent"
+                      placeholder="123 Main St, City, State ZIP"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Pets Section */}
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-lg font-medium text-amber-800">Pets ({formData.pets.length})</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowPetForm(true)}
+                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                  >
+                    + Add Pet
+                  </button>
+                </div>
+
+                {/* Pet List */}
+                {formData.pets.length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    {formData.pets.map((pet, index) => (
+                      <div key={index} className="bg-amber-50 p-3 rounded-lg flex justify-between items-center">
+                        <div>
+                          <p className="font-medium text-amber-900">{pet.name}</p>
+                          <p className="text-sm text-amber-600">
+                            {pet.breed} {pet.type && `(${pet.type})`} 
+                            {pet.age && ` - ${pet.age} years`}
+                            {pet.weight && ` - ${pet.weight}`}
+                          </p>
+                          {pet.specialInstructions && (
+                            <p className="text-xs text-amber-500 mt-1">{pet.specialInstructions}</p>
+                          )}
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => editPet(index)}
+                            className="text-blue-600 hover:bg-blue-50 p-1 rounded"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removePet(index)}
+                            className="text-red-600 hover:bg-red-50 p-1 rounded"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Pet Form */}
+                {showPetForm && (
+                  <div className="bg-gray-50 p-4 rounded-lg border-2 border-dashed border-gray-300">
+                    <h4 className="font-medium text-gray-700 mb-3">
+                      {editingPetIndex !== null ? 'Edit Pet' : 'Add New Pet'}
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Pet Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={currentPet.name}
+                          onChange={(e) => handlePetInputChange('name', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-2 focus:ring-rose-400"
+                          placeholder="Pet name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Breed <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={currentPet.breed}
+                          onChange={(e) => {
+                            const selectedBreed = breeds.find(b => b.name === e.target.value);
+                            handlePetInputChange('breed', e.target.value);
+                            handlePetInputChange('breedId', selectedBreed?.id || undefined);
+                          }}
+                          className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-2 focus:ring-rose-400"
+                        >
+                          <option value="">Select breed</option>
+                          {breeds.map((breed) => (
+                            <option key={breed.id} value={breed.name}>
+                              {breed.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                        <select
+                          value={currentPet.type || ''}
+                          onChange={(e) => handlePetInputChange('type', e.target.value || undefined)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-2 focus:ring-rose-400"
+                        >
+                          <option value="">Select type</option>
+                          <option value="dog">Dog</option>
+                          <option value="cat">Cat</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Age (years)</label>
+                        <input
+                          type="number"
+                          value={currentPet.age || ''}
+                          onChange={(e) => handlePetInputChange('age', e.target.value ? parseInt(e.target.value) : undefined)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-2 focus:ring-rose-400"
+                          placeholder="Pet age"
+                          min="0"
+                          max="30"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Weight</label>
+                        <input
+                          type="text"
+                          value={currentPet.weight || ''}
+                          onChange={(e) => handlePetInputChange('weight', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-2 focus:ring-rose-400"
+                          placeholder="e.g., 15 lbs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Special Instructions</label>
+                        <input
+                          type="text"
+                          value={currentPet.specialInstructions || ''}
+                          onChange={(e) => handlePetInputChange('specialInstructions', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-2 focus:ring-rose-400"
+                          placeholder="Any special notes..."
+                        />
+                      </div>
+                    </div>
+                    <div className="flex space-x-2 mt-3">
+                      <button
+                        type="button"
+                        onClick={addOrUpdatePet}
+                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                      >
+                        {editingPetIndex !== null ? 'Update Pet' : 'Add Pet'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowPetForm(false);
+                          setEditingPetIndex(null);
+                          setCurrentPet({
+                            name: '',
+                            breed: '',
+                            breedId: null,
+                            age: undefined,
+                            type: undefined,
+                            weight: '',
+                            specialInstructions: ''
+                          });
+                        }}
+                        className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? 'Saving...' : modalMode === 'create' ? 'Create Client' : 'Update Client'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="p-6 bg-amber-50 min-h-screen">
@@ -307,55 +798,8 @@ const ClientManagement: React.FC = () => {
           </>
         )}
 
-        {/* Modal Placeholder - You can implement detailed modal here */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-amber-900">
-                    {modalMode === 'create' ? 'Add New Client' : 
-                     modalMode === 'edit' ? 'Edit Client' : 'Client Details'}
-                  </h2>
-                  <button
-                    onClick={closeModal}
-                    className="text-amber-600 hover:text-amber-800"
-                  >
-                    ×
-                  </button>
-                </div>
-                
-                <p className="text-amber-600 mb-4">
-                  Modal implementation for {modalMode} mode coming soon...
-                </p>
-                
-                {selectedClient && (
-                  <div className="space-y-2 text-sm">
-                    <p><strong>Name:</strong> {selectedClient.name}</p>
-                    <p><strong>Email:</strong> {selectedClient.email}</p>
-                    <p><strong>Phone:</strong> {formatPhone(selectedClient.phone)}</p>
-                    <p><strong>Address:</strong> {selectedClient.address}</p>
-                    {(() => {
-                      const selectedClientPets = getPetsArray(selectedClient.pets);
-                      return selectedClientPets.length > 0 && (
-                        <div>
-                          <strong>Pets:</strong>
-                          <ul className="ml-4 list-disc">
-                            {selectedClientPets.map((pet: Pet, index: number) => (
-                              <li key={index}>
-                                {pet.name} - {pet.breed} {pet.type && `(${pet.type})`}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Client Modal */}
+        {showModal && <ClientModal />}
       </div>
     </div>
   );

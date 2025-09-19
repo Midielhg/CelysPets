@@ -84,7 +84,7 @@ const PricingManagement: React.FC = () => {
     try {
       console.log('Loading pricing data from Supabase...');
       const [breedsData, addonsData] = await Promise.all([
-        PricingService.getAllBreeds(),
+        PricingService.getAllBreedsForManagement(),
         PricingService.getAllAdditionalServices(),
       ]);
       

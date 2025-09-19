@@ -293,7 +293,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
   const getBreedPrice = (pet: any) => {
     const breed = getBreedById(pet.breedId);
-    const price = breed ? Number(breed.fullGroomPrice) : 0;
+    const price = breed ? Number(breed.full_groom_price) : 0;
     return price;
   };
 

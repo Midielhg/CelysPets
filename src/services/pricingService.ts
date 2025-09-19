@@ -59,9 +59,9 @@ export interface AdditionalServiceUpdate {
 }
 
 export class PricingService {
-  // Get all breeds
+  // Get all breeds (for client management - only active)
   static async getAllBreeds(): Promise<Breed[]> {
-    console.log('PricingService: Getting all breeds from Supabase');
+    console.log('PricingService: Getting active breeds from Supabase');
     
     const { data, error } = await supabase
       .from('breeds')
@@ -74,7 +74,35 @@ export class PricingService {
       throw new Error(`Failed to fetch breeds: ${error.message}`);
     }
 
-    console.log('PricingService: Found breeds:', data);
+    console.log('PricingService: Found active breeds:', data);
+    return data || [];
+  }
+
+  // Get all breeds for management (including inactive)
+  static async getAllBreedsForManagement(): Promise<Breed[]> {
+    console.log('PricingService: Getting all breeds for management from Supabase');
+    
+    const { data, error } = await supabase
+      .from('breeds')
+      .select('*')
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching breeds for management:', error);
+      throw new Error(`Failed to fetch breeds: ${error.message}`);
+    }
+
+    console.log('PricingService: Found breeds for management:', data);
+    
+    // Check for duplicates by logging IDs
+    const ids = data?.map(breed => breed.id) || [];
+    const uniqueIds = [...new Set(ids)];
+    if (ids.length !== uniqueIds.length) {
+      console.warn('DUPLICATE BREEDS DETECTED:', data);
+      console.log('IDs:', ids);
+      console.log('Unique IDs:', uniqueIds);
+    }
+    
     return data || [];
   }
 

@@ -57,17 +57,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   });
 
   useEffect(() => {
-    // Get initial session
+    // Get initial session with better persistence
     const getInitialSession = async () => {
       try {
-        const { user: currentUser, profile } = await SupabaseAuthService.getCurrentUser();
+        console.log('🔄 Initializing session...');
+        setIsLoading(true);
         
-        if (currentUser && profile) {
-          setSupabaseUser(currentUser);
-          setUser(convertToUser(currentUser, profile));
+        // First try to get the current session from Supabase
+        const session = await SupabaseAuthService.getSession();
+        
+        if (session?.user) {
+          console.log('✅ Found existing session for:', session.user.email);
+          setSession(session);
+          setSupabaseUser(session.user);
+          
+          // Get the user profile
+          const profile = await SupabaseAuthService.getUserProfile(session.user.id);
+          if (profile) {
+            setUser(convertToUser(session.user, profile));
+            console.log('✅ User session restored successfully');
+          }
+        } else {
+          console.log('ℹ️ No existing session found');
         }
       } catch (error) {
-        console.error('Error getting initial session:', error);
+        console.error('❌ Error getting initial session:', error);
       } finally {
         setIsLoading(false);
       }
@@ -77,21 +91,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Listen for auth state changes
     const { data: { subscription } } = SupabaseAuthService.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
+      console.log('🔄 Auth state changed:', event, session?.user?.email);
       
       setSession(session);
       setSupabaseUser(session?.user || null);
 
       if (session?.user) {
         try {
+          console.log('👤 Loading user profile...');
           const profile = await SupabaseAuthService.getUserProfile(session.user.id);
           if (profile) {
-            setUser(convertToUser(session.user, profile));
+            const userData = convertToUser(session.user, profile);
+            setUser(userData);
+            console.log('✅ User authenticated:', userData.email, userData.role);
           }
         } catch (error) {
-          console.error('Error fetching user profile:', error);
+          console.error('❌ Error fetching user profile:', error);
         }
       } else {
+        console.log('👋 User logged out or session expired');
         setUser(null);
       }
 
@@ -159,16 +177,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
+      console.log('🚪 Logging out user...');
       await SupabaseAuthService.signOut();
       setUser(null);
       setSupabaseUser(null);
       setSession(null);
       
-      // Clean up any legacy tokens
+      // Clean up any legacy tokens and session data
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_data');
+      
+      console.log('✅ User logged out successfully');
     } catch (error) {
-      console.error('Logout error:', error);
-      throw new Error('Logout failed');
+      console.error('❌ Logout error:', error);
+      // Even if logout fails, clear local state
+      setUser(null);
+      setSupabaseUser(null);
+      setSession(null);
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_data');
     }
   };
 
