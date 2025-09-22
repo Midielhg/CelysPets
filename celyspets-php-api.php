@@ -345,6 +345,14 @@ switch ($path) {
         handleDebugFrontend($pdo);
         break;
         
+    case 'pricing/breeds':
+        handlePricingBreeds($pdo, $method, $input);
+        break;
+        
+    case 'pricing/additional-services':
+        handlePricingAdditionalServices($pdo, $method, $input);
+        break;
+        
     default:
         http_response_code(404);
         echo json_encode(['error' => 'Endpoint not found: ' . $path]);
@@ -932,6 +940,60 @@ function handleDebugTables($pdo) {
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Debug failed: ' . $e->getMessage()]);
+    }
+}
+
+// Pricing Breeds Handler
+function handlePricingBreeds($pdo, $method, $input) {
+    switch ($method) {
+        case 'GET':
+            try {
+                $stmt = $pdo->prepare("SELECT id, name, species, size_category, full_groom_price, active FROM breeds WHERE active = 1 ORDER BY name");
+                $stmt->execute();
+                $breeds = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Convert to match expected format
+                foreach ($breeds as &$breed) {
+                    $breed['full_groom_price'] = (float)$breed['full_groom_price'];
+                }
+                
+                echo json_encode($breeds);
+            } catch (PDOException $e) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to fetch breeds: ' . $e->getMessage()]);
+            }
+            break;
+            
+        default:
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+    }
+}
+
+// Pricing Additional Services Handler  
+function handlePricingAdditionalServices($pdo, $method, $input) {
+    switch ($method) {
+        case 'GET':
+            try {
+                $stmt = $pdo->prepare("SELECT id, code, name, price, active FROM additional_services WHERE active = 1 ORDER BY name");
+                $stmt->execute();
+                $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Convert to match expected format
+                foreach ($services as &$service) {
+                    $service['price'] = (float)$service['price'];
+                }
+                
+                echo json_encode($services);
+            } catch (PDOException $e) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to fetch additional services: ' . $e->getMessage()]);
+            }
+            break;
+            
+        default:
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
     }
 }
 ?>

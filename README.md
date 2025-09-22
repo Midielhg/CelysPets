@@ -44,16 +44,20 @@ VITE_GOOGLE_MAPS_API_KEY=your_actual_api_key_here
 
 #### For Production:
 1. Copy `.env.production.example` to `.env.production` 
-2. Set the API URL to your PHP backend:
+2. Configure to use Supabase directly (NO PHP API):
 ```bash
-VITE_API_URL=https://celyspets.com/api.php
+VITE_USE_DIRECT_ENDPOINTS=true
+VITE_SUPABASE_URL=https://uizkllezgwpxolcbkaiv.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 #### For Development:
 1. Copy `.env.development.example` to `.env.development`
-2. Set the API URL to your Node.js backend:
+2. Set to use local Node.js backend or Supabase:
 ```bash
 VITE_API_URL=http://localhost:5002/api
+# OR use Supabase directly
+VITE_USE_DIRECT_ENDPOINTS=true
 ```
 
 ### Building for Production
@@ -63,21 +67,20 @@ To create the production build and prepare for deployment:
 ```bash
 # 1. Ensure you have the correct .env.production file
 cp .env.production.example .env.production
-# Edit .env.production with your production API URL
+# Edit .env.production with your Supabase configuration
 
 # 2. Build the frontend with production environment
 npm run build
 
-# 3. Prepare deployment folder
+# 3. Prepare deployment folder (static files only - uses Supabase directly)
 rm -rf simple-static-deploy
 mkdir -p simple-static-deploy
 
 # 4. Copy frontend files
-cp dist/index.html dist/vite.svg simple-static-deploy/
-cp -r dist/assets simple-static-deploy/
+cp -r dist/* simple-static-deploy/
 
-# 5. Copy API backend (with production database settings)
-cp celyspets-php-api.php simple-static-deploy/api.php
+# 5. Upload simple-static-deploy contents to your hosting provider
+# No PHP backend needed - uses Supabase directly
 ```
 
 **Upload the `simple-static-deploy` folder contents to your hosting root directory.**
