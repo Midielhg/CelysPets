@@ -11,7 +11,6 @@ import {
   Phone,
   Navigation
 } from 'lucide-react';
-import AppointmentActionModal from './AppointmentActionModal';
 
 const GroomerDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -27,8 +26,6 @@ const GroomerDashboard: React.FC = () => {
     thisMonthEarnings: 0,
     totalAppointments: 0
   });
-  const [selectedAppointmentForAction, setSelectedAppointmentForAction] = useState<GroomerAppointment | null>(null);
-  const [showActionModal, setShowActionModal] = useState(false);
 
   // Utility functions to extract data from JSON fields
   const getServiceName = (services: any) => {
@@ -117,15 +114,6 @@ const GroomerDashboard: React.FC = () => {
     return appointments
       .filter(apt => new Date(`${apt.date} ${apt.time}`) > now && apt.status !== 'cancelled')
       .sort((a, b) => new Date(`${a.date} ${a.time}`).getTime() - new Date(`${b.date} ${b.time}`).getTime())[0];
-  };
-
-  const openActionModal = (appointment: GroomerAppointment) => {
-    setSelectedAppointmentForAction(appointment);
-    setShowActionModal(true);
-  };
-
-  const handleAppointmentUpdated = () => {
-    fetchGroomerData(); // Refresh all data
   };
 
   if (loading) {
@@ -239,9 +227,9 @@ const GroomerDashboard: React.FC = () => {
               </div>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold">${getServicePrice(nextAppointment)}</div>
-              <div className="text-indigo-100 text-sm">{getServiceName(nextAppointment.services)}</div>
-              <div className="text-indigo-100 text-sm">{getEstimatedDuration(nextAppointment.services)} min</div>
+              <div className="text-2xl font-bold">${nextAppointment.price}</div>
+              <div className="text-indigo-100 text-sm">{nextAppointment.service}</div>
+              <div className="text-indigo-100 text-sm">{nextAppointment.estimatedDuration} min</div>
             </div>
           </div>
         </div>
@@ -283,18 +271,18 @@ const GroomerDashboard: React.FC = () => {
                     </div>
                     <div className="ml-4">
                       <h3 className="font-semibold text-blue-900">
-                        {appointment.time} - {appointment.client.name}
+                        {appointment.time} - {appointment.clientName}
                       </h3>
                       <p className="text-blue-700 text-sm">
-                        {getPetInfo(appointment.client).name} ({getPetInfo(appointment.client).breed}) - {getServiceName(appointment.services)}
+                        {appointment.petName} ({appointment.petBreed}) - {appointment.service}
                       </p>
                       <div className="flex items-center text-gray-600 text-sm mt-1">
                         <MapPin className="w-3 h-3 mr-1" />
-                        {appointment.client.address}
+                        {appointment.clientAddress}
                       </div>
                       <div className="flex items-center text-gray-600 text-sm">
                         <Phone className="w-3 h-3 mr-1" />
-                        {appointment.client.phone}
+                        {appointment.clientPhone}
                       </div>
                     </div>
                   </div>
@@ -310,12 +298,11 @@ const GroomerDashboard: React.FC = () => {
                     }`}>
                       {appointment.status.replace('-', ' ')}
                     </div>
-                    <div className="text-lg font-bold text-blue-900">${getServicePrice(appointment)}</div>
-                    <div className="text-sm text-gray-600">{getEstimatedDuration(appointment.services)} min</div>
+                    <div className="text-lg font-bold text-blue-900">${appointment.price}</div>
+                    <div className="text-sm text-gray-600">{appointment.estimatedDuration} min</div>
                     
                     {/* Action buttons */}
                     <div className="mt-2 space-x-1">
-                      {/* Quick action for confirmed appointments */}
                       {appointment.status === 'confirmed' && (
                         <button
                           onClick={() => updateAppointmentStatus(appointment.id, 'in-progress')}
@@ -324,8 +311,6 @@ const GroomerDashboard: React.FC = () => {
                           Start
                         </button>
                       )}
-                      
-                      {/* Quick action for in-progress appointments */}
                       {appointment.status === 'in-progress' && (
                         <button
                           onClick={() => updateAppointmentStatus(appointment.id, 'completed')}
@@ -334,18 +319,8 @@ const GroomerDashboard: React.FC = () => {
                           Complete
                         </button>
                       )}
-
-                      {/* Manage button - opens comprehensive modal */}
                       <button
-                        onClick={() => openActionModal(appointment)}
-                        className="bg-purple-500 text-white px-2 py-1 rounded text-xs hover:bg-purple-600"
-                      >
-                        Manage
-                      </button>
-
-                      {/* Navigation button */}
-                      <button
-                        onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(appointment.client.address || '')}`, '_blank')}
+                        onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(appointment.clientAddress)}`, '_blank')}
                         className="bg-gray-500 text-white px-2 py-1 rounded text-xs hover:bg-gray-600"
                       >
                         <Navigation className="w-3 h-3 inline" />
@@ -394,26 +369,18 @@ const GroomerDashboard: React.FC = () => {
                         })} at {appointment.time}
                       </h3>
                       <p className="text-blue-700">
-                        {appointment.client.name} - {getPetInfo(appointment.client).name} ({getPetInfo(appointment.client).breed})
+                        {appointment.clientName} - {appointment.petName} ({appointment.petBreed})
                       </p>
-                      <p className="text-blue-600 text-sm">{getServiceName(appointment.services)}</p>
+                      <p className="text-blue-600 text-sm">{appointment.service}</p>
                       <div className="flex items-center text-gray-600 text-sm">
                         <MapPin className="w-3 h-3 mr-1" />
-                        {appointment.client.address}
+                        {appointment.clientAddress}
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold text-blue-900">${getServicePrice(appointment)}</div>
-                    <div className="text-sm text-blue-600 mb-2">{getEstimatedDuration(appointment.services)} min</div>
-                    
-                    {/* Action button for upcoming appointments */}
-                    <button
-                      onClick={() => openActionModal(appointment)}
-                      className="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-600 transition-colors"
-                    >
-                      Manage
-                    </button>
+                    <div className="text-lg font-bold text-blue-900">${appointment.price}</div>
+                    <div className="text-sm text-blue-600">{appointment.estimatedDuration} min</div>
                   </div>
                 </div>
               </div>
@@ -421,14 +388,6 @@ const GroomerDashboard: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Appointment Action Modal */}
-      <AppointmentActionModal
-        appointment={selectedAppointmentForAction}
-        isOpen={showActionModal}
-        onClose={() => setShowActionModal(false)}
-        onAppointmentUpdated={handleAppointmentUpdated}
-      />
     </div>
   );
 };

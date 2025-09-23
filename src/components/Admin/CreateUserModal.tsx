@@ -46,17 +46,32 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
         return;
       }
 
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) {
-        setError('Please enter a valid email address');
+      // Enhanced email validation
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      const email = formData.email.trim().toLowerCase();
+      
+      if (!emailRegex.test(email)) {
+        setError('Please enter a valid email address (e.g., user@example.com)');
+        setLoading(false);
+        return;
+      }
+
+      // Additional email checks
+      if (email.length < 5 || email.length > 254) {
+        setError('Email address must be between 5 and 254 characters long');
+        setLoading(false);
+        return;
+      }
+
+      if (email.includes('..') || email.startsWith('.') || email.endsWith('.')) {
+        setError('Email address format is invalid - please check for extra dots');
         setLoading(false);
         return;
       }
 
       await UserService.createUser({
         name: formData.name.trim(),
-        email: formData.email.trim().toLowerCase(),
+        email: email, // Use the validated and normalized email
         password: formData.password,
         role: formData.role
       });

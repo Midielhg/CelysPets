@@ -22,6 +22,7 @@ import GoogleMapRoute from '../GoogleMapRoute';
 import { AppointmentService } from '../../services/appointmentService';
 import { PricingService } from '../../services/pricingService';
 import { ClientService } from '../../services/clientService';
+import GroomerAssignmentModal from './GroomerAssignmentModal';
 
 // Type declarations for Google Maps
 declare global {
@@ -72,6 +73,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
+  const [showGroomerAssignmentModal, setShowGroomerAssignmentModal] = useState(false);
   const [draggedAppointment, setDraggedAppointment] = useState<Appointment | null>(null);
   const [resizing, setResizing] = useState<{ appointmentId: string; edge: 'top' | 'bottom' } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -1158,6 +1160,25 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     } catch (error) {
       console.error('Error deleting appointment:', error);
       showToast('Failed to delete appointment', 'error');
+    }
+  };
+
+  // Open groomer assignment modal
+  const openGroomerAssignmentModal = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setShowGroomerAssignmentModal(true);
+  };
+
+  // Handle groomer assignment update
+  const handleGroomerAssignmentUpdate = (appointmentId: string, groomerName: string | null) => {
+    // Update the appointment in local state
+    setAppointments(prev => prev.map(apt => 
+      apt.id === appointmentId ? { ...apt, assignedGroomer: groomerName || '' } : apt
+    ));
+
+    // Update selectedAppointment if it's the same appointment being changed
+    if (selectedAppointment && selectedAppointment.id === appointmentId) {
+      setSelectedAppointment(prev => prev ? { ...prev, assignedGroomer: groomerName || '' } : null);
     }
   };
 
@@ -4049,8 +4070,37 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                     </div>
                   </div>
 
+                  {/* Groomer Assignment */}
+                  <div>
+                    <label className="block text-sm font-medium text-amber-700 mb-2">Assigned Groomer</label>
+                    <div className="bg-amber-50 rounded-lg p-3">
+                      {selectedAppointment?.assignedGroomer ? (
+                        <div className="flex items-center space-x-2">
+                          <User className="w-4 h-4 text-blue-600" />
+                          <span className="text-amber-900 font-medium">{selectedAppointment.assignedGroomer}</span>
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Assigned</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <User className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-500 italic">No groomer assigned</span>
+                          <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">Unassigned</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Action Buttons */}
-                  <div className="flex justify-end space-x-3 pt-4 border-t border-amber-200">
+                  <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-amber-200">
+                    {/* Assign Groomer Button */}
+                    <button
+                      onClick={() => openGroomerAssignmentModal(selectedAppointment)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                    >
+                      <User className="w-4 h-4" />
+                      <span>Assign Groomer</span>
+                    </button>
+                    
                     {/* Collect Payment Button - show unless payment is marked as paid */}
                     {selectedAppointment && selectedAppointment.paymentStatus?.toLowerCase() !== 'paid' && (
                       <button
@@ -4797,6 +4847,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           </div>
         </div>
       )}
+
+      {/* Groomer Assignment Modal */}
+      <GroomerAssignmentModal
+        appointment={selectedAppointment}
+        isOpen={showGroomerAssignmentModal}
+        onClose={() => setShowGroomerAssignmentModal(false)}
+        onAssignmentUpdated={handleGroomerAssignmentUpdate}
+      />
     </div>
   );
 };

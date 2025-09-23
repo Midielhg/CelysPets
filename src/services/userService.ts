@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { adminSupabase, isAdminClientAvailable } from './adminSupabaseClient';
 
 export interface User {
   id: string; // UUID from Supabase user_profiles table
@@ -169,56 +170,100 @@ export class UserService {
     }
   }
 
-  /**
-   * Create a new user (using database auto-generated ID)
+    /**
+   * Create a new user using SupabaseAuthService for consistent authentication handling
+   * The user profile will be created automatically via database trigger
    */
   static async createUser(userData: Omit<User, 'id' | 'created_at' | 'updated_at'> & { password: string }): Promise<User> {
     try {
-      console.log('➕ UserService: Creating user with auto-generated ID...', userData);
+      console.log('➕ UserService: Creating user via SupabaseAuthService...', userData);
+      console.log('🔑 Admin client available:', isAdminClientAvailable);
+
+      // Import SupabaseAuthService dynamically to avoid circular dependency
+      const { SupabaseAuthService } = await import('./supabaseAuthService');
 
       // First check if user already exists with this email
-      const { data: existingUser } = await supabase
+      const clientToUse = isAdminClientAvailable ? adminSupabase : supabase;
+      const { data: existingUser } = await clientToUse
         .from('user_profiles')
         .select('id, email')
         .eq('email', userData.email.toLowerCase())
-        .single();
+        .maybeSingle(); // Use maybeSingle to avoid error when no match
 
       if (existingUser) {
         throw new Error('A user with this email address already exists');
       }
 
-      // Create user profile in the user_profiles table (let DB generate ID)
-      const userProfile = {
-        email: userData.email.toLowerCase().trim(),
-        name: userData.name.trim(),
-        role: userData.role,
-        password_hash: userData.password, // Store password hash in database
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+      // Use SupabaseAuthService for consistent authentication handling
+      console.log('🔐 Creating user via SupabaseAuthService...');
+      const result = await SupabaseAuthService.signUp(
+        userData.email,
+        userData.password,
+        userData.name,
+        userData.role
+      );
 
-      console.log('🔄 Creating user profile in database...', userProfile);
-
-      const { data: profileData, error: profileError } = await supabase
-        .from('user_profiles')
-        .insert([userProfile])
-        .select()
-        .single();
-
-      if (profileError) {
-        console.error('❌ Error creating user profile:', profileError);
-        
-        // Handle specific database errors
-        if (profileError.code === '23505') {
-          throw new Error('A user with this email address already exists');
-        } else if (profileError.code === '23502') {
-          throw new Error('Missing required fields. Please ensure all fields are filled out.');
-        } else {
-          throw new Error(`Database error: ${profileError.message}`);
-        }
+      if (result.error) {
+        console.error('❌ SupabaseAuthService error:', result.error);
+        throw new Error(result.error);
       }
 
-      console.log('✅ User profile created with ID:', profileData.id);
+      if (!result.user) {
+        throw new Error('Failed to create user in authentication system');
+      }
+
+      console.log('✅ User created via SupabaseAuthService:', result.user.id);
+
+      // If profile was created by SupabaseAuthService, return it
+      if (result.profile) {
+        console.log('✅ Profile created by SupabaseAuthService:', result.profile.email);
+        return result.profile;
+      }
+
+      // Otherwise, wait for database trigger or create manually (fallback)
+      console.log('⏳ Waiting for database trigger to create profile...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      let { data: profileData, error: profileError } = await clientToUse
+        .from('user_profiles')
+        .select('*')
+        .eq('id', result.user.id)
+        .single();
+
+      if (profileError || !profileData) {
+        console.error('❌ Error fetching created user profile:', profileError);
+        console.warn('⚠️ User created in Auth but profile may not exist. Attempting manual creation...');
+        
+        // Fallback: manually create the profile
+        const userProfile = {
+          id: result.user.id,
+          email: userData.email.toLowerCase().trim(),
+          name: userData.name.trim(),
+          role: userData.role,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        const { data: manualProfile, error: manualError } = await clientToUse
+          .from('user_profiles')
+          .upsert([userProfile])
+          .select()
+          .single();
+
+        if (manualError) {
+          console.error('❌ Manual profile creation failed:', manualError);
+          // Try to clean up the auth user if profile creation failed
+          try {
+            await clientToUse.auth.admin.deleteUser(result.user.id);
+          } catch (cleanupError) {
+            console.error('❌ Failed to cleanup auth user:', cleanupError);
+          }
+          throw new Error(`Failed to create user profile: ${manualError.message}`);
+        }
+
+        profileData = manualProfile;
+      }
+
       console.log('✅ User created successfully:', {
         id: profileData.id,
         name: profileData.name,
@@ -227,8 +272,18 @@ export class UserService {
       });
 
       return profileData;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ UserService.createUser error:', error);
+      
+      // Provide more user-friendly error messages
+      if (error.message.includes('email') && error.message.includes('invalid')) {
+        throw new Error('The email address format is not accepted. Please try a different email address.');
+      } else if (error.message.includes('already registered') || error.message.includes('already exists')) {
+        throw new Error('A user with this email address already exists.');
+      } else if (error.message.includes('Password')) {
+        throw new Error('Password does not meet security requirements. Please use at least 6 characters.');
+      }
+      
       throw error;
     }
   }
@@ -356,6 +411,32 @@ export class UserService {
       return data;
     } catch (error) {
       console.error('❌ UserService.getUserById error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all groomers for appointment assignment
+   */
+  static async getGroomers(): Promise<User[]> {
+    try {
+      console.log('👷‍♀️ UserService: Fetching all groomers...');
+
+      const { data: groomers, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('role', 'groomer')
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('❌ Error fetching groomers:', error);
+        throw error;
+      }
+
+      console.log('✅ Groomers fetched:', groomers?.length || 0);
+      return groomers || [];
+    } catch (error) {
+      console.error('❌ UserService.getGroomers error:', error);
       throw error;
     }
   }

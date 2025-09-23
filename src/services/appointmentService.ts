@@ -133,6 +133,130 @@ export class AppointmentService {
     return this.update(id, { status })
   }
 
+  // Assign appointment to groomer
+  static async assignToGroomer(appointmentId: number, groomerId: string): Promise<Appointment> {
+    console.log('🎯 AppointmentService: Assigning appointment', appointmentId, 'to groomer', groomerId);
+    
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .update({ 
+          groomer_id: groomerId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', appointmentId)
+        .select(`
+          *,
+          clients:client_id (
+            id,
+            name,
+            email,
+            phone,
+            pets
+          ),
+          groomers:groomer_id (
+            id,
+            name,
+            email
+          )
+        `)
+        .single();
+
+      if (error) {
+        console.error('❌ Error assigning groomer:', error);
+        throw error;
+      }
+
+      console.log('✅ Groomer assigned successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to assign groomer:', error);
+      throw error;
+    }
+  }
+
+  // Unassign groomer from appointment
+  static async unassignGroomer(appointmentId: number): Promise<Appointment> {
+    console.log('🎯 AppointmentService: Unassigning groomer from appointment', appointmentId);
+    
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .update({ 
+          groomer_id: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', appointmentId)
+        .select(`
+          *,
+          clients:client_id (
+            id,
+            name,
+            email,
+            phone,
+            pets
+          )
+        `)
+        .single();
+
+      if (error) {
+        console.error('❌ Error unassigning groomer:', error);
+        throw error;
+      }
+
+      console.log('✅ Groomer unassigned successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to unassign groomer:', error);
+      throw error;
+    }
+  }
+
+  // Get appointments assigned to a specific groomer
+  static async getByGroomer(groomerId: string): Promise<Appointment[]> {
+    console.log('👷‍♀️ AppointmentService: Fetching appointments for groomer', groomerId);
+    
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select(`
+          *,
+          clients:client_id (
+            id,
+            name,
+            email,
+            phone,
+            pets
+          ),
+          groomers:groomer_id (
+            id,
+            name,
+            email
+          ),
+          promo_codes:promo_code_id (
+            code,
+            name,
+            discount_type,
+            discount_value
+          )
+        `)
+        .eq('groomer_id', groomerId)
+        .order('date', { ascending: true })
+        .order('time', { ascending: true });
+
+      if (error) {
+        console.error('❌ Error fetching groomer appointments:', error);
+        throw error;
+      }
+
+      console.log('✅ Groomer appointments fetched:', data?.length || 0);
+      return data || [];
+    } catch (error) {
+      console.error('❌ Failed to fetch groomer appointments:', error);
+      throw error;
+    }
+  }
+
   // Real-time subscription to appointments
   static subscribeToChanges(callback: (payload: any) => void) {
     return supabase

@@ -12,104 +12,205 @@ export interface UserProfile {
 }
 
 export class SupabaseAuthService {
-  // Sign up new user
-  static async signUp(email: string, password: string, name: string, role: 'client' | 'admin' | 'groomer' = 'client') {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            role
-          }
-        }
-      })
-
-      if (error) throw error
-
-      return { user: data.user, error: null }
-    } catch (error: any) {
-      console.error('Sign up error:', error)
-      return { user: null, error: error.message }
-    }
-  }
-
-  // Sign in with email and password
+  // Simple sign in with timeout handling
   static async signIn(email: string, password: string) {
     try {
-      console.log('🔐 Attempting to sign in with:', email);
-      console.log('🌐 Attempting Supabase authentication...');
+      console.log('🔐 Signing in:', email);
       
+      // Step 1: Authenticate with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password: password,
-      })
-
-      console.log('📨 Supabase signIn response:', { data, error });
+      });
 
       if (error) {
-        console.error('❌ Supabase signIn error:', error);
-        throw error;
+        console.error('❌ Auth error:', error);
+        return { user: null, profile: null, session: null, error: error.message };
       }
 
       if (!data.user) {
-        console.error('❌ No user returned from signIn');
-        throw new Error('No user returned from authentication');
+        return { user: null, profile: null, session: null, error: 'No user returned' };
       }
 
       console.log('✅ User authenticated:', data.user.email);
-      console.log('👤 User ID:', data.user.id);
 
-      // Get user profile
-      const profile = await this.getUserProfile(data.user.id);
+      // Step 2: Try to get profile with timeout
+      let profile: UserProfile | null = null;
       
-      // If no profile exists, create a basic one
-      if (!profile) {
-        console.log('⚠️  No profile found, creating basic profile for user:', data.user.email);
-        const basicProfile = {
-          id: data.user.id,
-          email: data.user.email || '',
-          name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User',
-          role: 'client' as const,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
+      try {
+        // Add timeout to profile fetch
+        const profileTimeout = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Profile fetch timeout')), 3000);
+        });
         
-        // Try to create the profile
+        const profileFetch = supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .maybeSingle();
+          
+        const { data: profileData, error: profileError } = await Promise.race([
+          profileFetch,
+          profileTimeout
+        ]);
+        
+        if (profileError && !profileError.message.includes('timeout')) {
+          console.warn('⚠️ Profile fetch error (non-timeout):', profileError);
+        }
+        
+        profile = profileData;
+        
+      } catch (fetchError: any) {
+        console.warn('⚠️ Profile fetch failed:', fetchError.message);
+      }
+
+      // Step 3: If no profile, create a basic one (with timeout)
+      if (!profile) {
         try {
-          const { data: newProfile, error: createError } = await supabase
+          console.log('🔧 Creating basic profile...');
+          
+          const basicProfile = {
+            id: data.user.id,
+            email: data.user.email || '',
+            name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User',
+            role: 'client' as const,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
+          const createTimeout = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Profile creation timeout')), 2000);
+          });
+          
+          const createProfile = supabase
             .from('user_profiles')
-            .insert([basicProfile])
+            .upsert([basicProfile])
             .select()
             .single();
             
-          if (createError) {
-            console.error('❌ Failed to create profile:', createError);
-            // Continue without profile for now
-          } else {
-            console.log('✅ Created basic profile');
-            return { 
-              user: data.user, 
-              profile: newProfile as UserProfile, 
-              session: data.session,
-              error: null 
-            };
+          const { data: newProfile, error: createError } = await Promise.race([
+            createProfile,
+            createTimeout
+          ]);
+          
+          if (!createError && newProfile) {
+            profile = newProfile as UserProfile;
+            console.log('✅ Created profile:', profile.email);
           }
-        } catch (createErr) {
-          console.error('❌ Profile creation error:', createErr);
+          
+        } catch (createErr: any) {
+          console.warn('⚠️ Profile creation failed:', createErr.message);
         }
       }
 
       return { 
         user: data.user, 
-        profile, 
+        profile: profile, 
         session: data.session,
         error: null 
       };
+      
     } catch (error: any) {
-      console.error('🚫 Sign in error:', error);
+      console.error('❌ Sign in error:', error);
       return { user: null, profile: null, session: null, error: error.message };
+    }
+  }
+
+  // Sign up new user with better error handling and validation
+  static async signUp(email: string, password: string, name: string, role: 'client' | 'admin' | 'groomer' = 'client') {
+    try {
+      console.log('🔐 Creating new user:', email, 'Role:', role);
+      
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        throw new Error('Invalid email format. Please enter a valid email address.');
+      }
+      
+      // Supabase Auth signup
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password: password,
+        options: {
+          data: {
+            name: name.trim(),
+            role: role
+          }
+        }
+      });
+
+      if (error) {
+        console.error('❌ Supabase Auth signup error:', error);
+        
+        // Handle specific error types
+        if (error.message.includes('email') && error.message.includes('invalid')) {
+          throw new Error('Email format is not accepted by the authentication system. Please try a different email address.');
+        } else if (error.message.includes('User already registered')) {
+          throw new Error('A user with this email address already exists.');
+        } else if (error.message.includes('Password')) {
+          throw new Error('Password does not meet requirements. Please use a stronger password.');
+        }
+        
+        throw new Error(`Account creation failed: ${error.message}`);
+      }
+
+      if (!data.user) {
+        throw new Error('Account creation failed - no user returned from authentication service');
+      }
+
+      console.log('✅ User created in Supabase Auth:', data.user.id);
+      
+      // Try to create user profile with timeout
+      let profile: UserProfile | null = null;
+      
+      try {
+        console.log('🔧 Creating user profile...');
+        
+        const profileData = {
+          id: data.user.id,
+          email: data.user.email || email.trim().toLowerCase(),
+          name: name.trim(),
+          role: role,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        const createTimeout = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Profile creation timeout')), 3000);
+        });
+        
+        const createProfile = supabase
+          .from('user_profiles')
+          .upsert([profileData])
+          .select()
+          .single();
+          
+        const { data: newProfile, error: createError } = await Promise.race([
+          createProfile,
+          createTimeout
+        ]);
+        
+        if (createError) {
+          console.warn('⚠️ Profile creation error:', createError);
+        } else if (newProfile) {
+          profile = newProfile as UserProfile;
+          console.log('✅ Created user profile:', profile.email);
+        }
+        
+      } catch (profileErr: any) {
+        console.warn('⚠️ Profile creation failed:', profileErr.message);
+        // Continue anyway - user is created in auth, profile can be created later
+      }
+
+      return { 
+        user: data.user, 
+        profile: profile,
+        error: null 
+      };
+      
+    } catch (error: any) {
+      console.error('❌ Sign up error:', error);
+      return { user: null, profile: null, error: error.message };
     }
   }
 
@@ -122,18 +223,6 @@ export class SupabaseAuthService {
     } catch (error: any) {
       console.error('Sign out error:', error)
       return { error: error.message }
-    }
-  }
-
-  // Refresh the current session
-  static async refreshSession() {
-    try {
-      const { data, error } = await supabase.auth.refreshSession()
-      if (error) throw error
-      return { session: data.session, user: data.user, error: null }
-    } catch (error: any) {
-      console.error('Refresh session error:', error)
-      return { session: null, user: null, error: error.message }
     }
   }
 
@@ -153,72 +242,41 @@ export class SupabaseAuthService {
   static async getCurrentUser() {
     try {
       const { data: { user }, error } = await supabase.auth.getUser()
-      
       if (error) throw error
-      if (!user) return { user: null, profile: null }
-
-      const profile = await this.getUserProfile(user.id)
-      return { user, profile }
+      return { user, error: null }
     } catch (error: any) {
       console.error('Get current user error:', error)
-      return { user: null, profile: null }
+      return { user: null, error: error.message }
     }
   }
 
-  // Get user profile
+  // Get user profile with timeout
   static async getUserProfile(userId: string): Promise<UserProfile | null> {
     try {
       console.log('🔍 Fetching profile for user:', userId);
       
-      const { data, error } = await supabase
+      const profileTimeout = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 3000);
+      });
+      
+      const profileFetch = supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
-        .single()
+        .maybeSingle();
+        
+      const { data, error } = await Promise.race([profileFetch, profileTimeout]);
 
       if (error) {
-        console.error('📋 Profile fetch error:', error);
-        
-        // Check if it's a table doesn't exist error
-        if (error.message?.includes('relation "user_profiles" does not exist')) {
-          throw new Error('Database tables not created. Please run the migration SQL first.');
-        }
-        
-        throw error;
+        console.error('❌ Profile fetch error:', error);
+        return null;
       }
       
-      console.log('✅ Profile found:', { 
-        email: data?.email, 
-        name: data?.name, 
-        role: data?.role 
-      });
-      
+      console.log('✅ Profile found:', data?.email);
       return data;
     } catch (error) {
       console.error('❌ Get user profile error:', error);
-      
-      // Return null for profile not found, but re-throw other errors
-      if (error instanceof Error && error.message.includes('Database tables not created')) {
-        throw error;
-      }
-      
       return null;
-    }
-  }
-
-  // Update user profile
-  static async updateProfile(name: string, role?: string) {
-    try {
-      const { data, error } = await supabase.rpc('update_user_profile', {
-        user_name: name,
-        user_role: role
-      })
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error: any) {
-      console.error('Update profile error:', error)
-      return { data: null, error: error.message }
     }
   }
 
@@ -226,9 +284,9 @@ export class SupabaseAuthService {
   static async resetPassword(email: string) {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
+        redirectTo: `${window.location.origin}/reset-password`,
       })
-
+      
       if (error) throw error
       return { error: null }
     } catch (error: any) {
@@ -237,13 +295,13 @@ export class SupabaseAuthService {
     }
   }
 
-  // Update password
-  static async updatePassword(newPassword: string) {
+  // Update user password
+  static async updatePassword(password: string) {
     try {
       const { error } = await supabase.auth.updateUser({
-        password: newPassword
+        password: password
       })
-
+      
       if (error) throw error
       return { error: null }
     } catch (error: any) {
@@ -252,31 +310,14 @@ export class SupabaseAuthService {
     }
   }
 
-  // Get all user profiles (admin only)
-  static async getAllProfiles(): Promise<UserProfile[]> {
-    try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      return data || []
-    } catch (error) {
-      console.error('Get all profiles error:', error)
-      return []
-    }
-  }
-
-  // Listen to auth state changes
-  static onAuthStateChange(callback: (event: string, session: any) => void) {
+  // Listen to auth changes
+  static onAuthStateChange(callback: (event: any, session: any) => void) {
     return supabase.auth.onAuthStateChange(callback)
   }
 
-  // Migrate existing user (simplified approach - users must sign up normally)
-  static async createNewUser(email: string, password: string, name: string, role: string) {
+  // Create user with proper auth flow
+  static async createUserWithAuth(email: string, password: string, name: string, role: 'client' | 'admin' | 'groomer') {
     try {
-      // Use regular signUp instead of admin functions
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -289,7 +330,6 @@ export class SupabaseAuthService {
       })
 
       if (error) throw error
-
       return { user: data.user, error: null }
     } catch (error: any) {
       console.error('Create user error:', error)

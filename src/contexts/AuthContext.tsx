@@ -137,14 +137,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error(result.error);
       }
 
-      if (result.user && result.profile) {
+      if (result.user) {
         setSupabaseUser(result.user);
-        setUser(convertToUser(result.user, result.profile));
         setSession(result.session);
-        console.log('✅ Login successful, user state updated');
-      } else if (result.user && !result.profile) {
-        console.log('⚠️ User authenticated but no profile found. Database tables may not exist.');
-        throw new Error('User profile not found. Please run the database migration first.');
+        
+        if (result.profile) {
+          setUser(convertToUser(result.user, result.profile));
+          console.log('✅ Login successful with profile');
+        } else {
+          // User authenticated but no profile - create a temporary user object
+          console.log('⚠️ User authenticated but no profile - creating temporary profile');
+          const tempUser: User = {
+            id: result.user.id,
+            email: result.user.email || '',
+            name: result.user.user_metadata?.name || result.user.email?.split('@')[0] || 'User',
+            role: 'client'
+          };
+          setUser(tempUser);
+          console.log('✅ Login successful with temporary profile');
+        }
+      } else {
+        throw new Error('Authentication failed - no user returned');
       }
     } catch (error) {
       console.error('❌ Login error:', error);
