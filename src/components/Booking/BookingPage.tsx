@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { apiUrl } from '../../config/api';
-import type { Breed, AdditionalService } from '../../types/pricing';
+import { PricingService, type Breed, type AdditionalService } from '../../services/pricingService';
+import { AppointmentService } from '../../services/appointmentService';
+import { ClientService } from '../../services/clientService';
+import { PromoCodeService } from '../../services/promoCodeService';
 import PromoCodeInput from './PromoCodeInput';
 
 // Validation functions
@@ -85,7 +87,6 @@ const BookingPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [breeds, setBreeds] = useState<Breed[]>([]);
   const [addons, setAddons] = useState<AdditionalService[]>([]);
-  const [registeredPets, setRegisteredPets] = useState<RegisteredPet[]>([]);
   const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
   const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
@@ -152,100 +153,64 @@ const BookingPage: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [bRes, aRes] = await Promise.all([
-          fetch(apiUrl('/pricing/breeds')),
-          fetch(apiUrl('/pricing/additional-services')),
+        const [breedsData, addonsData] = await Promise.all([
+          PricingService.getAllBreeds(),
+          PricingService.getAllAdditionalServices(),
         ]);
         
-        let breedsData = [];
-        let addonsData = [];
-        
-        // Handle breeds response
-        if (bRes.ok) {
-          breedsData = await bRes.json();
-          // Ensure it's an array
-          if (!Array.isArray(breedsData)) {
-            console.error('Breeds data is not an array:', breedsData);
-            breedsData = [];
-          }
-        } else {
-          console.error('Failed to fetch breeds:', bRes.status, bRes.statusText);
-        }
-        
-        // Handle addons response
-        if (aRes.ok) {
-          addonsData = await aRes.json();
-          // Ensure it's an array
-          if (!Array.isArray(addonsData)) {
-            console.error('Addons data is not an array:', addonsData);
-            addonsData = [];
-          }
-        } else {
-          console.error('Failed to fetch additional services:', aRes.status, aRes.statusText);
-        }
+        console.log('Loaded breeds:', breedsData);
+        console.log('Loaded addons:', addonsData);
         
         setBreeds(breedsData);
         setAddons(addonsData);
 
         // Load user's profile and pets if authenticated
         if (user) {
-          const token = localStorage.getItem('auth_token');
-          
-          // Fetch user profile to get phone and address
-          const profileResponse = await fetch(apiUrl('/client/profile'), {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          
-          if (profileResponse.ok) {
-            const profile = await profileResponse.json();
-            // Auto-populate customer information from profile
-            setFormData(prev => ({
-              ...prev,
-              customerName: profile.name || user.name || '',
-              email: profile.email || user.email || '',
-              phone: profile.phone || '',
-              address: profile.address || ''
-            }));
-          }
-
-          // Fetch user's registered pets
-          const petsResponse = await fetch(apiUrl('/client/pets'), {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (petsResponse.ok) {
-            const pets = await petsResponse.json();
-            setRegisteredPets(pets);
+          try {
+            // Fetch user profile using Supabase
+            const client = await ClientService.getByEmail(user.email);
             
-            // Auto-populate with registered pets as default
-            if (pets.length > 0) {
-              // Use the freshly loaded breeds data for matching
-              const defaultPets = pets.map((pet: RegisteredPet) => {
-                const breedMatch = breedsData.find((b: any) => 
-                  b.name.toLowerCase() === pet.breed.toLowerCase() ||
-                  b.name.toLowerCase().includes(pet.breed.toLowerCase()) ||
-                  pet.breed.toLowerCase().includes(b.name.toLowerCase())
-                );
-                return {
-                  name: pet.name,
-                  type: pet.species,
-                  breedId: breedMatch?.id || null,
-                  weight: pet.weight.toString(),
-                  specialInstructions: pet.notes || ''
-                };
-              });
-              setFormData(prev => ({ ...prev, pets: defaultPets }));
+            if (client) {
+              // Auto-populate customer information from profile
+              setFormData(prev => ({
+                ...prev,
+                customerName: client.name || user.name || '',
+                email: client.email || user.email || '',
+                phone: client.phone || '',
+                address: client.address || ''
+              }));
+
+              // Auto-populate with registered pets if available
+              if (client.pets && Array.isArray(client.pets) && client.pets.length > 0) {
+                // Use the freshly loaded breeds data for matching
+                const defaultPets = (client.pets as any[]).map((pet: any) => {
+                  const breedMatch = breedsData.find((b: Breed) => 
+                    b.name.toLowerCase() === pet.breed?.toLowerCase() ||
+                    b.name.toLowerCase().includes(pet.breed?.toLowerCase() || '') ||
+                    (pet.breed?.toLowerCase() || '').includes(b.name.toLowerCase())
+                  );
+                  return {
+                    name: pet.name,
+                    type: pet.species,
+                    breedId: breedMatch?.id || null,
+                    weight: pet.weight?.toString() || '',
+                    specialInstructions: pet.notes || ''
+                  };
+                });
+                setFormData(prev => ({ ...prev, pets: defaultPets }));
+              }
             }
-            // Note: We no longer need to set a default pet here since we start with one
             
             // If user came from pet selection, pre-populate specific pet
-            if (pets.length > 0 && location.state?.selectedPet) {
+            if (client?.pets && Array.isArray(client.pets) && client.pets.length > 0 && location.state?.selectedPet) {
               const selectedPet = location.state.selectedPet;
               populatePetFromRegistered(selectedPet, 0);
             }
+          } catch (error) {
+            console.error('Error loading client data:', error);
+            // Continue without client data - user can still book
           }
-          // Note: We no longer need to set a default pet here since we start with one
         }
-        // Note: We no longer need to set a default pet here since we start with one
       } catch (e) {
         console.error('Failed to load data', e);
         // Ensure arrays are set even on error to prevent UI crashes
@@ -323,7 +288,7 @@ const BookingPage: React.FC = () => {
 
   const getBreedPrice = (pet: Pet) => {
     const breed = getBreedById(pet.breedId);
-    return breed ? Number(breed.fullGroomPrice) : 0;
+    return breed ? Number(breed.full_groom_price) : 0;
   };
 
   const calculateTotal = () => {
@@ -438,33 +403,50 @@ const BookingPage: React.FC = () => {
       }
       services.push(...formData.additionalServices.map(serviceId => ({ id: serviceId })));
 
-      // Submit to backend
-      const response = await fetch(apiUrl('/appointments'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          client: {
-            name: formData.customerName,
-            email: formData.email,
-            phone: formatPhone(formData.phone), // Format phone number
-            address: formData.address,
-            pets: petsWithBreeds
-          },
+      // First, create or update the client using Supabase
+      let clientId: number;
+      try {
+        const client = await ClientService.createOrUpdateForBooking({
+          name: formData.customerName,
+          email: formData.email,
+          phone: formatPhone(formData.phone),
+          address: formData.address,
+          pets: petsWithBreeds
+        });
+        clientId = client.id;
+      } catch (error) {
+        console.error('Error creating/updating client:', error);
+        throw new Error('Failed to save client information');
+      }
+
+      // Get promo code ID if one was applied
+      let promoCodeId: number | null = null;
+      if (appliedPromoCode) {
+        try {
+          const promoCode = await PromoCodeService.getByCode(appliedPromoCode);
+          promoCodeId = promoCode?.id || null;
+        } catch (error) {
+          console.warn('Could not find promo code ID:', error);
+        }
+      }
+
+      // Create the appointment using Supabase
+      try {
+        await AppointmentService.create({
+          clientId: clientId,
+          groomerId: null, // Will be assigned later by admin
           services: services,
-          includeFullService: formData.includeFullService,
           date: formData.preferredDate,
           time: formData.preferredTime,
+          status: 'pending',
           notes: formData.notes,
           totalAmount: calculateTotal(),
           originalAmount: calculateSubtotal(),
-          promoCode: appliedPromoCode,
+          promoCodeId: promoCodeId,
           promoCodeDiscount: promoCodeDiscount
-        }),
-      });
-
-      if (!response.ok) {
+        });
+      } catch (error) {
+        console.error('Error creating appointment:', error);
         throw new Error('Failed to book appointment');
       }
 
@@ -634,7 +616,7 @@ const BookingPage: React.FC = () => {
               </div>
 
               {/* Show message when pets are pre-populated */}
-              {user && registeredPets.length > 0 && formData.pets.length > 0 && formData.pets[0].name && (
+              {user && formData.pets.length > 0 && formData.pets[0].name && (
                 <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
                   <div className="flex items-center">
                     <div className="text-2xl mr-3">✅</div>
@@ -646,8 +628,8 @@ const BookingPage: React.FC = () => {
                 </div>
               )}
 
-              {/* No registered pets message for authenticated users */}
-              {user && registeredPets.length === 0 && (
+              {/* First time booking message for authenticated users */}
+              {user && formData.pets.length === 0 && (
                 <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                   <div className="flex items-center">
                     <div className="text-2xl mr-3">💡</div>
@@ -663,7 +645,7 @@ const BookingPage: React.FC = () => {
               {formData.pets.length === 0 && (
                 <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
                   <div className="flex items-center">
-                    <div className="text-2xl mr-3">�</div>
+                    <div className="text-2xl mr-3">🐾</div>
                     <div>
                       <h3 className="text-lg font-medium text-amber-900">Add your pet information</h3>
                       <p className="text-amber-700">Start by adding your pet's details. This will help us provide accurate pricing and service recommendations.</p>

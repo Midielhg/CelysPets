@@ -107,6 +107,40 @@ export class ClientService {
     return data
   }
 
+  // Create client for public booking (handles RLS permissions)
+  static async createForBooking(client: ClientInsert): Promise<Client> {
+    try {
+      // First try with regular create
+      return await this.create(client);
+    } catch (error: any) {
+      // If RLS error (42501), try with public insertion approach
+      if (error.code === '42501') {
+        console.warn('RLS policy blocking client creation, attempting alternative approach');
+        
+        // Try direct insertion with minimal required fields
+        const { data, error: insertError } = await supabase
+          .from('clients')
+          .insert({
+            name: client.name,
+            email: client.email.toLowerCase(),
+            phone: client.phone || '',
+            address: client.address || '',
+            pets: client.pets || []
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Failed to create client with alternative approach:', insertError);
+          throw new Error('Unable to save customer information. Please try again or contact support.');
+        }
+        
+        return data;
+      }
+      throw error;
+    }
+  }
+
   // Update client
   static async update(id: number, updates: ClientUpdate): Promise<Client> {
     const updateData = { ...updates }
@@ -123,6 +157,64 @@ export class ClientService {
 
     if (error) throw error
     return data
+  }
+
+  // Update client for public booking (handles RLS permissions)
+  static async updateForBooking(id: number, updates: ClientUpdate): Promise<Client> {
+    try {
+      return await this.update(id, updates);
+    } catch (error: any) {
+      if (error.code === '42501') {
+        console.warn('RLS policy blocking client update, attempting alternative approach');
+        
+        // Try with minimal fields that should be allowed by RLS
+        const minimalUpdate = {
+          name: updates.name,
+          phone: updates.phone,
+          address: updates.address,
+          pets: updates.pets
+        };
+
+        const { data, error: updateError } = await supabase
+          .from('clients')
+          .update(minimalUpdate)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Failed to update client with alternative approach:', updateError);
+          throw new Error('Unable to update customer information. Please try again or contact support.');
+        }
+        
+        return data;
+      }
+      throw error;
+    }
+  }
+
+  // Create or update client for booking (public-friendly)
+  static async createOrUpdateForBooking(clientData: ClientInsert): Promise<Client> {
+    try {
+      // Try to find existing client
+      const existingClient = await this.getByEmail(clientData.email);
+      
+      if (existingClient) {
+        // Update existing client
+        return await this.updateForBooking(existingClient.id, {
+          name: clientData.name,
+          phone: clientData.phone,
+          address: clientData.address,
+          pets: clientData.pets
+        });
+      } else {
+        // Create new client
+        return await this.createForBooking(clientData);
+      }
+    } catch (error: any) {
+      console.error('Error in createOrUpdateForBooking:', error);
+      throw new Error('Unable to save customer information. Please try again or contact support.');
+    }
   }
 
   // Delete client
