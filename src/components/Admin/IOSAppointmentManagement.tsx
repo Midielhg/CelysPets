@@ -2795,7 +2795,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const calendarDays = generateCalendarDays();
 
   return (
-    <div className="bg-gradient-to-br from-stone-50 to-neutral-50 md:rounded-lg md:shadow-sm md:border md:border-stone-200 overflow-hidden">
+    <div className={`bg-gradient-to-br from-stone-50 to-neutral-50 md:rounded-lg md:shadow-sm md:border md:border-stone-200 overflow-hidden ${
+      viewMode === 'month' ? 'min-h-[calc(100vh-4rem)] md:min-h-0' : ''
+    }`}>
       {/* iOS-style Header */}
       <div className="bg-gradient-to-r from-stone-50 to-neutral-50 border-b border-stone-200">
         <div className="px-1 md:px-4 py-3 md:py-6">
@@ -2989,11 +2991,11 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       </div>
 
       {/* Calendar Content */}
-      <div className="p-0.5 md:p-4">
+      <div className={`p-0.5 md:p-4 ${viewMode === 'month' ? 'flex-1 flex flex-col' : ''}`}>
         {viewMode === 'month' && (
-          <div className="space-y-2 md:space-y-4">
+          <div className="space-y-2 md:space-y-4 flex-1 flex flex-col">
             {/* Month Grid */}
-            <div className="grid grid-cols-7 gap-px md:gap-1">
+            <div className="grid grid-cols-7 gap-px md:gap-1 flex-1">
               {/* Day headers */}
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
                 <div key={day} className="p-0.5 md:p-2 text-center text-xs md:text-sm font-medium text-gray-500">
@@ -3012,7 +3014,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   <div
                     key={index}
                     onClick={() => setSelectedDate(day)}
-                    className={`relative p-0.5 md:p-2 min-h-[60px] md:min-h-[100px] cursor-pointer md:rounded-lg border-0 md:border transition-colors ${
+                    className={`relative p-0.5 md:p-2 min-h-[calc((100vh-16rem)/6)] md:min-h-[100px] cursor-pointer md:rounded-lg border-0 md:border transition-colors ${
                       isSelected
                         ? 'bg-stone-100 md:bg-stone-50 md:border-stone-200'
                         : isCurrentMonth

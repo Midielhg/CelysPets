@@ -1,10 +1,10 @@
 // Feature flags for progressive Supabase migration
 export const FEATURES = {
   // Toggle between API and Supabase for different components
-  USE_SUPABASE_PRICING: false, // Set to true to use Supabase for PricingManagement
-  USE_SUPABASE_CLIENTS: false, // Set to true to use Supabase for ClientManagement  
-  USE_SUPABASE_PROMO_CODES: false, // Set to true to use Supabase for PromoCodeManagement
-  USE_SUPABASE_AUTH: false, // Set to true to use Supabase for authentication
+  USE_SUPABASE_PRICING: true, // Using Supabase for PricingManagement
+  USE_SUPABASE_CLIENTS: true, // Using Supabase for ClientManagement  
+  USE_SUPABASE_PROMO_CODES: true, // Using Supabase for PromoCodeManagement
+  USE_SUPABASE_AUTH: true, // Using Supabase for authentication
   
   // Debug flags
   LOG_API_CALLS: false, // Set to true to log all API calls

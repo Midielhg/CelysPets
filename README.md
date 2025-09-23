@@ -4,7 +4,7 @@
 
 ### Live Application:
 - **Website**: https://celyspets.com
-- **API**: https://celyspets.com/api.php
+- **Backend**: Supabase (Direct integration)
 - **Admin Login**: admin@celyspets.com / admin123
 
 ## 🗺️ Google Maps Integration
@@ -44,7 +44,7 @@ VITE_GOOGLE_MAPS_API_KEY=your_actual_api_key_here
 
 #### For Production:
 1. Copy `.env.production.example` to `.env.production` 
-2. Configure to use Supabase directly (NO PHP API):
+2. Configure to use Supabase directly:
 ```bash
 VITE_USE_DIRECT_ENDPOINTS=true
 VITE_SUPABASE_URL=https://uizkllezgwpxolcbkaiv.supabase.co
@@ -80,36 +80,24 @@ mkdir -p simple-static-deploy
 cp -r dist/* simple-static-deploy/
 
 # 5. Upload simple-static-deploy contents to your hosting provider
-# No PHP backend needed - uses Supabase directly
+# Static frontend with Supabase backend
 ```
 
 **Upload the `simple-static-deploy` folder contents to your hosting root directory.**
 
 ### ✅ Fixed Production Issue
 
-**Previous Issue**: The booking page was crashing because the frontend was making API calls to hardcoded Node.js localhost URLs (`http://localhost:5001`, `http://localhost:5002`) which don't exist in production.
+**Previous Issue**: The booking page was crashing because the frontend was making API calls to hardcoded Node.js localhost URLs which don't exist in production.
 
 **Solution Applied**:
-1. ✅ Fixed all hardcoded localhost URLs to use the `apiUrl()` function
-2. ✅ Created proper environment variable configuration (`.env.production`)  
-3. ✅ Updated build process to use production environment variables
-4. ✅ Verified the built frontend now correctly points to `https://celyspets.com/api.php`
+1. ✅ Migrated from PHP API to Supabase direct integration
+2. ✅ Updated all feature flags to use Supabase services
+3. ✅ Configured proper environment variables for production
+4. ✅ Removed all PHP dependencies and files
 
-**Note**: You must rebuild and redeploy the application for these fixes to take effect.
+**Note**: The application now uses Supabase directly for all backend operations including authentication, data storage, and real-time features.
 
-### Testing & Debugging URLs:
-- **Health Check**: `https://celyspets.com/api.php` 
-- **Admin User Test**: `https://celyspets.com/api.php/test/admin`
-- **Dashboard Stats**: `https://celyspets.com/api.php/dashboard/stats`
-- **Pricing Breeds**: `https://celyspets.com/api.php/pricing/breeds`
-- **Additional Services**: `https://celyspets.com/api.php/pricing/additional-services`
-- **Reset Admin Password**: `POST https://celyspets.com/api.php/setup/reset-admin-password`
-- **Login**: `admin@celyspets.com` / `admin123`
 
-### Database Settings (Production):
-- **Host**: localhost
-- **Database**: celyspets_celypets  
-- **Username**: celyspets_celypets
 
 To start the servers and front end run these two commands on different terminals
 npm run dev:client
@@ -122,7 +110,7 @@ cd "/Users/midielhenriquez/Library/Mobile Documents/com~apple~CloudDocs/Document
 - **Route Optimization**: Enhanced with manual gas price and vehicle MPG input
 - **Crash Prevention**: Added ErrorBoundary component and comprehensive error handling
 - **Frontend**: Running on http://localhost:5175/
-- **Backend API**: Running on http://localhost:5001/
+- **Backend**: Supabase direct integration (production) / Node.js API (development)
 
 
 # React + TypeScript + Vite
