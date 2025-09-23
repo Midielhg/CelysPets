@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, User } from 'lucide-react';
 import { UserService, type User as UserType } from '../../services/userService';
+import { useToast } from '../../contexts/ToastContext';
 
 interface DeleteUserModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmationText, setConfirmationText] = useState('');
+  const { showToast } = useToast();
 
   const handleDelete = async () => {
     if (confirmationText !== 'DELETE') {
@@ -30,9 +32,14 @@ const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
 
     try {
       await UserService.deleteUser(user.id);
+      showToast(`User ${user.name} deleted successfully`, 'success');
+      handleClose();
       onUserDeleted();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete user');
+      console.error('❌ DeleteUserModal: Delete failed:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete user';
+      setError(errorMessage);
+      showToast('Failed to delete user', 'error');
     } finally {
       setLoading(false);
     }
@@ -106,7 +113,7 @@ const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
               id="confirmation"
               value={confirmationText}
               onChange={(e) => setConfirmationText(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
               placeholder="Type DELETE here"
             />
           </div>

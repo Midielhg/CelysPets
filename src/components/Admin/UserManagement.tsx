@@ -26,7 +26,7 @@ const UserManagement: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   
   // Selected users for bulk operations
-  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   const fetchUsers = useCallback(async (page = 1, search = '', role = 'all') => {
     try {
@@ -135,7 +135,7 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const toggleUserSelection = (userId: number) => {
+  const toggleUserSelection = (userId: string) => {
     setSelectedUserIds(prev => 
       prev.includes(userId) 
         ? prev.filter(id => id !== userId)
@@ -205,40 +205,40 @@ const UserManagement: React.FC = () => {
 
       {/* Statistics Cards */}
       {userStats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <Users className="w-8 h-8 text-gray-600" />
-              <div className="ml-4">
-                <p className="text-sm text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats.overview?.users || 0}</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center">
+              <Users className="w-6 h-6 sm:w-8 sm:h-8 text-gray-600" />
+              <div className="mt-2 sm:mt-0 sm:ml-4">
+                <p className="text-xs sm:text-sm text-gray-600">Total Users</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">{userStats.overview?.users || 0}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <UserCheck className="w-8 h-8 text-green-600" />
-              <div className="ml-4">
-                <p className="text-sm text-gray-600">Clients</p>
-                                <p className="text-2xl font-bold text-gray-900">{userStats.overview?.clients || 0}</p>
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center">
+              <UserCheck className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
+              <div className="mt-2 sm:mt-0 sm:ml-4">
+                <p className="text-xs sm:text-sm text-gray-600">Clients</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">{userStats.overview?.clients || 0}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <UserCog className="w-8 h-8 text-blue-600" />
-              <div className="ml-4">
-                <p className="text-sm text-gray-600">Groomers</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats.overview?.groomers || 0}</p>
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center">
+              <UserCog className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
+              <div className="mt-2 sm:mt-0 sm:ml-4">
+                <p className="text-xs sm:text-sm text-gray-600">Groomers</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">{userStats.overview?.groomers || 0}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <Shield className="w-8 h-8 text-red-600" />
-              <div className="ml-4">
-                <p className="text-sm text-gray-600">Admins</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats.overview?.admins || 0}</p>
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center">
+              <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-red-600" />
+              <div className="mt-2 sm:mt-0 sm:ml-4">
+                <p className="text-xs sm:text-sm text-gray-600">Admins</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">{userStats.overview?.admins || 0}</p>
               </div>
             </div>
           </div>
@@ -246,8 +246,8 @@ const UserManagement: React.FC = () => {
       )}
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex flex-col lg:flex-row gap-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="flex flex-col gap-4">
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -256,15 +256,15 @@ const UserManagement: React.FC = () => {
                 placeholder="Search users by name or email..."
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               />
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <select
               value={roleFilter}
               onChange={(e) => handleRoleFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              className="px-4 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
             >
               <option value="all">All Roles</option>
               <option value="client">Clients</option>
@@ -277,32 +277,32 @@ const UserManagement: React.FC = () => {
         {/* Bulk Actions - Responsive */}
         {selectedUserIds.length > 0 && (
           <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-amber-800">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <span className="text-sm text-amber-800 font-medium">
                 {selectedUserIds.length} user(s) selected
               </span>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => handleBulkRoleUpdate('client')}
-                  className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                  className="px-3 py-2 text-xs sm:text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors touch-manipulation"
                 >
                   Make Clients
                 </button>
                 <button
                   onClick={() => handleBulkRoleUpdate('groomer')}
-                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-3 py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors touch-manipulation"
                 >
                   Make Groomers
                 </button>
                 <button
                   onClick={() => handleBulkRoleUpdate('admin')}
-                  className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                  className="px-3 py-2 text-xs sm:text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors touch-manipulation"
                 >
                   Make Admins
                 </button>
                 <button
                   onClick={() => setSelectedUserIds([])}
-                  className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
+                  className="px-3 py-2 text-xs sm:text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors touch-manipulation"
                 >
                   Clear Selection
                 </button>
@@ -378,14 +378,14 @@ const UserManagement: React.FC = () => {
                     <div className="flex items-center gap-1 md:gap-2">
                       <button
                         onClick={() => handleEditUser(user)}
-                        className="text-amber-600 hover:text-amber-700 p-1 rounded"
+                        className="text-amber-600 hover:text-amber-700 p-1.5 rounded-md hover:bg-amber-50 transition-colors"
                         title="Edit user"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteUser(user)}
-                        className="text-red-600 hover:text-red-700 p-1 rounded"
+                        className="text-red-600 hover:text-red-700 p-1.5 rounded-md hover:bg-red-50 transition-colors"
                         title="Delete user"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -407,9 +407,9 @@ const UserManagement: React.FC = () => {
                 type="checkbox"
                 checked={selectedUserIds.length === users.length && users.length > 0}
                 onChange={toggleSelectAll}
-                className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
               />
-              <span className="ml-2 text-sm text-gray-600">
+              <span className="ml-3 text-sm text-gray-600">
                 Select all ({users.length} users)
               </span>
             </label>
@@ -424,37 +424,37 @@ const UserManagement: React.FC = () => {
                     type="checkbox"
                     checked={selectedUserIds.includes(user.id)}
                     onChange={() => toggleUserSelection(user.id)}
-                    className="mt-1 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                    className="mt-1 w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex-1">
-                        <h3 className="text-sm font-medium text-gray-900 truncate">{user.name}</h3>
-                        <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-base font-medium text-gray-900 break-words">{user.name}</h3>
+                        <p className="text-sm text-gray-500 break-all mt-1">{user.email}</p>
                       </div>
-                      <div className="flex items-center gap-2 ml-2">
+                      <div className="flex items-center gap-1 ml-3 flex-shrink-0">
                         <button
                           onClick={() => handleEditUser(user)}
-                          className="text-amber-600 hover:text-amber-700 p-1 rounded"
+                          className="text-amber-600 hover:text-amber-700 p-2 rounded-md hover:bg-amber-50 transition-colors touch-manipulation"
                           title="Edit user"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDeleteUser(user)}
-                          className="text-red-600 hover:text-red-700 p-1 rounded"
+                          className="text-red-600 hover:text-red-700 p-2 rounded-md hover:bg-red-50 transition-colors touch-manipulation"
                           title="Delete user"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadgeClass(user.role)}`}>
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getRoleBadgeClass(user.role)}`}>
                         {getRoleIcon(user.role)}
-                        <span className="ml-1 capitalize">{user.role}</span>
+                        <span className="ml-1.5 capitalize">{user.role}</span>
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 flex-shrink-0">
                         {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
                       </span>
                     </div>
@@ -467,25 +467,25 @@ const UserManagement: React.FC = () => {
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="px-3 md:px-6 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="text-xs md:text-sm text-gray-500">
+          <div className="px-4 sm:px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-sm text-gray-500 order-2 sm:order-1">
               Showing {users.length} of {pagination.total} users
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 order-1 sm:order-2">
               <button
                 onClick={() => setCurrentPage(prev => prev - 1)}
                 disabled={currentPage <= 1}
-                className="px-2 md:px-3 py-1 text-xs md:text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation min-w-[80px]"
               >
                 Previous
               </button>
-              <span className="px-2 md:px-3 py-1 text-xs md:text-sm text-gray-600">
+              <span className="px-3 py-2 text-sm text-gray-600 whitespace-nowrap">
                 Page {pagination.page} of {pagination.totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(prev => prev + 1)}
                 disabled={currentPage >= pagination.totalPages}
-                className="px-2 md:px-3 py-1 text-xs md:text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation min-w-[80px]"
               >
                 Next
               </button>

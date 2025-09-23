@@ -29,12 +29,12 @@ const AdminDashboard: React.FC = () => {
     } else {
       // Default to overview for /admin route
       return (
-        <div className="space-y-6">
-          <div className="mb-8">
+        <div className="space-y-4 sm:space-y-6">
+          <div className="mb-6 sm:mb-8">
             <DashboardStats />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
             <TodaySchedule />
             <RecentActivity />
           </div>
@@ -46,7 +46,7 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Main content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {renderContent()}
       </div>
     </div>

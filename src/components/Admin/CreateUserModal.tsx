@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, Mail, Lock, Shield } from 'lucide-react';
 import { UserService } from '../../services/userService';
+import { useToast } from '../../contexts/ToastContext';
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
   onClose,
   onUserCreated
 }) => {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -30,17 +32,48 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
     setError(null);
 
     try {
+      // Validate password match
+      if (formData.password !== formData.confirmPassword) {
+        setError('Passwords do not match');
+        setLoading(false);
+        return;
+      }
+
+      // Validate password length
+      if (formData.password.length < 6) {
+        setError('Password must be at least 6 characters long');
+        setLoading(false);
+        return;
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        setError('Please enter a valid email address');
+        setLoading(false);
+        return;
+      }
+
       await UserService.createUser({
-        name: formData.name,
-        email: formData.email,
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
         role: formData.role
-        // Password will be set automatically to 'temp123456'
       });
 
+      showToast(`${formData.role.charAt(0).toUpperCase() + formData.role.slice(1)} user "${formData.name}" created successfully!`, 'success');
       onUserCreated();
+      onClose(); // Close modal on success
       resetForm();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create user');
+    } catch (err: any) {
+      console.error('Create user error:', err);
+      if (err?.message?.includes('duplicate key value')) {
+        setError('A user with this email already exists');
+      } else if (err?.message?.includes('invalid input syntax')) {
+        setError('Invalid data provided. Please check all fields.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to create user');
+      }
     } finally {
       setLoading(false);
     }
@@ -65,14 +98,14 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 backdrop-blur-sm bg-white/20 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 backdrop-blur-sm bg-white/20 flex items-center justify-center z-50 p-3 sm:p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-amber-900">Create New User</h2>
+        <div className="p-4 sm:p-6">
+          <div className="flex justify-between items-center mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-bold text-amber-900">Create New User</h2>
             <button
               onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
+              className="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none p-1 hover:bg-gray-100 rounded-full transition-colors"
             >
               ×
             </button>
@@ -87,10 +120,11 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-blue-800 text-sm">
-              📝 <strong>Note:</strong> Users will be created in the system database.
-              <br/>• Email: {formData.email || 'user@example.com'}
-              <br/>• For now, users are created for admin management only.
-              <br/>• Full authentication integration requires database schema updates.
+              📝 <strong>Note:</strong> Creating a new {formData.role} user.
+              <br/>• Name: {formData.name || 'Enter full name'}
+              <br/>• Email: {formData.email || 'Enter email address'}
+              <br/>• Role: {formData.role.charAt(0).toUpperCase() + formData.role.slice(1)}
+              <br/>• Password: {formData.password ? '•'.repeat(formData.password.length) : 'Enter password'}
             </p>
           </div>
 
@@ -106,7 +140,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 required
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm sm:text-base"
                 placeholder="Enter full name"
               />
             </div>
@@ -124,7 +158,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 required
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm sm:text-base"
                 placeholder="Enter email address"
               />
             </div>
@@ -142,7 +176,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 required
                 value={formData.password}
                 onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm sm:text-base"
                 placeholder="Enter password"
                 minLength={6}
               />
@@ -161,7 +195,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 required
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm sm:text-base"
                 placeholder="Confirm password"
                 minLength={6}
               />
@@ -181,7 +215,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                   ...prev, 
                   role: e.target.value as 'client' | 'admin' | 'groomer' 
                 }))}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent appearance-none"
+                className="w-full pl-10 pr-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent appearance-none text-sm sm:text-base"
               >
                 <option value="client">Client</option>
                 <option value="groomer">Groomer</option>
@@ -195,18 +229,18 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
             </p>
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button
               type="button"
               onClick={handleClose}
-              className="flex-1 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="w-full sm:flex-1 px-4 py-2.5 sm:py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm sm:text-base"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-gradient-to-r from-rose-500 to-rose-600 text-white rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:flex-1 px-4 py-2.5 sm:py-2 bg-gradient-to-r from-rose-500 to-rose-600 text-white rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm sm:text-base"
             >
               {loading ? 'Creating...' : 'Create User'}
             </button>

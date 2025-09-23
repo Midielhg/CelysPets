@@ -44,9 +44,9 @@ export default function DashboardStats() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="p-4 rounded-lg bg-gray-100 animate-pulse h-28" />
+          <div key={i} className="p-3 sm:p-4 rounded-lg bg-gray-100 animate-pulse h-20 sm:h-24" />
         ))}
       </div>
     );
@@ -64,7 +64,7 @@ export default function DashboardStats() {
   if (!stats) return null;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       <StatCard title="Total Revenue" value={currencyFmt(stats.totalRevenue)} subtitle="This month" />
       <StatCard title="Appointments" value={numberFmt(stats.appointmentsThisMonth)} subtitle="This month" />
       <StatCard title="Total Clients" value={numberFmt(stats.totalClients)} subtitle="All time" />
@@ -75,10 +75,10 @@ export default function DashboardStats() {
 
 function StatCard({ title, value, subtitle }: { title: string; value: string | number; subtitle?: string }) {
   return (
-    <div className="p-4 rounded-lg bg-white shadow border border-gray-100">
-      <div className="text-sm text-gray-500">{title}</div>
-      <div className="text-2xl font-semibold mt-1">{value}</div>
-      {subtitle && <div className="text-xs text-gray-400 mt-1">{subtitle}</div>}
+    <div className="p-3 sm:p-4 rounded-lg bg-white shadow border border-gray-100">
+      <div className="text-xs sm:text-sm text-gray-500 truncate">{title}</div>
+      <div className="text-lg sm:text-2xl font-semibold mt-1 break-all">{value}</div>
+      {subtitle && <div className="text-xs text-gray-400 mt-1 truncate">{subtitle}</div>}
     </div>
   );
 }

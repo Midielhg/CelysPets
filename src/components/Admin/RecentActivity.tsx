@@ -39,7 +39,7 @@ export default function RecentActivity() {
       console.log('RecentActivity: Fetching activity from Supabase...');
       const data = await DashboardService.getRecentActivity();
       console.log('RecentActivity: Received data:', data);
-      if (mounted) setItems(data as ActivityItem[]);
+      if (mounted) setItems(data as unknown as ActivityItem[]);
     } catch (e: any) {
       console.error('RecentActivity: Error fetching activity:', e);
       if (mounted) setError(e?.message || 'Failed to load activity');
@@ -53,31 +53,35 @@ export default function RecentActivity() {
 
   return (
     <div className="bg-white rounded-lg shadow-lg">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
+      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900">Recent Activity</h3>
       </div>
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {loading ? (
           <div className="space-y-3">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-5 bg-gray-100 animate-pulse rounded" />
+              <div key={i} className="h-4 sm:h-5 bg-gray-100 animate-pulse rounded" />
             ))}
           </div>
         ) : error ? (
           <div className="p-3 rounded bg-red-50 text-red-700 text-sm flex items-center justify-between">
-            <span>{error}</span>
-            <button onClick={fetchActivity} className="ml-3 px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200">Retry</button>
+            <span className="truncate mr-2">{error}</span>
+            <button onClick={fetchActivity} className="ml-3 px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200 whitespace-nowrap">Retry</button>
           </div>
         ) : items.length === 0 ? (
-          <div className="text-sm text-gray-500">No recent activity.</div>
+          <div className="text-sm text-gray-500 text-center py-4">No recent activity.</div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {items.map((a) => (
               <div key={a.id} className="flex items-start space-x-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                <div>
-                  <p className="text-sm text-gray-900">Appointment {a.status} {a.clients?.name ? `for ${a.clients.name}` : ''}</p>
-                  <p className="text-xs text-gray-500">{timeAgo(a.created_at)} - ${a.total_amount || 0}</p>
+                <div className="w-2 h-2 bg-green-500 rounded-full mt-1.5 sm:mt-2 flex-shrink-0"></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-900 leading-relaxed break-words">
+                    Appointment {a.status} {a.clients?.name ? `for ${a.clients.name}` : ''}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1 break-words">
+                    {timeAgo(a.created_at)} - ${a.total_amount || 0}
+                  </p>
                 </div>
               </div>
             ))}

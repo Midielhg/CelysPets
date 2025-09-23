@@ -122,33 +122,33 @@ const ClientManagement: React.FC = () => {
   };
 
   const ClientCard: React.FC<{ client: Client }> = ({ client }) => (
-    <div className="bg-white rounded-lg shadow-md border border-amber-200 p-6 hover:shadow-lg transition-shadow">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-amber-900">{client.name}</h3>
-          <div className="flex items-center text-sm text-amber-600 mt-1">
-            <Mail className="w-4 h-4 mr-1" />
-            {client.email}
+    <div className="bg-white rounded-lg shadow-md border border-amber-200 p-4 sm:p-6 hover:shadow-lg transition-shadow">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 sm:mb-4">
+        <div className="flex-1 min-w-0 mb-3 sm:mb-0">
+          <h3 className="text-base sm:text-lg font-semibold text-amber-900 truncate">{client.name}</h3>
+          <div className="flex items-center text-xs sm:text-sm text-amber-600 mt-1">
+            <Mail className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+            <span className="truncate">{client.email}</span>
           </div>
         </div>
-        <div className="flex space-x-1">
+        <div className="flex space-x-1 self-start">
           <button
             onClick={() => openModal('view', client)}
-            className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+            className="p-1.5 sm:p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
             title="View Details"
           >
             <Eye className="w-4 h-4" />
           </button>
           <button
             onClick={() => openModal('edit', client)}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             title="Edit Client"
           >
             <Edit3 className="w-4 h-4" />
           </button>
           <button
             onClick={() => handleDeleteClient(client.id)}
-            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             title="Delete Client"
           >
             <Trash2 className="w-4 h-4" />
@@ -156,27 +156,27 @@ const ClientManagement: React.FC = () => {
         </div>
       </div>
 
-      <div className="space-y-2 text-sm">
+      <div className="space-y-2 text-xs sm:text-sm">
         <div className="flex items-center text-amber-700">
-          <Phone className="w-4 h-4 mr-2" />
-          {formatPhone(client.phone)}
+          <Phone className="w-3 h-3 sm:w-4 sm:h-4 mr-2 flex-shrink-0" />
+          <span className="truncate">{formatPhone(client.phone)}</span>
         </div>
         <div className="flex items-start text-amber-700">
-          <MapPin className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-          <span className="line-clamp-2">{client.address}</span>
+          <MapPin className="w-3 h-3 sm:w-4 sm:h-4 mr-2 mt-0.5 flex-shrink-0" />
+          <span className="line-clamp-2 break-words">{client.address}</span>
         </div>
       </div>
 
       {(() => {
         const clientPets = getPetsArray(client.pets);
         return clientPets.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-amber-100">
-            <div className="text-sm font-medium text-amber-800 mb-2">
+          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-amber-100">
+            <div className="text-xs sm:text-sm font-medium text-amber-800 mb-2">
               Pets ({clientPets.length})
             </div>
             <div className="space-y-1">
               {clientPets.slice(0, 2).map((pet: Pet, index: number) => (
-                <div key={index} className="text-xs text-amber-600">
+                <div key={index} className="text-xs text-amber-600 truncate">
                   {pet.name} - {pet.breed} {pet.type && `(${pet.type})`}
                 </div>
               ))}
@@ -338,36 +338,36 @@ const ClientManagement: React.FC = () => {
 
     if (modalMode === 'view' && selectedClient) {
       return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-amber-900">Client Details</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-amber-900">Client Details</h2>
                 <button
                   onClick={closeModal}
-                  className="text-amber-600 hover:text-amber-800 text-2xl"
+                  className="text-amber-600 hover:text-amber-800 text-xl sm:text-2xl p-1"
                 >
                   ×
                 </button>
               </div>
               
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-amber-700 mb-1">Name</label>
-                    <p className="text-amber-900">{selectedClient.name}</p>
+                    <label className="block text-xs sm:text-sm font-medium text-amber-700 mb-1">Name</label>
+                    <p className="text-sm sm:text-base text-amber-900 break-words">{selectedClient.name}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-amber-700 mb-1">Email</label>
-                    <p className="text-amber-900">{selectedClient.email}</p>
+                    <label className="block text-xs sm:text-sm font-medium text-amber-700 mb-1">Email</label>
+                    <p className="text-sm sm:text-base text-amber-900 break-all">{selectedClient.email}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-amber-700 mb-1">Phone</label>
-                    <p className="text-amber-900">{formatPhone(selectedClient.phone)}</p>
+                    <label className="block text-xs sm:text-sm font-medium text-amber-700 mb-1">Phone</label>
+                    <p className="text-sm sm:text-base text-amber-900">{formatPhone(selectedClient.phone)}</p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-amber-700 mb-1">Address</label>
-                    <p className="text-amber-900">{selectedClient.address}</p>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs sm:text-sm font-medium text-amber-700 mb-1">Address</label>
+                    <p className="text-sm sm:text-base text-amber-900 break-words">{selectedClient.address}</p>
                   </div>
                 </div>
 
@@ -375,18 +375,18 @@ const ClientManagement: React.FC = () => {
                   const pets = getPetsArray(selectedClient.pets);
                   return pets.length > 0 && (
                     <div>
-                      <label className="block text-sm font-medium text-amber-700 mb-2">Pets ({pets.length})</label>
-                      <div className="space-y-2">
+                      <label className="block text-xs sm:text-sm font-medium text-amber-700 mb-2">Pets ({pets.length})</label>
+                      <div className="space-y-2 sm:space-y-3">
                         {pets.map((pet: Pet, index: number) => (
-                          <div key={index} className="bg-amber-50 p-3 rounded-lg">
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <p><strong>Name:</strong> {pet.name}</p>
-                              <p><strong>Breed:</strong> {pet.breed}</p>
+                          <div key={index} className="bg-amber-50 p-3 sm:p-4 rounded-lg">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm">
+                              <p className="break-words"><strong>Name:</strong> {pet.name}</p>
+                              <p className="break-words"><strong>Breed:</strong> {pet.breed}</p>
                               {pet.type && <p><strong>Type:</strong> {pet.type}</p>}
                               {pet.age && <p><strong>Age:</strong> {pet.age} years</p>}
                               {pet.weight && <p><strong>Weight:</strong> {pet.weight}</p>}
                               {pet.specialInstructions && (
-                                <p className="col-span-2"><strong>Special Instructions:</strong> {pet.specialInstructions}</p>
+                                <p className="col-span-1 sm:col-span-2 break-words"><strong>Special Instructions:</strong> {pet.specialInstructions}</p>
                               )}
                             </div>
                           </div>
@@ -397,16 +397,16 @@ const ClientManagement: React.FC = () => {
                 })()}
               </div>
 
-              <div className="mt-6 flex justify-end space-x-3">
+              <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
                 <button
                   onClick={() => openModal('edit', selectedClient)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+                  className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white px-4 py-2.5 sm:py-2 rounded-lg transition-colors text-sm sm:text-base"
                 >
                   Edit Client
                 </button>
                 <button
                   onClick={closeModal}
-                  className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition-colors"
+                  className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 sm:py-2 rounded-lg transition-colors text-sm sm:text-base"
                 >
                   Close
                 </button>
@@ -682,19 +682,19 @@ const ClientManagement: React.FC = () => {
   };
 
   return (
-    <div className="p-6 bg-amber-50 min-h-screen">
+    <div className="p-3 sm:p-6 bg-amber-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-amber-900 mb-2">Client Management</h1>
-            <p className="text-amber-600">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+          <div className="mb-4 sm:mb-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-amber-900 mb-1 sm:mb-2">Client Management</h1>
+            <p className="text-sm sm:text-base text-amber-600">
               {loading ? 'Loading...' : `${totalClients} total clients`}
             </p>
           </div>
           <button
             onClick={() => openModal('create')}
-            className="mt-4 sm:mt-0 bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+            className="w-full sm:w-auto bg-rose-500 hover:bg-rose-600 text-white px-4 py-2.5 sm:py-2 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm sm:text-base"
           >
             <Plus className="w-4 h-4" />
             Add New Client
@@ -702,15 +702,15 @@ const ClientManagement: React.FC = () => {
         </div>
 
         {/* Search */}
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 sm:w-5 sm:h-5" />
             <input
               type="text"
-              placeholder="Search clients by name, email, phone, or address..."
+              placeholder="Search clients..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-amber-200 rounded-lg focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white"
+              className="w-full pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border border-amber-200 rounded-lg focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white"
             />
           </div>
         </div>
@@ -750,7 +750,7 @@ const ClientManagement: React.FC = () => {
         {/* Clients Grid */}
         {!loading && clients.length > 0 && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-4 sm:mb-6">
               {clients.map((client) => (
                 <ClientCard key={client.id} client={client} />
               ))}
@@ -758,23 +758,23 @@ const ClientManagement: React.FC = () => {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex justify-center items-center space-x-2">
+              <div className="flex justify-center items-center space-x-1 sm:space-x-2 px-4">
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-2 border border-amber-300 rounded-lg text-amber-600 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-2 sm:px-3 py-2 text-xs sm:text-sm border border-amber-300 rounded-lg text-amber-600 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Previous
+                  Prev
                 </button>
                 
-                <div className="flex space-x-1">
+                <div className="flex space-x-1 overflow-x-auto max-w-[200px] sm:max-w-none">
                   {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                     const page = i + 1;
                     return (
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`px-3 py-2 rounded-lg ${
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm rounded-lg flex-shrink-0 ${
                           currentPage === page
                             ? 'bg-rose-500 text-white'
                             : 'border border-amber-300 text-amber-600 hover:bg-amber-100'
@@ -789,7 +789,7 @@ const ClientManagement: React.FC = () => {
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-2 border border-amber-300 rounded-lg text-amber-600 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-2 sm:px-3 py-2 text-xs sm:text-sm border border-amber-300 rounded-lg text-amber-600 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>

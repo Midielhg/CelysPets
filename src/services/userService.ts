@@ -46,25 +46,27 @@ export class UserService {
     try {
       console.log('👥 UserService: Fetching users...', { page, limit, search, roleFilter });
 
-      // Build query for user_profiles table (not users)
+            // Build query for user_profiles table
       let query = supabase
         .from('user_profiles')
-        .select('id, name, email, role, created_at, updated_at', { count: 'exact' });
-
-      // Apply role filter
-      if (roleFilter !== 'all') {
-        query = query.eq('role', roleFilter);
-      }
+        .select('*', { count: 'exact' });
 
       // Apply search filter
-      if (search.trim()) {
+      if (search) {
         query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
       }
 
-      // Apply pagination
-      const start = (page - 1) * limit;
-      const end = start + limit - 1;
-      query = query.range(start, end).order('created_at', { ascending: false });
+      // Apply role filter
+      if (roleFilter && roleFilter !== 'all') {
+        query = query.eq('role', roleFilter);
+      }
+
+      // Apply sorting and pagination
+      query = query.order('created_at', { ascending: false });
+
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
 
       const { data: users, error, count } = await query;
 
@@ -101,7 +103,7 @@ export class UserService {
     try {
       console.log('📊 UserService: Fetching user statistics...');
 
-      // Get user counts by role from user_profiles table
+            // Get user counts by role from user_profiles table
       const { data: roleCounts, error: roleError } = await supabase
         .from('user_profiles')
         .select('role')
@@ -170,15 +172,27 @@ export class UserService {
   /**
    * Create a new user (using database auto-generated ID)
    */
-  static async createUser(userData: Omit<User, 'id' | 'created_at' | 'updated_at'>): Promise<User> {
+  static async createUser(userData: Omit<User, 'id' | 'created_at' | 'updated_at'> & { password: string }): Promise<User> {
     try {
       console.log('➕ UserService: Creating user with auto-generated ID...', userData);
 
-      // Create user profile in our custom user_profiles table (let DB generate ID)
+      // First check if user already exists with this email
+      const { data: existingUser } = await supabase
+        .from('user_profiles')
+        .select('id, email')
+        .eq('email', userData.email.toLowerCase())
+        .single();
+
+      if (existingUser) {
+        throw new Error('A user with this email address already exists');
+      }
+
+      // Create user profile in the user_profiles table (let DB generate ID)
       const userProfile = {
-        email: userData.email,
-        name: userData.name,
+        email: userData.email.toLowerCase().trim(),
+        name: userData.name.trim(),
         role: userData.role,
+        password_hash: userData.password, // Store password hash in database
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -193,14 +207,24 @@ export class UserService {
 
       if (profileError) {
         console.error('❌ Error creating user profile:', profileError);
-        throw profileError;
+        
+        // Handle specific database errors
+        if (profileError.code === '23505') {
+          throw new Error('A user with this email address already exists');
+        } else if (profileError.code === '23502') {
+          throw new Error('Missing required fields. Please ensure all fields are filled out.');
+        } else {
+          throw new Error(`Database error: ${profileError.message}`);
+        }
       }
 
       console.log('✅ User profile created with ID:', profileData.id);
-
-      // Note: For now, this creates users in the profile table only
-      // Full Supabase Auth integration requires database schema changes
-      console.log('ℹ️ Note: User created in profile table. They can be managed through admin interface.');
+      console.log('✅ User created successfully:', {
+        id: profileData.id,
+        name: profileData.name,
+        email: profileData.email,
+        role: profileData.role
+      });
 
       return profileData;
     } catch (error) {
@@ -212,20 +236,36 @@ export class UserService {
   /**
    * Update an existing user
    */
-  static async updateUser(id: string, userData: Partial<User>): Promise<User> {
+  static async updateUser(id: string, userData: Partial<User> & { password?: string }): Promise<User> {
     try {
       console.log('✏️ UserService: Updating user...', id, userData);
 
+      // If password is being updated, store it as password_hash
+      const updateData: any = { ...userData };
+      if (updateData.password) {
+        console.log('🔐 Updating password for user...');
+        updateData.password_hash = updateData.password;
+        delete updateData.password;
+      }
+
       const { data, error } = await supabase
         .from('user_profiles')
-        .update(userData)
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
 
       if (error) {
         console.error('❌ Error updating user:', error);
-        throw error;
+        
+        // Handle specific database errors
+        if (error.code === '23505') {
+          throw new Error('A user with this email already exists');
+        } else if (error.code === '23502') {
+          throw new Error('Please fill in all required fields');
+        } else {
+          throw new Error(error.message || 'Failed to update user');
+        }
       }
 
       console.log('✅ User updated:', data);
@@ -250,7 +290,13 @@ export class UserService {
 
       if (error) {
         console.error('❌ Error deleting user:', error);
-        throw error;
+        
+        // Handle specific database errors
+        if (error.code === '23503') {
+          throw new Error('Cannot delete user: they have associated records that must be removed first');
+        } else {
+          throw new Error(error.message || 'Failed to delete user');
+        }
       }
 
       console.log('✅ User deleted:', id);
@@ -292,7 +338,7 @@ export class UserService {
       console.log('🔍 UserService: Fetching user by ID...', id);
 
       const { data, error } = await supabase
-        .from('user_profiles')
+        .from('users')
         .select('id, name, email, role, created_at, updated_at')
         .eq('id', id)
         .single();

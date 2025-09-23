@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
-import Navbar from './components/Layout/Navbar';
+import MobileFriendlyNavbar from './components/Layout/MobileFriendlyNavbar';
 import Home from './components/Home';
 import BookingPage from './components/Booking/BookingPage';
 import Login from './components/Auth/Login';
@@ -21,7 +21,7 @@ function App() {
       <ToastProvider>
         <Router>
           <div className="min-h-screen bg-transparent">
-            <Navbar />
+            <MobileFriendlyNavbar />
             <main>
               <Routes>
                 <Route path="/" element={<Home />} />
