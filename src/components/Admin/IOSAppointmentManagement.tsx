@@ -39,12 +39,13 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   // Helper function to transform Supabase appointment data to component format
   const transformAppointmentData = (apt: any): Appointment => ({
     id: apt.id.toString(),
-    client: apt.clients || { // clients from the joined table
-      id: apt.client_id?.toString() || '',
-      name: apt.clients?.name || 'Unknown',
-      email: apt.clients?.email || '',
-      phone: apt.clients?.phone || '',
-      pets: apt.clients?.pets || []
+    client: apt.clients || apt.client || { // Handle both joined data and direct client data
+      id: apt.client_id?.toString() || apt.clients?.id?.toString() || '',
+      name: apt.clients?.name || apt.client?.name || 'Unknown',
+      email: apt.clients?.email || apt.client?.email || '',
+      phone: apt.clients?.phone || apt.client?.phone || '',
+      address: apt.clients?.address || apt.client?.address || '',
+      pets: apt.clients?.pets || apt.client?.pets || []
     },
     services: apt.services || [],
     date: apt.date,
@@ -1343,20 +1344,61 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         
         showToast('Appointment updated successfully!', 'success');
       } else {
-        // Create new appointment - First find or create the client
-        // For now, let's assume we have a client ID (this might need to be handled separately)
-        const createData = {
-          clientId: 1, // TODO: Handle client creation/lookup properly
-          date: bookingFormData.preferredDate,
-          time: bookingFormData.preferredTime,
-          services: selectedServices,
-          notes: bookingFormData.notes || '',
-          status: 'pending' as const,
-          totalAmount: null, // Calculate if needed
-        };
+        // Create new appointment - First create or find the client
+        console.log('🔍 Creating client for appointment...');
+        
+        try {
+          console.log('🔄 Step 1: Creating client with data:', {
+            name: bookingFormData.customerName,
+            email: bookingFormData.email,
+            phone: bookingFormData.phone,
+            address: bookingFormData.address,
+            pets: bookingFormData.pets
+          });
+          
+          // Create client using ClientService
+          const clientData = await ClientService.createOrUpdateForBooking({
+            name: bookingFormData.customerName,
+            email: bookingFormData.email,
+            phone: bookingFormData.phone,
+            address: bookingFormData.address,
+            pets: bookingFormData.pets
+          });
+          
+          console.log('✅ Step 1 Complete - Client created/found:', clientData);
+          
+          const createData = {
+            client_id: clientData.id, // Use the actual client ID
+            date: bookingFormData.preferredDate,
+            time: bookingFormData.preferredTime,
+            services: selectedServices,
+            notes: bookingFormData.notes || '',
+            status: 'pending' as const,
+            total_amount: null, // Calculate if needed
+            groomer_id: null
+          };
+          
+          console.log('🔄 Step 2: Creating appointment with data:', createData);
 
-        const createdAppt = await AppointmentService.create(createData);
-        appointmentResult = transformAppointmentData(createdAppt);
+          const createdAppt = await AppointmentService.create(createData);
+          console.log('✅ Step 2 Complete - Appointment created:', createdAppt);
+          
+          // Add client data to the appointment before transforming
+          const appointmentWithClient = {
+            ...createdAppt,
+            client: clientData // Include the client data we created
+          };
+          
+          appointmentResult = transformAppointmentData(appointmentWithClient);
+          console.log('✅ Step 3 Complete - Appointment transformed:', appointmentResult);
+        } catch (clientError) {
+          console.error('❌ Error in appointment creation process:', clientError);
+          console.error('❌ Client error details:', {
+            message: clientError instanceof Error ? clientError.message : String(clientError),
+            stack: clientError instanceof Error ? clientError.stack : undefined
+          });
+          throw new Error(`Failed to create appointment: ${clientError instanceof Error ? clientError.message : String(clientError)}`);
+        }
         
         console.log('🎉 APPOINTMENT DEBUG - Created appointment:', appointmentResult);
         
@@ -1386,8 +1428,18 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       setShowModal(false);
 
     } catch (error) {
-      showToast(editMode ? 'Error updating appointment' : 'Error creating appointment', 'error');
-      console.error(editMode ? 'Error updating appointment:' : 'Error creating appointment:', error);
+      const operation = editMode ? 'updating' : 'creating';
+      console.error(`❌ Error ${operation} appointment:`, error);
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        appointmentData: editMode ? 'Update data' : 'Create data',
+        bookingFormData
+      });
+      
+      // Show more specific error message
+      const errorMessage = error instanceof Error ? error.message : `Error ${operation} appointment`;
+      showToast(errorMessage, 'error');
     }
   };
 

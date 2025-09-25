@@ -77,51 +77,51 @@ export interface Database {
       appointments: {
         Row: {
           id: number
-          clientId: number
-          groomerId: number | null
+          client_id: number
+          groomer_id: number | null
           services: Json
           date: string
           time: string
           status: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled'
           notes: string | null
-          totalAmount: number | null
-          promoCodeId: number | null
-          promoCodeDiscount: number | null
-          originalAmount: number | null
-          createdAt: string
-          updatedAt: string
+          total_amount: number | null
+          promo_code_id: number | null
+          promo_code_discount: number | null
+          original_amount: number | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: number
-          clientId: number
-          groomerId?: number | null
+          client_id: number
+          groomer_id?: number | null
           services: Json
           date: string
           time: string
           status?: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled'
           notes?: string | null
-          totalAmount?: number | null
-          promoCodeId?: number | null
-          promoCodeDiscount?: number | null
-          originalAmount?: number | null
-          createdAt?: string
-          updatedAt?: string
+          total_amount?: number | null
+          promo_code_id?: number | null
+          promo_code_discount?: number | null
+          original_amount?: number | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: number
-          clientId?: number
-          groomerId?: number | null
+          client_id?: number
+          groomer_id?: number | null
           services?: Json
           date?: string
           time?: string
           status?: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled'
           notes?: string | null
-          totalAmount?: number | null
-          promoCodeId?: number | null
-          promoCodeDiscount?: number | null
-          originalAmount?: number | null
-          createdAt?: string
-          updatedAt?: string
+          total_amount?: number | null
+          promo_code_id?: number | null
+          promo_code_discount?: number | null
+          original_amount?: number | null
+          created_at?: string
+          updated_at?: string
         }
       }
       pets: {

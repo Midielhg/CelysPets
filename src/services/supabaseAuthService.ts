@@ -38,9 +38,9 @@ export class SupabaseAuthService {
       let profile: UserProfile | null = null;
       
       try {
-        // Add timeout to profile fetch
+        // Add timeout to profile fetch (increased to 10 seconds)
         const profileTimeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Profile fetch timeout')), 3000);
+          setTimeout(() => reject(new Error('Profile fetch timeout')), 10000);
         });
         
         const profileFetch = supabase
@@ -256,7 +256,7 @@ export class SupabaseAuthService {
       console.log('🔍 Fetching profile for user:', userId);
       
       const profileTimeout = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 3000);
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000);
       });
       
       const profileFetch = supabase

@@ -405,18 +405,35 @@ const BookingPage: React.FC = () => {
 
       // First, create or update the client using Supabase
       let clientId: number;
+      console.log('🚀 Starting client creation process for booking...');
       try {
-        const client = await ClientService.createOrUpdateForBooking({
+        const clientData = {
           name: formData.customerName,
           email: formData.email,
           phone: formatPhone(formData.phone),
           address: formData.address,
           pets: petsWithBreeds
+        };
+        
+        console.log('📝 Client data prepared:', {
+          name: clientData.name,
+          email: clientData.email,
+          hasPhone: !!clientData.phone,
+          hasAddress: !!clientData.address,
+          petsCount: clientData.pets.length
         });
+
+        const client = await ClientService.createOrUpdateForBooking(clientData);
         clientId = client.id;
-      } catch (error) {
-        console.error('Error creating/updating client:', error);
-        throw new Error('Failed to save client information');
+        console.log('✅ Client saved successfully with ID:', clientId);
+      } catch (error: any) {
+        console.error('❌ Error creating/updating client:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          stack: error.stack
+        });
+        throw new Error(`Failed to save client information: ${error.message}`);
       }
 
       // Get promo code ID if one was applied
@@ -433,17 +450,17 @@ const BookingPage: React.FC = () => {
       // Create the appointment using Supabase
       try {
         await AppointmentService.create({
-          clientId: clientId,
-          groomerId: null, // Will be assigned later by admin
+          client_id: clientId,
+          groomer_id: null, // Will be assigned later by admin
           services: services,
           date: formData.preferredDate,
           time: formData.preferredTime,
           status: 'pending',
           notes: formData.notes,
-          totalAmount: calculateTotal(),
-          originalAmount: calculateSubtotal(),
-          promoCodeId: promoCodeId,
-          promoCodeDiscount: promoCodeDiscount
+          total_amount: calculateTotal(),
+          original_amount: calculateSubtotal(),
+          promo_code_id: promoCodeId,
+          promo_code_discount: promoCodeDiscount
         });
       } catch (error) {
         console.error('Error creating appointment:', error);

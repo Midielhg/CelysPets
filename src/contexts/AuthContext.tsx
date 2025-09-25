@@ -145,16 +145,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(convertToUser(result.user, result.profile));
           console.log('✅ Login successful with profile');
         } else {
-          // User authenticated but no profile - create a temporary user object
-          console.log('⚠️ User authenticated but no profile - creating temporary profile');
+          // User authenticated but no profile - this usually means RLS policy issues
+          console.log('⚠️ User authenticated but no profile - this may indicate RLS policy problems');
+          console.log('🔍 User metadata:', result.user.user_metadata);
+          
+          // Try to determine role from user metadata or email
+          let role: 'client' | 'admin' | 'groomer' = 'client';
+          if (result.user.email === 'admin@celyspets.com' || 
+              result.user.user_metadata?.role === 'admin') {
+            role = 'admin';
+          } else if (result.user.user_metadata?.role === 'groomer') {
+            role = 'groomer';
+          }
+          
           const tempUser: User = {
             id: result.user.id,
             email: result.user.email || '',
             name: result.user.user_metadata?.name || result.user.email?.split('@')[0] || 'User',
-            role: 'client'
+            role: role
           };
           setUser(tempUser);
-          console.log('✅ Login successful with temporary profile');
+          console.log('✅ Login successful with temporary profile, role:', role);
         }
       } else {
         throw new Error('Authentication failed - no user returned');

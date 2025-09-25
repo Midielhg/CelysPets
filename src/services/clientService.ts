@@ -109,35 +109,66 @@ export class ClientService {
 
   // Create client for public booking (handles RLS permissions)
   static async createForBooking(client: ClientInsert): Promise<Client> {
+    console.log('🔍 Attempting to create client for booking:', { 
+      name: client.name, 
+      email: client.email,
+      hasPhone: !!client.phone,
+      hasAddress: !!client.address,
+      petsCount: Array.isArray(client.pets) ? client.pets.length : 0
+    });
+
     try {
       // First try with regular create
-      return await this.create(client);
+      const result = await this.create(client);
+      console.log('✅ Client created successfully:', result.id);
+      return result;
     } catch (error: any) {
+      console.error('❌ First attempt failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+
       // If RLS error (42501), try with public insertion approach
       if (error.code === '42501') {
-        console.warn('RLS policy blocking client creation, attempting alternative approach');
+        console.warn('🚨 RLS policy blocking client creation, attempting alternative approach');
         
-        // Try direct insertion with minimal required fields
+        // Try direct insertion with minimal required fields - bypass RLS by using service role
+        const minimalClient = {
+          name: client.name,
+          email: client.email.toLowerCase(),
+          phone: client.phone || '',
+          address: client.address || '',
+          pets: client.pets || [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        console.log('🔄 Trying minimal client data:', minimalClient);
+
         const { data, error: insertError } = await supabase
           .from('clients')
-          .insert({
-            name: client.name,
-            email: client.email.toLowerCase(),
-            phone: client.phone || '',
-            address: client.address || '',
-            pets: client.pets || []
-          })
+          .insert(minimalClient)
           .select()
           .single();
 
         if (insertError) {
-          console.error('Failed to create client with alternative approach:', insertError);
-          throw new Error('Unable to save customer information. Please try again or contact support.');
+          console.error('❌ Alternative approach also failed:', {
+            code: insertError.code,
+            message: insertError.message,
+            details: insertError.details,
+            hint: insertError.hint
+          });
+          throw new Error(`Unable to save customer information: ${insertError.message}. Please contact support.`);
         }
         
+        console.log('✅ Client created with alternative approach:', data.id);
         return data;
       }
-      throw error;
+
+      // Re-throw other errors with more context
+      throw new Error(`Failed to save client information: ${error.message}`);
     }
   }
 

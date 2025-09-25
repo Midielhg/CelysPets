@@ -12,14 +12,14 @@ export class AppointmentService {
       .from('appointments')
       .select(`
         *,
-        clients:client_id (
+        clients!client_id (
           id,
           name,
           email,
           phone,
           pets
         ),
-        promo_codes:promo_code_id (
+        promo_codes!promo_code_id (
           code,
           name,
           discount_type,
