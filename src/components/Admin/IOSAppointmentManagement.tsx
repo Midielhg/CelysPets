@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Calendar, 
   Clock, 
@@ -13,7 +13,9 @@ import {
   Eye,
   Car,
   ArrowDown,
-  Mail
+  Mail,
+  DollarSign,
+  Check
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import type { Appointment, Pet } from '../../types';
@@ -22,6 +24,7 @@ import GoogleMapRoute from '../GoogleMapRoute';
 import { AppointmentService } from '../../services/appointmentService';
 import { PricingService } from '../../services/pricingService';
 import { ClientService } from '../../services/clientService';
+import { UserService, type User as UserType } from '../../services/userService';
 import GroomerAssignmentModal from './GroomerAssignmentModal';
 
 // Type declarations for Google Maps
@@ -36,6 +39,45 @@ interface IOSAppointmentManagementProps {}
 const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => {
   const { showToast } = useToast();
 
+  // Helper function to parse services from various formats
+  const parseServices = (servicesData: any): string[] => {
+    if (!servicesData) return [];
+    
+    console.log('🔍 Parsing services data:', servicesData, 'Type:', typeof servicesData);
+    
+    // If it's already an array of strings
+    if (Array.isArray(servicesData)) {
+      return servicesData.map(service => {
+        if (typeof service === 'string') return service;
+        if (service && typeof service === 'object') {
+          return service.name || service.id || String(service);
+        }
+        return String(service);
+      });
+    }
+    
+    // If it's a string (comma-separated or single service)
+    if (typeof servicesData === 'string') {
+      return servicesData.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    }
+    
+    // If it's an object with services property
+    if (servicesData && typeof servicesData === 'object') {
+      if (servicesData.services) {
+        return parseServices(servicesData.services);
+      }
+      if (servicesData.name) {
+        return [servicesData.name];
+      }
+      if (servicesData.id) {
+        return [servicesData.id];
+      }
+    }
+    
+    console.warn('⚠️ Unable to parse services:', servicesData);
+    return ['Unknown Service'];
+  };
+
   // Helper function to transform Supabase appointment data to component format
   const transformAppointmentData = (apt: any): Appointment => ({
     id: apt.id.toString(),
@@ -47,7 +89,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       address: apt.clients?.address || apt.client?.address || '',
       pets: apt.clients?.pets || apt.client?.pets || []
     },
-    services: apt.services || [],
+    services: parseServices(apt.services),
     date: apt.date,
     time: apt.time,
     endTime: apt.end_time,
@@ -68,6 +110,12 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const [viewMode, setViewMode] = useState<'month' | 'week' | '4day' | 'day' | 'agenda'>('month');
   const [filter, setFilter] = useState<'all' | 'today' | 'pending' | 'confirmed' | 'completed' | 'unpaid' | 'partial' | 'paid' | 'refunded' | 'disputed'>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [staffFilter, setStaffFilter] = useState<string>('all'); // 'all' or staff member ID
+  const [availableStaff, setAvailableStaff] = useState<UserType[]>([]);
+  const [showStaffFilter, setShowStaffFilter] = useState(false);
+  const staffFilterRef = useRef<HTMLDivElement>(null);
+  const [showStaffAssignmentPopout, setShowStaffAssignmentPopout] = useState(false);
+  const staffAssignmentRef = useRef<HTMLDivElement>(null);
   const [statusPopover, setStatusPopover] = useState<{ appointmentId: string; type: 'status' | 'payment' } | null>(null);
   const [modalStatusPopover, setModalStatusPopover] = useState<{ type: 'status' | 'payment' } | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -140,6 +188,23 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrCodeType, setQrCodeType] = useState<'zelle' | 'cashapp' | null>(null);
+
+  // Click outside handler for staff filter popout
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (staffFilterRef.current && !staffFilterRef.current.contains(event.target as Node)) {
+        setShowStaffFilter(false);
+      }
+      if (staffAssignmentRef.current && !staffAssignmentRef.current.contains(event.target as Node)) {
+        setShowStaffAssignmentPopout(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Function to select a client and prefill form
   const selectClient = (client: any) => {
@@ -980,6 +1045,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       filtered = appointments.filter(apt => apt.status === filter);
     }
     
+    // Apply staff filter if selected
+    if (staffFilter && staffFilter !== 'all') {
+      const selectedStaff = availableStaff.find(staff => staff.id === staffFilter);
+      if (selectedStaff) {
+        filtered = filtered.filter(apt => apt.assignedGroomer === selectedStaff.name);
+      }
+    }
+    
     return filtered;
   };
 
@@ -1142,6 +1215,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   };
 
   const openViewModal = (appointment: Appointment) => {
+    console.log('Opening appointment modal:', appointment);
+    console.log('Client data:', appointment.client);
     setSelectedAppointment(appointment);
     setIsAddingNew(false);
     setEditMode(false);
@@ -1165,11 +1240,6 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   };
 
   // Open groomer assignment modal
-  const openGroomerAssignmentModal = (appointment: Appointment) => {
-    setSelectedAppointment(appointment);
-    setShowGroomerAssignmentModal(true);
-  };
-
   // Handle groomer assignment update
   const handleGroomerAssignmentUpdate = (appointmentId: string, groomerName: string | null) => {
     // Update the appointment in local state
@@ -1180,6 +1250,34 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     // Update selectedAppointment if it's the same appointment being changed
     if (selectedAppointment && selectedAppointment.id === appointmentId) {
       setSelectedAppointment(prev => prev ? { ...prev, assignedGroomer: groomerName || '' } : null);
+    }
+  };
+
+  // Handle direct staff assignment from popout
+  const handleDirectStaffAssignment = async (staff: UserType | null) => {
+    if (!selectedAppointment) return;
+
+    try {
+      const staffName = staff?.name || null;
+      console.log(`🔄 Assigning staff ${staffName} to appointment ${selectedAppointment.id}`);
+      
+      // Use the existing groomer assignment service
+      if (staff) {
+        await AppointmentService.assignToGroomer(parseInt(selectedAppointment.id), staff.id);
+      } else {
+        await AppointmentService.unassignGroomer(parseInt(selectedAppointment.id));
+      }
+      
+      // Update local state
+      handleGroomerAssignmentUpdate(selectedAppointment.id, staffName);
+      
+      // Close the popout
+      setShowStaffAssignmentPopout(false);
+      
+      showToast(staffName ? `Assigned ${staffName} to appointment` : 'Unassigned staff from appointment', 'success');
+    } catch (error) {
+      console.error('Error assigning staff:', error);
+      showToast('Failed to assign staff member', 'error');
     }
   };
 
@@ -1494,10 +1592,21 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     }
   };
 
+  const fetchStaff = async () => {
+    try {
+      const data = await UserService.getAssignableUsers();
+      console.log('Staff loaded:', data); // Debug log
+      setAvailableStaff(data);
+    } catch (error) {
+      console.error('Error fetching staff:', error);
+    }
+  };
+
   useEffect(() => {
     fetchAppointments();
     fetchBreeds();
     fetchAddons();
+    fetchStaff();
   }, []);
 
   // Effect to populate form when editing an appointment
@@ -3058,6 +3167,66 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   </button>
                 );
               })}
+
+              {/* Staff Filter */}
+              <div className="w-px h-6 bg-gray-300 mx-1 md:mx-2"></div>
+              <div className="relative" ref={staffFilterRef}>
+                <button
+                  onClick={() => setShowStaffFilter(!showStaffFilter)}
+                  className={`px-2 md:px-3 py-1 text-xs md:text-sm font-medium rounded-full transition-colors border ${
+                    staffFilter === 'all' 
+                      ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' 
+                      : 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600'
+                  }`}
+                >
+                  {staffFilter === 'all' ? (
+                    <>👥 All Staff</>
+                  ) : (
+                    <>
+                      {availableStaff.find(s => s.id === staffFilter)?.role === 'admin' ? '👑' : '✂️'} 
+                      {availableStaff.find(s => s.id === staffFilter)?.name || 'Staff'}
+                    </>
+                  )}
+                </button>
+                
+                {showStaffFilter && (
+                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-48">
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setStaffFilter('all');
+                          setShowStaffFilter(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center space-x-2 ${
+                          staffFilter === 'all' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                        }`}
+                      >
+                        <span>👥</span>
+                        <span>All Staff</span>
+                      </button>
+                      <div className="border-t border-gray-100"></div>
+                      {availableStaff.map((staff) => (
+                        <button
+                          key={staff.id}
+                          onClick={() => {
+                            setStaffFilter(staff.id);
+                            setShowStaffFilter(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center space-x-2 ${
+                            staffFilter === staff.id ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                          }`}
+                        >
+                          <span>{staff.role === 'admin' ? '👑' : '✂️'}</span>
+                          <span>{staff.name}</span>
+                          <span className="text-xs text-gray-500 ml-auto">
+                            {staff.role === 'admin' ? 'Admin' : 'Groomer'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -3980,6 +4149,23 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                           {modalStatusPopover?.type === 'payment' && (
                             <div className="absolute left-0 top-full mt-2 bg-white rounded-lg shadow-xl border border-gray-200 p-2 z-[9999] w-full">
                               <div className="grid gap-1">
+                                {/* Collect Payment Option - Only show for unpaid/partial */}
+                                {selectedAppointment?.paymentStatus !== 'paid' && (
+                                  <>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setModalStatusPopover(null);
+                                        setShowPaymentModal(true);
+                                      }}
+                                      className="flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 hover:bg-green-50 text-green-700 border-b border-gray-200 mb-1"
+                                    >
+                                      <DollarSign className="w-4 h-4" />
+                                      <span>Collect Payment</span>
+                                    </button>
+                                  </>
+                                )}
+                                
                                 {(['unpaid', 'partial', 'paid', 'refunded', 'disputed'] as const).map((paymentStatus) => (
                                   <button
                                     key={paymentStatus}
@@ -4004,6 +4190,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                       {paymentStatus === 'disputed' && '⚠️'}
                                     </span>
                                     <span className="capitalize">{paymentStatus.replace('-', ' ')}</span>
+                                    {(selectedAppointment?.paymentStatus || 'unpaid') === paymentStatus && (
+                                      <Check className="w-3 h-3 ml-auto" />
+                                    )}
                                   </button>
                                 ))}
                               </div>
@@ -4022,7 +4211,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                         {selectedAppointment.services.map((service, index) => (
                           <div key={index} className="flex justify-between items-center">
                             <span className="text-sm text-amber-900">
-                              {typeof service === 'string' ? service : service.name || 'Unknown Service'}
+                              {typeof service === 'string' ? service : (service?.name || String(service) || 'Unknown Service')}
                             </span>
                             {typeof service === 'object' && service.price && (
                               <span className="text-sm font-medium text-amber-700">${service.price}</span>
@@ -4122,48 +4311,90 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                     </div>
                   </div>
 
-                  {/* Groomer Assignment */}
-                  <div>
-                    <label className="block text-sm font-medium text-amber-700 mb-2">Assigned Groomer</label>
-                    <div className="bg-amber-50 rounded-lg p-3">
+                  {/* Staff Assignment */}
+                  <div className="relative" ref={staffAssignmentRef}>
+                    <label className="block text-sm font-medium text-amber-700 mb-2">Assigned Staff Member</label>
+                    <div 
+                      className="bg-amber-50 rounded-lg p-3 cursor-pointer hover:bg-amber-100 transition-colors"
+                      onClick={() => setShowStaffAssignmentPopout(!showStaffAssignmentPopout)}
+                    >
                       {selectedAppointment?.assignedGroomer ? (
-                        <div className="flex items-center space-x-2">
-                          <User className="w-4 h-4 text-blue-600" />
-                          <span className="text-amber-900 font-medium">{selectedAppointment.assignedGroomer}</span>
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Assigned</span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <User className="w-4 h-4 text-blue-600" />
+                            <span className="text-amber-900 font-medium">{selectedAppointment.assignedGroomer}</span>
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Assigned</span>
+                          </div>
+                          <svg className={`w-4 h-4 text-amber-600 transition-transform ${showStaffAssignmentPopout ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
                         </div>
                       ) : (
-                        <div className="flex items-center space-x-2">
-                          <User className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-500 italic">No groomer assigned</span>
-                          <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">Unassigned</span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <User className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-500 italic">No staff member assigned</span>
+                            <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">Unassigned</span>
+                          </div>
+                          <svg className={`w-4 h-4 text-amber-600 transition-transform ${showStaffAssignmentPopout ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
                         </div>
                       )}
                     </div>
+
+                    {/* Staff Assignment Popout */}
+                    {showStaffAssignmentPopout && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+                        <div className="p-2">
+                          {/* Unassign option */}
+                          <button
+                            onClick={() => handleDirectStaffAssignment(null)}
+                            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors hover:bg-gray-50 text-gray-700 ${
+                              !selectedAppointment?.assignedGroomer ? 'bg-orange-50 text-orange-700 border border-orange-200' : ''
+                            }`}
+                          >
+                            <div className="flex items-center">
+                              <User className="w-4 h-4 mr-2 text-gray-400" />
+                              <span>Unassigned</span>
+                              {!selectedAppointment?.assignedGroomer && (
+                                <span className="ml-auto text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">Current</span>
+                              )}
+                            </div>
+                          </button>
+                          
+                          <div className="border-t border-gray-100 my-1"></div>
+                          
+                          {/* Available staff */}
+                          {availableStaff.map((staff) => (
+                            <button
+                              key={staff.id}
+                              onClick={() => handleDirectStaffAssignment(staff)}
+                              className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors hover:bg-gray-50 text-gray-700 ${
+                                selectedAppointment?.assignedGroomer === staff.name ? 'bg-blue-50 text-blue-700 border border-blue-200' : ''
+                              }`}
+                            >
+                              <div className="flex items-center">
+                                <span className="mr-2">
+                                  {staff.role === 'admin' ? '👑' : '✂️'}
+                                </span>
+                                <span className="font-medium">{staff.name}</span>
+                                <span className="ml-2 text-xs text-gray-500 capitalize">
+                                  {staff.role}
+                                </span>
+                                {selectedAppointment?.assignedGroomer === staff.name && (
+                                  <span className="ml-auto text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Current</span>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Action Buttons */}
                   <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-amber-200">
-                    {/* Assign Groomer Button */}
-                    <button
-                      onClick={() => openGroomerAssignmentModal(selectedAppointment)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-                    >
-                      <User className="w-4 h-4" />
-                      <span>Assign Groomer</span>
-                    </button>
-                    
-                    {/* Collect Payment Button - show unless payment is marked as paid */}
-                    {selectedAppointment && selectedAppointment.paymentStatus?.toLowerCase() !== 'paid' && (
-                      <button
-                        onClick={() => setShowPaymentModal(true)}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
-                      >
-                        <span>💰</span>
-                        <span>Collect Payment</span>
-                      </button>
-                    )}
-                    
                     <button
                       onClick={() => setEditMode(true)}
                       className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"

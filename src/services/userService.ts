@@ -440,4 +440,31 @@ export class UserService {
       throw error;
     }
   }
+
+  /**
+   * Get all assignable users (groomers and admins) for appointment assignment
+   */
+  static async getAssignableUsers(): Promise<User[]> {
+    try {
+      console.log('👷‍♀️ UserService: Fetching assignable users (groomers and admins)...');
+
+      const { data: assignableUsers, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .in('role', ['groomer', 'admin'])
+        .order('role', { ascending: true }) // Admin first, then groomers
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('❌ Error fetching assignable users:', error);
+        throw error;
+      }
+
+      console.log('✅ Assignable users fetched:', assignableUsers?.length || 0);
+      return assignableUsers || [];
+    } catch (error) {
+      console.error('❌ UserService.getAssignableUsers error:', error);
+      throw error;
+    }
+  }
 }

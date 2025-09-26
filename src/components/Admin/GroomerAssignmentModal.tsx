@@ -51,11 +51,11 @@ const GroomerAssignmentModal: React.FC<GroomerAssignmentModalProps> = ({
   const loadGroomers = async () => {
     try {
       setLoading(true);
-      const fetchedGroomers = await UserService.getGroomers();
+      const fetchedGroomers = await UserService.getAssignableUsers();
       setGroomers(fetchedGroomers);
     } catch (error) {
-      console.error('❌ Failed to load groomers:', error);
-      showToast('Failed to load groomers', 'error');
+      console.error('❌ Failed to load assignable users:', error);
+      showToast('Failed to load assignable users', 'error');
     } finally {
       setLoading(false);
     }
@@ -68,22 +68,23 @@ const GroomerAssignmentModal: React.FC<GroomerAssignmentModalProps> = ({
       setAssigning(true);
       
       if (selectedGroomerId === '') {
-        // Unassign groomer
+        // Unassign staff member
         await AppointmentService.unassignGroomer(parseInt(appointment.id));
         onAssignmentUpdated(appointment.id, null);
-        showToast('Groomer unassigned successfully', 'success');
+        showToast('Staff member unassigned successfully', 'success');
       } else {
-        // Assign groomer
+        // Assign staff member
         await AppointmentService.assignToGroomer(parseInt(appointment.id), selectedGroomerId);
-        const selectedGroomer = groomers.find(g => g.id === selectedGroomerId);
-        onAssignmentUpdated(appointment.id, selectedGroomer?.name || null);
-        showToast(`Appointment assigned to ${selectedGroomer?.name}`, 'success');
+        const selectedUser = groomers.find(g => g.id === selectedGroomerId);
+        onAssignmentUpdated(appointment.id, selectedUser?.name || null);
+        const roleLabel = selectedUser?.role === 'admin' ? 'Admin' : 'Groomer';
+        showToast(`Appointment assigned to ${selectedUser?.name} (${roleLabel})`, 'success');
       }
 
       onClose();
     } catch (error) {
-      console.error('❌ Failed to assign groomer:', error);
-      showToast('Failed to assign groomer', 'error');
+      console.error('❌ Failed to assign staff member:', error);
+      showToast('Failed to assign staff member', 'error');
     } finally {
       setAssigning(false);
     }
@@ -101,7 +102,7 @@ const GroomerAssignmentModal: React.FC<GroomerAssignmentModalProps> = ({
       <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Assign Groomer</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Assign Staff Member</h3>
           <button
             onClick={handleClose}
             className="p-1 hover:bg-gray-100 rounded-full transition-colors"
@@ -156,13 +157,13 @@ const GroomerAssignmentModal: React.FC<GroomerAssignmentModalProps> = ({
           {/* Groomer Selection */}
           <div>
             <label htmlFor="groomer-select" className="block text-sm font-medium text-gray-700 mb-2">
-              Select Groomer
+              Select Staff Member
             </label>
             
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                <span className="ml-2 text-gray-600">Loading groomers...</span>
+                <span className="ml-2 text-gray-600">Loading staff members...</span>
               </div>
             ) : (
               <select
@@ -172,10 +173,10 @@ const GroomerAssignmentModal: React.FC<GroomerAssignmentModalProps> = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={assigning}
               >
-                <option value="">Unassigned (No groomer)</option>
-                {groomers.map((groomer) => (
-                  <option key={groomer.id} value={groomer.id}>
-                    {groomer.name} ({groomer.email})
+                <option value="">Unassigned (No staff member)</option>
+                {groomers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.role === 'admin' ? 'Admin' : 'Groomer'}) - {user.email}
                   </option>
                 ))}
               </select>
@@ -183,7 +184,7 @@ const GroomerAssignmentModal: React.FC<GroomerAssignmentModalProps> = ({
 
             {groomers.length === 0 && !loading && (
               <p className="text-sm text-gray-500 mt-2">
-                No groomers available. Create groomer accounts first.
+                No staff members available. Create groomer or admin accounts first.
               </p>
             )}
           </div>
@@ -191,13 +192,16 @@ const GroomerAssignmentModal: React.FC<GroomerAssignmentModalProps> = ({
           {/* Groomer Info */}
           {selectedGroomerId && (
             <div className="bg-blue-50 rounded-lg p-3">
-              <h5 className="font-medium text-blue-900 mb-1">Selected Groomer</h5>
+              <h5 className="font-medium text-blue-900 mb-1">Selected Staff Member</h5>
               {(() => {
-                const selectedGroomer = groomers.find(g => g.id === selectedGroomerId);
-                return selectedGroomer ? (
+                const selectedUser = groomers.find(g => g.id === selectedGroomerId);
+                return selectedUser ? (
                   <div className="text-sm text-blue-700">
-                    <p><strong>{selectedGroomer.name}</strong></p>
-                    <p>{selectedGroomer.email}</p>
+                    <p><strong>{selectedUser.name}</strong></p>
+                    <p>{selectedUser.email}</p>
+                    <p className="text-xs text-blue-600 font-medium">
+                      {selectedUser.role === 'admin' ? '👑 Admin' : '✂️ Groomer'}
+                    </p>
                   </div>
                 ) : null;
               })()}
@@ -226,9 +230,9 @@ const GroomerAssignmentModal: React.FC<GroomerAssignmentModalProps> = ({
                 <span>Assigning...</span>
               </div>
             ) : selectedGroomerId === '' ? (
-              'Unassign Groomer'
+              'Unassign Staff Member'
             ) : (
-              'Assign Groomer'
+              'Assign Staff Member'
             )}
           </button>
         </div>

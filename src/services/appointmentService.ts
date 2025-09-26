@@ -17,6 +17,7 @@ export class AppointmentService {
           name,
           email,
           phone,
+          address,
           pets
         ),
         promo_codes!promo_code_id (
