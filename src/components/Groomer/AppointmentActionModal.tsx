@@ -14,13 +14,15 @@ interface AppointmentActionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAppointmentUpdated: () => void;
+  onMarkAsPaid?: (appointmentId: number) => Promise<boolean>;
 }
 
 const AppointmentActionModal: React.FC<AppointmentActionModalProps> = ({
   appointment,
   isOpen,
   onClose,
-  onAppointmentUpdated
+  onAppointmentUpdated,
+  onMarkAsPaid
 }) => {
   const [loading, setLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -53,15 +55,21 @@ const AppointmentActionModal: React.FC<AppointmentActionModalProps> = ({
       });
       
       if (newStatus === 'completed' && appointment.paymentStatus !== 'paid') {
-        console.log('💰 Auto-triggering payment collection');
-        showToast('💰 Ready to collect payment!', 'info');
+        console.log('💰 Auto-triggering payment collection after completion');
+        showToast('🎉 Service completed! Opening payment collection...', 'success');
+        // Show payment collection modal after a brief delay to let status update
         setTimeout(() => {
-          console.log('💳 Setting showPaymentModal to true');
+          console.log('💳 Opening payment collection modal');
           setShowPaymentModal(true);
-        }, 500); // Small delay for better UX
+        }, 1200); // Longer delay to ensure smooth transition
+        // Don't close the main modal yet - keep it open for payment collection
+      } else if (newStatus === 'completed' && appointment.paymentStatus === 'paid') {
+        console.log('✅ Appointment completed and already paid - closing modal');
+        showToast('🎉 Service completed and payment collected!', 'success');
+        setTimeout(() => onClose(), 1000);
       } else {
-        console.log('❌ Not showing payment modal - condition not met');
-        onClose();
+        console.log('❌ Not completion or different status - closing modal');
+        setTimeout(() => onClose(), 500);
       }
     } catch (error) {
       console.error('Failed to update appointment status:', error);
@@ -86,14 +94,46 @@ const AppointmentActionModal: React.FC<AppointmentActionModalProps> = ({
   const markPaymentComplete = async () => {
     try {
       setLoading(true);
-      await GroomerService.updatePaymentStatus(appointment.id, 'paid');
-      showToast('💰 Payment marked as collected', 'success');
-      setShowQRModal(false);
-      setQrCodeType(null);
-      onAppointmentUpdated();
-    } catch (error) {
-      console.error('Failed to update payment status:', error);
-      showToast('Failed to update payment status', 'error');
+      console.log('🔄 Starting payment completion for appointment:', appointment.id);
+      
+      // Use the callback if provided, otherwise use the original method
+      if (onMarkAsPaid) {
+        console.log('💰 Using onMarkAsPaid callback');
+        const success = await onMarkAsPaid(appointment.id);
+        if (success) {
+          console.log('✅ Payment marked successfully via callback');
+          showToast('💰 Payment collected! Service complete 🎉', 'success');
+          setShowQRModal(false);
+          setQrCodeType(null);
+          setShowPaymentModal(false);
+          // Close the entire appointment modal after successful payment
+          setTimeout(() => {
+            console.log('🎯 Closing appointment modal after payment collection');
+            onClose();
+          }, 1500);
+        } else {
+          console.error('❌ Payment callback returned false');
+          showToast('Failed to update payment status: Operation failed', 'error');
+        }
+      } else {
+        console.log('💰 Using direct GroomerService call');
+        await GroomerService.updatePaymentStatus(appointment.id, 'paid');
+        console.log('✅ Payment marked successfully via direct call');
+        showToast('💰 Payment collected! Service complete 🎉', 'success');
+        onAppointmentUpdated();
+        setShowQRModal(false);
+        setQrCodeType(null);
+        setShowPaymentModal(false);
+        // Close the entire appointment modal after successful payment
+        setTimeout(() => {
+          console.log('🎯 Closing appointment modal after payment collection');
+          onClose();
+        }, 1500);
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to update payment status:', error);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      showToast(`Failed to update payment status: ${errorMessage}`, 'error');
     } finally {
       setLoading(false);
     }

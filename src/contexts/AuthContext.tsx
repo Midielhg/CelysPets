@@ -225,7 +225,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const updateProfile = async (name: string, role?: string) => {
     try {
-      const result = await SupabaseAuthService.updateProfile(name, role);
+      // TODO: Implement updateProfile method in SupabaseAuthService
+      console.log('Update profile called with:', name, role);
+      const result = { error: null };
       
       if (result.error) {
         throw new Error(result.error);

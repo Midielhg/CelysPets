@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { User, Settings, Key, Mail } from 'lucide-react';
+import { User, Settings, Key, Mail, Calendar, Copy, Check } from 'lucide-react';
 
 const ProfileSettings: React.FC = () => {
   const { user, updateProfile, resetPassword } = useAuth();
@@ -168,6 +168,13 @@ const ProfileSettings: React.FC = () => {
         </div>
       </div>
 
+      {/* Calendar Integration - Only for groomers and admins */}
+      {(user.role === 'groomer' || user.role === 'admin') && (
+        <div className="mt-6">
+          <CalendarIntegrationCard />
+        </div>
+      )}
+
       <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="text-lg font-semibold text-blue-800 mb-2">🔐 Supabase Authentication</h3>
         <ul className="text-blue-700 text-sm space-y-1">
@@ -176,6 +183,136 @@ const ProfileSettings: React.FC = () => {
           <li>• Your session is automatically managed and refreshed</li>
           <li>• All data access is protected by Row Level Security</li>
         </ul>
+      </div>
+    </div>
+  );
+};
+
+const CalendarIntegrationCard: React.FC = () => {
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const [copied, setCopied] = useState(false);
+  const [calendarInfo, setCalendarInfo] = useState<{
+    subscriptionUrl: string;
+    appointmentCount: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchCalendarInfo = async () => {
+    setLoading(true);
+    try {
+      // Use the Supabase server for calendar API
+      const response = await fetch('http://localhost:5003/api/calendar/info', {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCalendarInfo(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch calendar info:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopyUrl = async () => {
+    if (!calendarInfo) return;
+
+    try {
+      await navigator.clipboard.writeText(calendarInfo.subscriptionUrl);
+      setCopied(true);
+      showToast('Calendar URL copied to clipboard!', 'success');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      showToast('Failed to copy URL', 'error');
+    }
+  };
+
+  React.useEffect(() => {
+    fetchCalendarInfo();
+  }, []);
+
+  if (!user || (user.role !== 'groomer' && user.role !== 'admin')) {
+    return null;
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-6">
+      <div className="flex items-center mb-4">
+        <Calendar className="h-5 w-5 text-purple-600 mr-2" />
+        <h3 className="text-lg font-semibold text-gray-900">Apple Calendar Integration</h3>
+      </div>
+
+      <div className="space-y-4">
+        <p className="text-gray-600">
+          Subscribe to your appointment calendar in Apple Calendar to sync all your appointments automatically.
+        </p>
+
+        {loading ? (
+          <div className="text-center py-4">
+            <div className="text-gray-500">Loading calendar information...</div>
+          </div>
+        ) : calendarInfo ? (
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-purple-800">
+                📅 {calendarInfo.appointmentCount} upcoming appointments
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Calendar Subscription URL
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={calendarInfo.subscriptionUrl}
+                    readOnly
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm font-mono text-gray-600"
+                  />
+                  <button
+                    onClick={handleCopyUrl}
+                    className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center space-x-1"
+                  >
+                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    <span className="text-sm">{copied ? 'Copied!' : 'Copy'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <h4 className="font-medium text-blue-800 mb-2">Setup Instructions</h4>
+                <ol className="text-blue-700 text-sm space-y-1">
+                  <li>1. Copy the subscription URL above</li>
+                  <li>2. Open Apple Calendar on your iPhone/iPad/Mac</li>
+                  <li>3. Go to File → New Calendar Subscription (Mac) or Add Account (iOS)</li>
+                  <li>4. Paste the URL and click Subscribe</li>
+                  <li>5. Your appointments will sync automatically!</li>
+                </ol>
+              </div>
+
+              <div className="text-xs text-gray-500">
+                💡 The calendar updates in real-time when appointments are added, modified, or cancelled.
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-4">
+            <div className="text-red-500">Failed to load calendar information</div>
+            <button 
+              onClick={fetchCalendarInfo}
+              className="mt-2 text-purple-600 hover:text-purple-700 text-sm underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   BarChart3, 
@@ -16,6 +16,12 @@ const Navbar: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/', { replace: true });
+  };
 
   // Admin navigation items
   const adminNavItems = [
@@ -145,7 +151,7 @@ const Navbar: React.FC = () => {
                   Settings
                 </Link>
                 <button
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="bg-gradient-to-r from-amber-200 to-orange-200 text-amber-900 px-6 py-2 rounded-full hover:from-amber-300 hover:to-orange-300 hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold border border-amber-300/50"
                 >
                   Logout
@@ -260,7 +266,7 @@ const Navbar: React.FC = () => {
                 </Link>
                 <button
                   onClick={() => {
-                    logout();
+                    handleLogout();
                     closeMobileMenu();
                   }}
                   className="w-full text-left py-3 px-2 bg-gradient-to-r from-amber-200 to-orange-200 text-amber-900 rounded-lg hover:from-amber-300 hover:to-orange-300 font-semibold border border-amber-300/50 transition-all duration-300"

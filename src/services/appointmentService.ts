@@ -20,6 +20,12 @@ export class AppointmentService {
           address,
           pets
         ),
+        user_profiles!groomer_id (
+          id,
+          name,
+          email,
+          role
+        ),
         promo_codes!promo_code_id (
           code,
           name,
@@ -61,6 +67,40 @@ export class AppointmentService {
       .from('appointments')
       .insert(appointment)
       .select()
+      .single()
+
+    if (error) throw error
+    return data
+  }
+
+  // Get single appointment by ID with all relations
+  static async getById(id: number): Promise<Appointment> {
+    const { data, error } = await supabase
+      .from('appointments')
+      .select(`
+        *,
+        clients!client_id (
+          id,
+          name,
+          email,
+          phone,
+          address,
+          pets
+        ),
+        user_profiles!groomer_id (
+          id,
+          name,
+          email,
+          role
+        ),
+        promo_codes!promo_code_id (
+          code,
+          name,
+          discount_type,
+          discount_value
+        )
+      `)
+      .eq('id', id)
       .single()
 
     if (error) throw error
@@ -155,10 +195,11 @@ export class AppointmentService {
             phone,
             pets
           ),
-          groomers:groomer_id (
+          user_profiles:groomer_id (
             id,
             name,
-            email
+            email,
+            role
           )
         `)
         .single();
@@ -229,10 +270,11 @@ export class AppointmentService {
             phone,
             pets
           ),
-          groomers:groomer_id (
+          user_profiles:groomer_id (
             id,
             name,
-            email
+            email,
+            role
           ),
           promo_codes:promo_code_id (
             code,

@@ -1,5 +1,25 @@
 ## ✅ Production Deployment - LIVE
 
+
+# to start the servers and front end run these two commands on different terminals
+npm run dev:client
+
+# To run the build and copy to deployment folder
+npm run build
+cp -r dist/* simple-static-deploy/
+
+## ⚠️ Important: Payment Status Database Migration Required
+
+**If you're experiencing "Failed to update payment status" errors**, you need to run the database migration:
+
+1. Open your Supabase dashboard
+2. Go to the SQL Editor  
+3. Copy and paste the contents of `add-payment-status-field.sql`
+4. Execute the migration
+5. See `PAYMENT_STATUS_FIX.md` for detailed instructions
+
+This adds the missing `payment_status` column to the `appointments` table.
+
 **Status: DEPLOYED AND WORKING** 🎉
 
 ### Live Application:
@@ -82,6 +102,8 @@ cp -r dist/* simple-static-deploy/
 # 5. Upload simple-static-deploy contents to your hosting provider
 # Static frontend with Supabase backend
 ```
+
+
 
 **Upload the `simple-static-deploy` folder contents to your hosting root directory.**
 

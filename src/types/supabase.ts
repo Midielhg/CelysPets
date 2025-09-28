@@ -83,6 +83,7 @@ export interface Database {
           date: string
           time: string
           status: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled'
+          payment_status: 'unpaid' | 'partial' | 'paid' | 'refunded' | 'disputed'
           notes: string | null
           total_amount: number | null
           promo_code_id: number | null
@@ -99,6 +100,7 @@ export interface Database {
           date: string
           time: string
           status?: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled'
+          payment_status?: 'unpaid' | 'partial' | 'paid' | 'refunded' | 'disputed'
           notes?: string | null
           total_amount?: number | null
           promo_code_id?: number | null
@@ -115,6 +117,7 @@ export interface Database {
           date?: string
           time?: string
           status?: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled'
+          payment_status?: 'unpaid' | 'partial' | 'paid' | 'refunded' | 'disputed'
           notes?: string | null
           total_amount?: number | null
           promo_code_id?: number | null

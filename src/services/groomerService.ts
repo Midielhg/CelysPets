@@ -38,11 +38,45 @@ export interface GroomerStats {
 
 export class GroomerService {
   /**
+   * Helper method to resolve groomer ID - verifies the user is actually a groomer
+   */
+  private static async resolveGroomerId(inputId: string): Promise<string | null> {
+    try {
+      console.log('🔍 Resolving groomer ID for input:', inputId);
+      
+      // Check if this user exists and has groomer role in user_profiles table
+      const { data: userData, error: userError } = await supabase
+        .from('user_profiles')
+        .select('id, name, email, role')
+        .eq('id', inputId)
+        .eq('role', 'groomer')
+        .single();
+      
+      if (!userError && userData) {
+        console.log('✅ Found groomer user:', userData);
+        return inputId;
+      }
+      
+      console.error('❌ User not found or not a groomer:', { inputId, userError });
+      return null;
+    } catch (error) {
+      console.error('❌ Error resolving groomer ID:', error);
+      return null;
+    }
+  }
+
+  /**
    * Get all appointments for a specific groomer
    */
   static async getGroomerAppointments(groomerId: string): Promise<GroomerAppointment[]> {
     try {
-      console.log('🔍 Fetching appointments for groomer:', groomerId);
+      console.log('🔍 Fetching appointments for groomer ID:', groomerId);
+      
+      const resolvedGroomerId = await this.resolveGroomerId(groomerId);
+      if (!resolvedGroomerId) {
+        console.log('❌ Could not resolve groomer ID, returning empty array');
+        return [];
+      }
       
       const { data, error } = await supabase
         .from('appointments')
@@ -56,6 +90,12 @@ export class GroomerService {
             address,
             pets
           ),
+          user_profiles:groomer_id (
+            id,
+            name,
+            email,
+            role
+          ),
           promo_codes:promo_code_id (
             code,
             name,
@@ -63,7 +103,7 @@ export class GroomerService {
             discount_value
           )
         `)
-        .eq('groomer_id', groomerId)
+        .eq('groomer_id', resolvedGroomerId)
         .order('date', { ascending: true })
         .order('time', { ascending: true });
 
@@ -72,7 +112,8 @@ export class GroomerService {
         throw error;
       }
 
-      console.log('✅ Raw appointment data:', data);
+      console.log('✅ Raw appointment data for groomer ID', resolvedGroomerId, ':', data);
+      console.log('✅ Found', data?.length || 0, 'appointments');
       
       return (data || []).map(appointment => ({
         id: appointment.id,
@@ -113,7 +154,12 @@ export class GroomerService {
       const today = new Date().toISOString().split('T')[0];
       const appointments = await this.getGroomerAppointments(groomerId);
       
-      return appointments.filter(appointment => appointment.date === today);
+      const todaysAppointments = appointments.filter(appointment => appointment.date === today);
+      
+      // Sort by time for consistent ordering
+      return todaysAppointments.sort((a, b) => {
+        return a.time.localeCompare(b.time);
+      });
     } catch (error) {
       console.error('Failed to fetch today\'s appointments:', error);
       throw error;
@@ -134,9 +180,16 @@ export class GroomerService {
       
       const appointments = await this.getGroomerAppointments(groomerId);
       
-      return appointments.filter(appointment => {
+      const upcomingAppointments = appointments.filter(appointment => {
         const appointmentDate = new Date(appointment.date);
         return appointmentDate >= startDate && appointmentDate <= endDate;
+      });
+      
+      // Sort by date first, then by time
+      return upcomingAppointments.sort((a, b) => {
+        const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
+        if (dateCompare !== 0) return dateCompare;
+        return a.time.localeCompare(b.time);
       });
     } catch (error) {
       console.error('Failed to fetch upcoming appointments:', error);
@@ -180,21 +233,40 @@ export class GroomerService {
     try {
       console.log('💰 GroomerService: Updating payment status', appointmentId, 'to', newPaymentStatus);
       
-      const { error } = await supabase
+      // First, check if the appointment exists
+      const { data: existingAppointment, error: fetchError } = await supabase
+        .from('appointments')
+        .select('id, payment_status')
+        .eq('id', appointmentId)
+        .single();
+
+      if (fetchError) {
+        console.error('❌ Error fetching appointment:', fetchError);
+        throw new Error(`Appointment not found: ${fetchError.message}`);
+      }
+
+      if (!existingAppointment) {
+        throw new Error(`Appointment with ID ${appointmentId} not found`);
+      }
+
+      console.log('🔍 Current appointment payment status:', existingAppointment.payment_status);
+
+      const { data, error } = await supabase
         .from('appointments')
         .update({ 
           payment_status: newPaymentStatus,
           updated_at: new Date().toISOString()
         })
-        .eq('id', appointmentId);
+        .eq('id', appointmentId)
+        .select();
 
       if (error) {
         console.error('❌ Error updating payment status:', error);
-        throw error;
+        throw new Error(`Database error: ${error.message} (Code: ${error.code})`);
       }
       
-      console.log('✅ Payment status updated successfully');
-    } catch (error) {
+      console.log('✅ Payment status updated successfully:', data);
+    } catch (error: any) {
       console.error('❌ Failed to update payment status:', error);
       throw error;
     }
@@ -295,16 +367,22 @@ export class GroomerService {
   /**
    * Subscribe to real-time appointment changes for a groomer
    */
-  static subscribeToGroomerAppointments(groomerId: string, callback: (payload: any) => void) {
+  static async subscribeToGroomerAppointments(groomerId: string, callback: (payload: any) => void) {
+    const resolvedGroomerId = await this.resolveGroomerId(groomerId);
+    if (!resolvedGroomerId) {
+      console.error('❌ Could not resolve groomer ID for subscription:', groomerId);
+      return null;
+    }
+    
     return supabase
-      .channel(`groomer-appointments-${groomerId}`)
+      .channel(`groomer-appointments-${resolvedGroomerId}`)
       .on(
         'postgres_changes',
         { 
           event: '*', 
           schema: 'public', 
           table: 'appointments',
-          filter: `groomer_id=eq.${groomerId}`
+          filter: `groomer_id=eq.${resolvedGroomerId}`
         },
         callback
       )

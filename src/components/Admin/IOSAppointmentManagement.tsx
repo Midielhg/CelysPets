@@ -94,7 +94,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     time: apt.time,
     endTime: apt.end_time,
     duration: apt.duration,
-    assignedGroomer: apt.groomers?.name || '',
+    assignedGroomer: apt.user_profiles?.name || '',
     status: apt.status,
     paymentStatus: apt.payment_status,
     notes: apt.notes || '',
@@ -313,6 +313,12 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   };
 
   const updatePet = (index: number, field: string, value: string | number | null) => {
+    console.log(`🐕 Updating pet ${index} field '${field}' to:`, value);
+    if (field === 'breedId') {
+      const breedName = breeds.find(b => b.id === value)?.name || 'Unknown';
+      console.log(`🐕 Breed ID ${value} corresponds to breed: ${breedName}`);
+    }
+    
     setBookingFormData(prev => ({
       ...prev,
       pets: prev.pets.map((pet, i) => 
@@ -1319,11 +1325,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     try {
       console.log(`💳 Changing appointment ${appointmentId} payment status to: ${newPaymentStatus}`);
       
-      // TODO: Add payment_status column to appointments table in Supabase
-      // await AppointmentService.update(parseInt(appointmentId), { payment_status: newPaymentStatus });
-
-      // For now, just update local state until payment_status column is added
-      console.warn('Payment status update disabled - payment_status column missing from Supabase schema');
+      // Update payment status in database
+      await AppointmentService.update(parseInt(appointmentId), { payment_status: newPaymentStatus });
+      console.log('✅ Payment status updated in database successfully');
 
       // Update the appointment in local state
       setAppointments(prev => prev.map(apt => 
@@ -1420,20 +1424,162 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
       console.log('🚀 APPOINTMENT DEBUG - Sending appointment data:', appointmentData);
 
+      // Transform pets data from form format (breedId) to database format (breed name)
+      const transformPetsForDatabase = (formPets: any[]) => {
+        return formPets.map(pet => ({
+          name: pet.name,
+          type: pet.type,
+          breed: pet.breedId ? 
+            breeds.find(b => b.id === pet.breedId)?.name || 'Mixed Breed' : 'Mixed Breed',
+          weight: pet.weight,
+          specialInstructions: pet.specialInstructions
+        }));
+      };
+
+      const transformedPets = transformPetsForDatabase(bookingFormData.pets);
+      console.log('🔄 Transformed pets for database:', transformedPets);
+
       let appointmentResult: Appointment;
 
       if (editMode && selectedAppointment) {
         // Update existing appointment
+        console.log('🔄 EDIT MODE - Updating appointment...');
+        
+        // Check if client information has changed
+        const petsChanged = (() => {
+          const currentPets = selectedAppointment.client?.pets || [];
+          const formPets = bookingFormData.pets;
+          
+          console.log('🔍 Checking if pets changed:');
+          console.log('   Current pets:', currentPets);
+          console.log('   Form pets:', formPets);
+          
+          if (currentPets.length !== formPets.length) {
+            console.log('   ✅ Pets count changed');
+            return true;
+          }
+          
+          const hasChanges = formPets.some((formPet, index) => {
+            const currentPet = currentPets[index];
+            if (!currentPet) {
+              console.log(`   ✅ Missing current pet at index ${index}`);
+              return true;
+            }
+            
+            // Convert breedId to breed name for comparison
+            const formBreed = formPet.breedId ? 
+              breeds.find(b => b.id === formPet.breedId)?.name || '' : '';
+            
+            const nameChanged = currentPet.name !== formPet.name;
+            const typeChanged = currentPet.type !== formPet.type;
+            const breedChanged = (currentPet.breed || '') !== formBreed;
+            const weightChanged = currentPet.weight !== formPet.weight;
+            const instructionsChanged = currentPet.specialInstructions !== formPet.specialInstructions;
+            
+            if (nameChanged || typeChanged || breedChanged || weightChanged || instructionsChanged) {
+              console.log(`   ✅ Pet ${index} changed:`);
+              console.log(`      Name: ${currentPet.name} → ${formPet.name} (${nameChanged ? 'CHANGED' : 'same'})`);
+              console.log(`      Type: ${currentPet.type} → ${formPet.type} (${typeChanged ? 'CHANGED' : 'same'})`);
+              console.log(`      Breed: ${currentPet.breed || 'none'} → ${formBreed} (${breedChanged ? 'CHANGED' : 'same'})`);
+              console.log(`      Weight: ${currentPet.weight} → ${formPet.weight} (${weightChanged ? 'CHANGED' : 'same'})`);
+              console.log(`      Instructions: ${currentPet.specialInstructions} → ${formPet.specialInstructions} (${instructionsChanged ? 'CHANGED' : 'same'})`);
+              return true;
+            }
+            
+            return false;
+          });
+          
+          console.log('   Result: pets changed =', hasChanges);
+          return hasChanges;
+        })();
+
+        const clientChanged = (
+          selectedAppointment.client?.name !== bookingFormData.customerName ||
+          selectedAppointment.client?.email !== bookingFormData.email ||
+          selectedAppointment.client?.phone !== bookingFormData.phone ||
+          selectedAppointment.client?.address !== bookingFormData.address ||
+          petsChanged
+        );
+
+        let clientId: number = selectedAppointment.client?.id ? parseInt(selectedAppointment.client.id.toString()) : 0;
+
+        if (clientChanged && clientId > 0) {
+          console.log('🔄 Client information changed, updating existing client...');
+          
+          try {
+            // Try to update the existing client first
+            const updatedClient = await ClientService.updateForBooking(clientId, {
+              name: bookingFormData.customerName,
+              phone: bookingFormData.phone,
+              address: bookingFormData.address,
+              pets: transformedPets
+            });
+            
+            console.log('✅ Existing client updated successfully:', updatedClient.id);
+          } catch (updateError) {
+            console.warn('⚠️ Could not update existing client, creating/finding new client:', updateError);
+            
+            // Fallback: create or find client by email
+            const clientData = await ClientService.createOrUpdateForBooking({
+              name: bookingFormData.customerName,
+              email: bookingFormData.email,
+              phone: bookingFormData.phone,
+              address: bookingFormData.address,
+              pets: transformedPets
+            });
+            
+            clientId = clientData.id;
+            console.log('✅ Client created/found with ID:', clientId);
+          }
+        } else if (clientChanged && clientId === 0) {
+          console.log('🔄 No existing client, creating new client...');
+          
+          // Create or find client by email
+          const clientData = await ClientService.createOrUpdateForBooking({
+            name: bookingFormData.customerName,
+            email: bookingFormData.email,
+            phone: bookingFormData.phone,
+            address: bookingFormData.address,
+            pets: transformedPets
+          });
+          
+          clientId = clientData.id;
+          console.log('✅ Client created/found with ID:', clientId);
+        } else {
+          console.log('✅ Client information unchanged, keeping existing client ID:', clientId);
+          
+          // Even if client info seems unchanged, let's update pets just in case
+          // This ensures breed changes are always captured
+          if (clientId > 0) {
+            try {
+              console.log('🔄 Updating pets data to ensure breed changes are saved...');
+              await ClientService.updateForBooking(clientId, {
+                pets: transformedPets
+              });
+              console.log('✅ Pets data updated successfully');
+            } catch (error) {
+              console.warn('⚠️ Could not update pets data:', error);
+            }
+          }
+        }
+
         const updateData = {
+          client_id: clientId,
           date: bookingFormData.preferredDate,
           time: bookingFormData.preferredTime,
           services: selectedServices,
           notes: bookingFormData.notes,
+          total_amount: calculateTotal(),
+          original_amount: calculateSubtotal(),
           // groomerId: can be set later if needed
         };
 
-        const updatedAppt = await AppointmentService.update(parseInt(selectedAppointment.id), updateData);
-        appointmentResult = transformAppointmentData(updatedAppt);
+        console.log('🔄 Updating appointment with data:', updateData);
+        await AppointmentService.update(parseInt(selectedAppointment.id), updateData);
+        
+        // Fetch the updated appointment with full client data
+        const updatedApptWithClient = await AppointmentService.getById(parseInt(selectedAppointment.id));
+        appointmentResult = transformAppointmentData(updatedApptWithClient);
         
         // Update the appointment in local state
         setAppointments(prev => prev.map(apt => 
@@ -1460,7 +1606,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
             email: bookingFormData.email,
             phone: bookingFormData.phone,
             address: bookingFormData.address,
-            pets: bookingFormData.pets
+            pets: transformedPets
           });
           
           console.log('✅ Step 1 Complete - Client created/found:', clientData);
@@ -1472,7 +1618,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
             services: selectedServices,
             notes: bookingFormData.notes || '',
             status: 'pending' as const,
-            total_amount: null, // Calculate if needed
+            total_amount: calculateTotal(),
+            original_amount: calculateSubtotal(),
             groomer_id: null
           };
           
@@ -4235,39 +4382,83 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                     <div>
                       <label className="block text-sm font-medium text-amber-700 mb-2">Pet Information</label>
                       <div className="bg-amber-50 rounded-lg p-3 space-y-3">
-                        {selectedAppointment.client.pets.map((pet, index) => (
-                          <div key={index} className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Name</span>
-                              <span className="text-sm text-amber-900">{pet.name}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Breed</span>
-                              <span className="text-sm text-amber-900">{pet.breed}</span>
-                            </div>
-                            {pet.age && (
+                        {selectedAppointment.client.pets.map((pet, index) => {
+                          // Enhanced breed lookup - try multiple field names and breed ID lookup
+                          const getDisplayBreed = (pet: any) => {
+                            console.log('Admin pet breed lookup:', pet);
+                            
+                            // First, try to get breed by ID if available
+                            if (pet.breedId) {
+                              const breedObj = getBreedById(pet.breedId);
+                              if (breedObj?.name) {
+                                console.log('Found breed by ID:', breedObj.name);
+                                return breedObj.name;
+                              }
+                            }
+                            
+                            // Then try different field names for breed
+                            const breedFields = [
+                              'breed', 'petBreed', 'pet_breed', 'dogBreed', 'dog_breed', 
+                              'catBreed', 'cat_breed', 'breedName', 'breed_name'
+                            ];
+                            
+                            for (const field of breedFields) {
+                              if (pet[field] && pet[field] !== 'Mixed Breed') {
+                                console.log(`Found breed in field ${field}:`, pet[field]);
+                                return pet[field];
+                              }
+                            }
+                            
+                            // If it's a JSON string, try to parse it
+                            if (typeof pet === 'string') {
+                              try {
+                                const parsed = JSON.parse(pet);
+                                return getDisplayBreed(parsed);
+                              } catch (e) {
+                                console.log('Failed to parse pet JSON:', e);
+                              }
+                            }
+                            
+                            console.log('No breed found, using fallback');
+                            return 'Mixed Breed';
+                          };
+
+                          const displayBreed = getDisplayBreed(pet);
+
+                          return (
+                            <div key={index} className="space-y-2">
                               <div className="flex items-center space-x-2">
-                                <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Age</span>
-                                <span className="text-sm text-amber-900">{pet.age} years</span>
+                                <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Name</span>
+                                <span className="text-sm text-amber-900">{pet.name}</span>
                               </div>
-                            )}
-                            {pet.weight && (
                               <div className="flex items-center space-x-2">
-                                <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Weight</span>
-                                <span className="text-sm text-amber-900">{pet.weight}</span>
+                                <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Breed</span>
+                                <span className="text-sm text-amber-900">{displayBreed}</span>
                               </div>
-                            )}
-                            {pet.specialInstructions && (
-                              <div className="flex items-start space-x-2">
-                                <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Notes</span>
-                                <span className="text-sm text-amber-900">{pet.specialInstructions}</span>
-                              </div>
-                            )}
-                            {selectedAppointment.client.pets.length > 1 && index < selectedAppointment.client.pets.length - 1 && (
-                              <hr className="border-amber-200" />
-                            )}
-                          </div>
-                        ))}
+                              {pet.age && (
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Age</span>
+                                  <span className="text-sm text-amber-900">{pet.age} years</span>
+                                </div>
+                              )}
+                              {pet.weight && (
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Weight</span>
+                                  <span className="text-sm text-amber-900">{pet.weight}</span>
+                                </div>
+                              )}
+                              {pet.specialInstructions && (
+                                <div className="flex items-start space-x-2">
+                                  <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded">Notes</span>
+                                  <span className="text-sm text-amber-900">{pet.specialInstructions}</span>
+                                </div>
+                              )}
+                              {selectedAppointment.client.pets.length > 1 && index < selectedAppointment.client.pets.length - 1 && (
+                                <hr className="border-amber-200" />
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
