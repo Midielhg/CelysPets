@@ -1,7 +1,7 @@
 import { supabase } from '../config/supabase';
 import { apiUrl } from '../config/api';
 import { isFeatureEnabled } from '../config/features';
-import type { Breed, AdditionalService, Species, SizeCategory } from '../types/pricing';
+import type { Breed, AdditionalService, SizeCategory } from '../types/pricing';
 
 // Supabase types (with snake_case fields)
 export interface SupabaseBreed {
