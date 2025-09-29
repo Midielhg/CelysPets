@@ -19,6 +19,7 @@ import Logo from './Logo';
 const MobileFriendlyNavbar: React.FC = () => {
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showHamburger, setShowHamburger] = useState(false);
   const navRef = useRef<HTMLElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -76,6 +77,33 @@ const MobileFriendlyNavbar: React.FC = () => {
     setIsMobileMenuOpen(false);
   };
 
+  // Simple window width-based detection for hamburger menu
+  useEffect(() => {
+    const checkScreenSize = () => {
+      // For admin users (more nav items), use larger breakpoint
+      // For regular users, use smaller breakpoint
+      const breakpoint = user?.role === 'admin' ? 1200 : 768;
+      setShowHamburger(window.innerWidth < breakpoint);
+    };
+
+    // Check on mount
+    checkScreenSize();
+
+    // Add resize listener with debounce to prevent flickering
+    let timeoutId: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(checkScreenSize, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timeoutId);
+    };
+  }, [user?.role]);
+
   // Close mobile menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -109,8 +137,8 @@ const MobileFriendlyNavbar: React.FC = () => {
             {/* Logo */}
             <Logo size="md" />
 
-            {/* Navigation Links - Desktop */}
-            <div className="hidden md:flex items-center space-x-8">
+            {/* Navigation Links - Dynamic visibility based on screen size */}
+            <div className={`items-center space-x-8 ${showHamburger ? 'hidden' : 'flex'}`}>
               {user?.role === 'admin' ? (
                 /* Admin Navigation Tabs */
                 <div className="flex items-center space-x-6">
@@ -197,8 +225,8 @@ const MobileFriendlyNavbar: React.FC = () => {
               )}
             </div>
 
-            {/* Mobile menu button */}
-            <div className="md:hidden">
+            {/* Mobile menu button - Show when content overflows */}
+            <div className={showHamburger ? 'block' : 'hidden'}>
               <button 
                 onClick={toggleMobileMenu}
                 className="text-amber-800 hover:text-rose-600 transition-colors duration-300 p-3 rounded-lg hover:bg-orange-100/50 relative"
@@ -213,9 +241,9 @@ const MobileFriendlyNavbar: React.FC = () => {
             </div>
           </div>
 
-          {/* Enhanced Mobile Navigation Menu */}
-          {isMobileMenuOpen && (
-            <div className="md:hidden border-t border-orange-100/50 bg-gradient-to-r from-orange-50 to-amber-50 shadow-lg">
+          {/* Enhanced Mobile Navigation Menu - Show when hamburger is active */}
+          {isMobileMenuOpen && showHamburger && (
+            <div className="border-t border-orange-100/50 bg-gradient-to-r from-orange-50 to-amber-50 shadow-lg">
               <div className="px-3 py-4 space-y-1 max-h-[70vh] overflow-y-auto">
                 {user?.role === 'admin' ? (
                   /* Admin Mobile Navigation */

@@ -14,7 +14,10 @@ import Logo from './Logo';
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showHamburger, setShowHamburger] = useState(false);
   const navRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -71,6 +74,21 @@ const Navbar: React.FC = () => {
     setIsMobileMenuOpen(false);
   };
 
+  // Check if content overflows and should show hamburger menu
+  const checkOverflow = () => {
+    if (containerRef.current && contentRef.current) {
+      const containerWidth = containerRef.current.offsetWidth;
+      const contentWidth = contentRef.current.scrollWidth;
+      const logoWidth = 200; // Approximate logo width with padding
+      const hamburgerWidth = 60; // Approximate hamburger button width
+      const availableWidth = containerWidth - logoWidth;
+      
+      // If content is wider than available space, show hamburger
+      const shouldShowHamburger = contentWidth > availableWidth - hamburgerWidth;
+      setShowHamburger(shouldShowHamburger);
+    }
+  };
+
   // Close mobile menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -88,15 +106,46 @@ const Navbar: React.FC = () => {
     };
   }, [isMobileMenuOpen]);
 
+  // Monitor window resize and content changes
+  useEffect(() => {
+    checkOverflow();
+    
+    const handleResize = () => {
+      checkOverflow();
+    };
+
+    window.addEventListener('resize', handleResize);
+    
+    // Use ResizeObserver for more accurate detection
+    const resizeObserver = new ResizeObserver(() => {
+      checkOverflow();
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+    if (contentRef.current) {
+      resizeObserver.observe(contentRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
+    };
+  }, [user?.role, location.pathname]); // Re-run when user role or route changes
+
   return (
     <nav ref={navRef} className="bg-gradient-to-r from-orange-50 to-amber-50 backdrop-blur-md border-b border-orange-100/50 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4">
+      <div ref={containerRef} className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <Logo size="md" />
 
-          {/* Navigation Links - Desktop */}
-          <div className="hidden md:flex items-center space-x-8">
+          {/* Navigation Links - Dynamic visibility based on overflow */}
+          <div 
+            ref={contentRef}
+            className={`items-center space-x-8 ${showHamburger ? 'hidden' : 'flex'}`}
+          >
             {user?.role === 'admin' ? (
               /* Admin Navigation Tabs */
               <div className="flex items-center space-x-6">
@@ -175,8 +224,8 @@ const Navbar: React.FC = () => {
             )}
           </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
+          {/* Mobile menu button - Show when content overflows */}
+          <div className={showHamburger ? 'block' : 'hidden'}>
             <button 
               onClick={toggleMobileMenu}
               className="text-amber-800 hover:text-rose-600 transition-colors duration-300 p-2"
@@ -195,8 +244,8 @@ const Navbar: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation Menu */}
-        <div className={`md:hidden border-t border-orange-100/50 bg-gradient-to-r from-orange-50 to-amber-50 transition-all duration-300 ease-in-out overflow-hidden ${
+        {/* Mobile Navigation Menu - Show when hamburger is active */}
+        <div className={`${showHamburger ? 'block' : 'hidden'} border-t border-orange-100/50 bg-gradient-to-r from-orange-50 to-amber-50 transition-all duration-300 ease-in-out overflow-hidden ${
           isMobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
         }`}>
           <div className="px-4 pt-2 pb-4 space-y-2">
