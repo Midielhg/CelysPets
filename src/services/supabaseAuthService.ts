@@ -12,6 +12,9 @@ export interface UserProfile {
 }
 
 export class SupabaseAuthService {
+  private static profileCache = new Map<string, { profile: UserProfile; timestamp: number }>();
+  private static CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
   // Simple sign in with timeout handling
   static async signIn(email: string, password: string) {
     try {
@@ -250,13 +253,21 @@ export class SupabaseAuthService {
     }
   }
 
-  // Get user profile with timeout
+  // Get user profile with timeout and caching
   static async getUserProfile(userId: string): Promise<UserProfile | null> {
     try {
+      // Check cache first
+      const cached = this.profileCache.get(userId);
+      if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+        console.log('📋 Using cached profile for user:', userId);
+        return cached.profile;
+      }
+
       console.log('🔍 Fetching profile for user:', userId);
       
+      // Increase timeout and add better error handling
       const profileTimeout = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000);
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 30000); // Increased to 30 seconds
       });
       
       const profileFetch = supabase
@@ -272,7 +283,15 @@ export class SupabaseAuthService {
         return null;
       }
       
-      console.log('✅ Profile found:', data?.email);
+      if (data) {
+        // Cache the profile
+        this.profileCache.set(userId, {
+          profile: data as UserProfile,
+          timestamp: Date.now()
+        });
+        console.log('✅ Profile found and cached:', data.email);
+      }
+      
       return data;
     } catch (error) {
       console.error('❌ Get user profile error:', error);

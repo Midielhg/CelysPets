@@ -26,6 +26,7 @@ import { PricingService } from '../../services/pricingService';
 import { ClientService } from '../../services/clientService';
 import { UserService, type User as UserType } from '../../services/userService';
 import GroomerAssignmentModal from './GroomerAssignmentModal';
+import CalendarIntegrationSetup from './CalendarIntegrationSetup';
 
 // Type declarations for Google Maps
 declare global {
@@ -113,6 +114,12 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const [staffFilter, setStaffFilter] = useState<string>('all'); // 'all' or staff member ID
   const [availableStaff, setAvailableStaff] = useState<UserType[]>([]);
   const [showStaffFilter, setShowStaffFilter] = useState(false);
+  const [showCalendarIntegration, setShowCalendarIntegration] = useState(false);
+
+  // Function to refresh appointments (can be called after calendar import)
+  const refreshAppointments = () => {
+    loadAllAppointments();
+  };
   const staffFilterRef = useRef<HTMLDivElement>(null);
   const [showStaffAssignmentPopout, setShowStaffAssignmentPopout] = useState(false);
   const staffAssignmentRef = useRef<HTMLDivElement>(null);
@@ -756,34 +763,35 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     }
   }, [viewMode, showModal]);
 
-  // Sample data for demonstration (will be replaced by API data)
-  useEffect(() => {
-    if (appointments.length === 0) {
+  // Load appointments from both regular database and imported calendar data
+  const loadAllAppointments = async () => {
+    try {
+      setLoading(true);
+      
+      // 1. Load regular appointments (sample data for now)
       const today = new Date();
       const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
-      const nextWeek = new Date(today);
-      nextWeek.setDate(today.getDate() + 7);
-
+      
       const sampleAppointments: Appointment[] = [
         {
           id: 'sample-1',
           date: today.toISOString(),
           time: '6:00 AM',
-          endTime: '8:30 AM', // 150 minutes = 2 hours 30 minutes
+          endTime: '8:30 AM',
           duration: 150,
           assignedGroomer: 'Sofia Rodriguez',
           status: 'confirmed',
           paymentStatus: 'paid',
-          services: ['Matted Fur Treatment', 'Teeth Cleaning'], // Services matching screenshot
+          services: ['Matted Fur Treatment', 'Teeth Cleaning'],
           createdAt: today.toISOString(),
           updatedAt: today.toISOString(),
           client: {
             id: 'client-1',
-            name: 'Claritza Bosque', // Name matching screenshot
+            name: 'Claritza Bosque',
             email: 'claritza@example.com',
-            phone: '+1 (786) 734-9303', // Phone matching screenshot
-            address: '14371 SW 157th St', // Address matching screenshot
+            phone: '+1 (786) 734-9303',
+            address: '14371 SW 157th St',
             pets: [
               { 
                 name: 'Buddy', 
@@ -795,95 +803,72 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
               }
             ]
           }
-        },
-        {
-          id: 'sample-2',
-          date: tomorrow.toISOString(),
-          time: '2:15 PM',
-          endTime: '3:00 PM',
-          duration: 45,
-          assignedGroomer: 'Carlos Martinez',
-          status: 'pending',
-          paymentStatus: 'unpaid',
-          services: ['Bath & Brush'],
-          createdAt: tomorrow.toISOString(),
-          updatedAt: tomorrow.toISOString(),
-          client: {
-            id: 'client-2',
-            name: 'Mike Chen',
-            email: 'mike@example.com',
-            phone: '(555) 987-6543',
-            address: '456 Oak Ave, City, State',
-            pets: [
-              { 
-                name: 'Luna', 
-                breed: 'Persian', 
-                type: 'cat', 
-                age: 2, 
-                weight: '8',
-                specialInstructions: 'Needs gentle handling, scared of loud noises' 
-              }
-            ]
-          }
-        },
-        {
-          id: 'sample-3',
-          date: today.toISOString(),
-          time: '11:30 AM',
-          endTime: '1:15 PM',
-          duration: 105,
-          assignedGroomer: 'Ana Silva',
-          status: 'completed',
-          paymentStatus: 'partial',
-          services: ['Full Grooming', 'Teeth Cleaning'],
-          createdAt: today.toISOString(),
-          updatedAt: today.toISOString(),
-          client: {
-            id: 'client-3',
-            name: 'Emma Davis',
-            email: 'emma@example.com',
-            phone: '(555) 456-7890',
-            address: '789 Pine Rd, City, State',
-            pets: [
-              { 
-                name: 'Max', 
-                breed: 'Poodle', 
-                type: 'dog', 
-                age: 5, 
-                weight: '45',
-                specialInstructions: 'Gets excited easily, needs regular breaks' 
-              }
-            ]
-          }
-        },
-        {
-          id: 'sample-4',
-          date: tomorrow.toISOString(),
-          time: '4:45 PM',
-          endTime: '5:10 PM', // 25 minutes = Nail Trim (15) + Ear Cleaning (10)
-          duration: 25,
-          status: 'confirmed',
-          paymentStatus: 'paid',
-          services: ['Nail Trim', 'Ear Cleaning'],
-          createdAt: tomorrow.toISOString(),
-          updatedAt: tomorrow.toISOString(),
-          client: {
-            id: 'client-4',
-            name: 'John Smith',
-            email: 'john@example.com',
-            phone: '(555) 321-9876',
-            address: '321 Elm St, City, State',
-            pets: [
-              { name: 'Bella', breed: 'Labrador', type: 'dog', age: 4 }
-            ]
-          }
         }
       ];
+
+      // 2. Load imported calendar appointments
+      const importedAppointments = await loadImportedCalendarAppointments();
       
-      setAppointments(sampleAppointments);
+      // 3. Combine all appointments
+      const allAppointments = [...sampleAppointments, ...importedAppointments];
+      
+      setAppointments(allAppointments);
+      setLoading(false);
+      
+      console.log(`📅 Loaded ${allAppointments.length} total appointments (${sampleAppointments.length} sample + ${importedAppointments.length} imported)`);
+      
+    } catch (error) {
+      console.error('Error loading appointments:', error);
       setLoading(false);
     }
-  }, [appointments.length]);
+  };
+
+  // Load imported calendar appointments from localStorage (where CalendarIntegrationSetup stores them)
+  const loadImportedCalendarAppointments = async (): Promise<Appointment[]> => {
+    try {
+      const user = { id: 'current-user' }; // This should come from auth context
+      const savedData = localStorage.getItem(`imported_appointments_${user.id}`);
+      
+      if (!savedData) {
+        console.log('📅 No imported appointments found in localStorage');
+        return [];
+      }
+      
+      const importedData = JSON.parse(savedData);
+      console.log(`📅 Found ${importedData.length} imported appointments in localStorage`);
+      
+      return importedData.map((apt: any, index: number) => ({
+        id: `imported-${index}`,
+        date: apt.appointment_date || apt.date,
+        time: apt.appointment_time || apt.time,
+        endTime: apt.end_time || apt.endTime,
+        duration: apt.estimated_duration || apt.duration || 60,
+        status: apt.status || 'imported',
+        paymentStatus: 'unpaid' as const,
+        services: apt.services || ['Imported Appointment'],
+        assignedGroomer: apt.assigned_groomer,
+        createdAt: apt.created_at || new Date().toISOString(),
+        updatedAt: apt.updated_at || new Date().toISOString(),
+        client: {
+          id: `imported-client-${index}`,
+          name: apt.client_name || 'Imported Client',
+          email: apt.client_email || '',
+          phone: apt.client_phone || '',
+          address: apt.client_address || '',
+          pets: apt.pets || [{ name: 'Pet', breed: 'Unknown', type: 'dog' as const, age: 0 }]
+        },
+        isImported: true // Flag to identify imported appointments
+      }));
+      
+    } catch (error) {
+      console.error('Error loading imported appointments:', error);
+      return [];
+    }
+  };
+
+  useEffect(() => {
+    loadAllAppointments();
+  }, []);
 
   // Close status popover when clicking outside
   useEffect(() => {
@@ -3190,6 +3175,13 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
               >
                 <Filter className="w-4 h-4 md:w-5 md:h-5" />
               </button>
+              <button
+                onClick={() => setShowCalendarIntegration(!showCalendarIntegration)}
+                className="p-1.5 md:p-2 text-gray-500 hover:text-gray-700 hover:bg-white rounded-full transition-colors"
+                title="Calendar Integration"
+              >
+                <Calendar className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
             </div>
           </div>
 
@@ -5317,6 +5309,32 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Calendar Integration Modal */}
+      {showCalendarIntegration && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-xl font-semibold text-gray-900">Calendar Integration</h3>
+              <button
+                onClick={() => setShowCalendarIntegration(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6">
+              <CalendarIntegrationSetup 
+                onAppointmentsImported={refreshAppointments}
+                onClose={() => {
+                  setShowCalendarIntegration(false);
+                  refreshAppointments(); // Refresh when closing to pick up any new imports
+                }}
+              />
             </div>
           </div>
         </div>
