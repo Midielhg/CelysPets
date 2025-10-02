@@ -249,7 +249,16 @@ const GoogleMapRoute: React.FC<GoogleMapRouteProps> = ({
           });
           
         } else {
-          console.error('Directions request failed due to ' + status);
+          console.error(`❌ Directions request failed: ${status}`);
+          if (status === 'NOT_FOUND') {
+            console.error('❌ One or more addresses could not be found');
+            console.error('   Start Location:', startLocation);
+            console.error('   Route Stops:', route.stops.map(stop => stop.address));
+          } else if (status === 'REQUEST_DENIED') {
+            console.error('❌ API key invalid or Directions API not enabled');
+          } else if (status === 'OVER_QUERY_LIMIT') {
+            console.error('❌ API quota exceeded');
+          }
         }
       });
     };

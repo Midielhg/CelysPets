@@ -248,6 +248,102 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     };
   }, []);
 
+  // Load Google Maps API script for travel time calculations
+  useEffect(() => {
+    const loadGoogleMaps = () => {
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      
+      if (!apiKey) {
+        console.warn('🗺️ Google Maps API key not found. Travel times will use fallback calculations.');
+        return;
+      }
+
+      // Check if Google Maps is already loaded
+      if (window.google && window.google.maps) {
+        console.log('✅ Google Maps already loaded');
+        // Test the API once loaded
+        testGoogleMapsAPI();
+        return;
+      }
+
+      // Check if script is already being loaded
+      const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+      if (existingScript) {
+        console.log('🔄 Google Maps script already loading');
+        return;
+      }
+
+      console.log('📍 Loading Google Maps API...');
+      
+      // Create and load the Google Maps API script
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`;
+      script.async = true;
+      script.defer = true;
+      
+      script.onload = () => {
+        console.log('✅ Google Maps API loaded successfully');
+        // Test the API once loaded
+        setTimeout(() => testGoogleMapsAPI(), 1000);
+      };
+      
+      script.onerror = () => {
+        console.error('❌ Failed to load Google Maps API');
+      };
+      
+      document.head.appendChild(script);
+    };
+
+    loadGoogleMaps();
+  }, []);
+
+  // Test function to validate Google Maps API functionality
+  const testGoogleMapsAPI = async () => {
+    if (!window.google || !window.google.maps) {
+      console.log('❌ Google Maps not available for testing');
+      return;
+    }
+
+    console.log('🧪 Testing Google Maps API...');
+    
+    // Test with known good addresses
+    const testOrigin = "14511 Jefferson St, Miami FL 33176";
+    const testDestination = "1 Biscayne Blvd, Miami FL 33131";
+    
+    try {
+      const service = new window.google.maps.DistanceMatrixService();
+      
+      service.getDistanceMatrix({
+        origins: [testOrigin],
+        destinations: [testDestination],
+        travelMode: window.google.maps.TravelMode.DRIVING,
+        unitSystem: window.google.maps.UnitSystem.IMPERIAL,
+        avoidHighways: false,
+        avoidTolls: false
+      }, (response: any, status: any) => {
+        console.log('🧪 Test API Response Status:', status);
+        
+        if (status === 'OK' && response && response.rows && response.rows.length > 0) {
+          const element = response.rows[0].elements[0];
+          console.log('🧪 Test Element Status:', element.status);
+          
+          if (element.status === 'OK' && element.duration) {
+            console.log(`✅ API Test SUCCESS: ${Math.ceil(element.duration.value / 60)} minutes, ${element.distance.text}`);
+          } else {
+            console.log(`❌ API Test FAILED: Element status = ${element.status}`);
+          }
+        } else {
+          console.log(`❌ API Test FAILED: Response status = ${status}`);
+          if (status === 'REQUEST_DENIED') {
+            console.log('❌ This usually means Directions API or Distance Matrix API is not enabled');
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ API Test Error:', error);
+    }
+  };
+
   // Function to select a client and prefill form
   const selectClient = (client: any) => {
     console.log('🚨 FUNCTION CALLED - selectClient triggered!');
@@ -573,6 +669,63 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     const startMinutes = parseTime(startTime);
     const endMinutes = parseTime(endTime);
     return Math.max(15, endMinutes - startMinutes); // Minimum 15 minutes
+  };
+
+  // Calculate when to leave for first appointment
+  const calculateLeaveByTime = (firstAppointmentTime: string, travelTimeMinutes: number): string => {
+    const appointmentMinutes = parseTime(firstAppointmentTime);
+    const leaveByMinutes = appointmentMinutes - travelTimeMinutes;
+    return formatTimeFromMinutes(leaveByMinutes);
+  };
+
+  // Calculate adjusted appointment times based on travel times
+  const calculateAdjustedAppointmentTimes = (appointments: Appointment[]) => {
+    if (appointments.length === 0) return [];
+    
+    const adjustedAppointments = appointments.map(appointment => ({
+      ...appointment,
+      wasAdjusted: false,
+      adjustmentMinutes: 0
+    }));
+    
+    for (let i = 1; i < adjustedAppointments.length; i++) {
+      const previousAppointment = adjustedAppointments[i - 1];
+      const currentAppointment = adjustedAppointments[i];
+      const originalAppointment = appointments[i];
+      
+      // Get travel time between appointments
+      const travelKey = `${previousAppointment.id}-to-${currentAppointment.id}`;
+      const travelTime = travelTimes[travelKey];
+      
+      if (travelTime && travelTime > 0) {
+        // Calculate when previous appointment ends
+        const previousEndTime = calculateEndTime(
+          previousAppointment.time || '8:00 AM', 
+          getActualDuration(previousAppointment)
+        );
+        const previousEndMinutes = parseTime(previousEndTime);
+        
+        // Calculate earliest possible start time (previous end + travel time)
+        const earliestStartMinutes = previousEndMinutes + travelTime;
+        const currentStartMinutes = parseTime(currentAppointment.time || '9:00 AM');
+        
+        // If current appointment starts before travel time allows, adjust it
+        if (currentStartMinutes < earliestStartMinutes) {
+          const adjustedStartTime = formatTimeFromMinutes(earliestStartMinutes);
+          const adjustmentMinutes = earliestStartMinutes - currentStartMinutes;
+          
+          adjustedAppointments[i] = {
+            ...currentAppointment,
+            time: adjustedStartTime,
+            endTime: calculateEndTime(adjustedStartTime, getActualDuration(currentAppointment)),
+            wasAdjusted: true,
+            adjustmentMinutes
+          };
+        }
+      }
+    }
+    
+    return adjustedAppointments;
   };
 
   // Service duration mapping (in minutes)
@@ -2430,20 +2583,24 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
   // Helper function to convert appointments to route format for GoogleMapRoute
   const convertAppointmentsToRoute = (appointments: Appointment[]) => {
-    const stops = appointments.map((appointment, index) => ({
-      appointment: {
-        id: appointment.id,
-        client: {
-          name: appointment.client?.name || 'Unknown Client',
-          address: appointment.client?.address || 'No address provided'
+    const stops = appointments.map((appointment, index) => {
+      const resolvedAddress = getDisplayAddress(appointment);
+      
+      return {
+        appointment: {
+          id: appointment.id,
+          client: {
+            name: appointment.client?.name || 'Unknown Client',
+            address: resolvedAddress || 'No address provided'
+          },
+          time: appointment.time || 'No time'
         },
-        time: appointment.time || 'No time'
-      },
-      address: appointment.client?.address || 'No address provided',
-      coordinates: undefined, // Will be geocoded by GoogleMapRoute
-      distanceFromPrevious: index === 0 ? 0 : 2.5, // Estimated 2.5 miles between stops
-      travelTimeFromPrevious: index === 0 ? 0 : 15 // Estimated 15 minutes travel time
-    }));
+        address: resolvedAddress || 'No address provided',
+        coordinates: undefined, // Will be geocoded by GoogleMapRoute
+        distanceFromPrevious: index === 0 ? 0 : 2.5, // Estimated 2.5 miles between stops
+        travelTimeFromPrevious: index === 0 ? 0 : 15 // Estimated 15 minutes travel time
+      };
+    });
 
     const totalDistance = stops.reduce((sum, stop) => sum + (stop.distanceFromPrevious || 0), 0);
     const totalDuration = stops.reduce((sum, stop) => sum + (stop.travelTimeFromPrevious || 0), 0);
@@ -2863,11 +3020,62 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     });
   };
 
+  // Function to validate and format addresses
+  const validateAddress = (address: string): string | null => {
+    if (!address || address.trim().length === 0) {
+      return null;
+    }
+    
+    const trimmed = address.trim();
+    
+    // Skip addresses that are placeholders or invalid
+    const invalidPatterns = [
+      /^no address/i,
+      /^address not/i,
+      /^n\/a$/i,
+      /^none$/i,
+      /^unknown$/i,
+      /^tbd$/i
+    ];
+    
+    for (const pattern of invalidPatterns) {
+      if (pattern.test(trimmed)) {
+        return null;
+      }
+    }
+    
+    // Ensure address has basic components (number + street or city)
+    if (trimmed.length < 10) {
+      return null;
+    }
+    
+    // Add Miami, FL if it seems to be missing city/state
+    if (!trimmed.match(/FL|Florida|Miami/i)) {
+      return `${trimmed}, Miami, FL`;
+    }
+    
+    return trimmed;
+  };
+
   // Function to calculate travel time between two addresses using Google Maps API
   const calculateTravelTime = async (origin: string, destination: string): Promise<number> => {
     return new Promise(async (resolve) => {
       try {
-        console.log(`🚗 Calculating travel time from "${origin}" to "${destination}" using Google Maps`);
+        // Validate and format addresses
+        const validOrigin = validateAddress(origin);
+        const validDestination = validateAddress(destination);
+        
+        console.log(`🚗 Calculating travel time:`);
+        console.log(`   Original Origin: "${origin}"`);
+        console.log(`   Valid Origin: "${validOrigin || 'INVALID'}"`);
+        console.log(`   Original Destination: "${destination}"`);
+        console.log(`   Valid Destination: "${validDestination || 'INVALID'}"`);
+        
+        if (!validOrigin || !validDestination) {
+          console.log('❌ Invalid addresses, using fallback calculation');
+          resolve(calculateFallbackTravelTime(origin, destination));
+          return;
+        }
         
         // Wait for Google Maps to load
         const isGoogleMapsLoaded = await waitForGoogleMaps();
@@ -2881,30 +3089,40 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         const service = new window.google.maps.DistanceMatrixService();
         
         service.getDistanceMatrix({
-          origins: [origin],
-          destinations: [destination],
+          origins: [validOrigin],
+          destinations: [validDestination],
           travelMode: window.google.maps.TravelMode.DRIVING,
           unitSystem: window.google.maps.UnitSystem.IMPERIAL,
           avoidHighways: false,
           avoidTolls: false
         }, (response: any, status: any) => {
           console.log('📍 Google Maps API response status:', status);
-          console.log('� Google Maps API response:', response);
           
           if (status === 'OK' && response && response.rows && response.rows.length > 0) {
             const element = response.rows[0].elements[0];
+            console.log('📍 Element status:', element.status);
             
             if (element.status === 'OK' && element.duration) {
               const minutes = Math.ceil(element.duration.value / 60);
               console.log(`✅ Calculated travel time: ${minutes} minutes`);
-              console.log(`� Distance: ${element.distance?.text || 'unknown'}`);
+              console.log(`📏 Distance: ${element.distance?.text || 'unknown'}`);
               resolve(minutes);
             } else {
-              console.log('❌ Google Maps element error:', element.status);
+              console.log(`❌ Google Maps element error: ${element.status}`);
+              if (element.status === 'NOT_FOUND') {
+                console.log(`❌ Address not found - Origin: "${validOrigin}" -> Destination: "${validDestination}"`);
+              } else if (element.status === 'ZERO_RESULTS') {
+                console.log('❌ No route could be found between origin and destination');
+              }
               resolve(calculateFallbackTravelTime(origin, destination));
             }
           } else {
-            console.log('❌ Google Maps API error:', status);
+            console.log(`❌ Google Maps API error: ${status}`);
+            if (status === 'REQUEST_DENIED') {
+              console.log('❌ API key may be invalid or Directions API not enabled');
+            } else if (status === 'OVER_QUERY_LIMIT') {
+              console.log('❌ API quota exceeded');
+            }
             resolve(calculateFallbackTravelTime(origin, destination));
           }
         });
@@ -2967,18 +3185,20 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     
     try {
       // Calculate travel time from base to first appointment
-      if (appointments[0]?.client?.address) {
+      const firstAddress = getDisplayAddress(appointments[0]);
+      if (firstAddress) {
         console.log('🏠 ===== CALCULATING BASE TO FIRST APPOINTMENT =====');
         console.log(`🏠 From: "${BASE_LOCATION}"`);
-        console.log(`📍 To: "${appointments[0].client.address}"`);
+        console.log(`📍 To: "${firstAddress}"`);
         
-        const timeToFirst = await calculateTravelTime(BASE_LOCATION, appointments[0].client.address);
+        const timeToFirst = await calculateTravelTime(BASE_LOCATION, firstAddress);
         newTravelTimes[`base-to-${appointments[0].id}`] = timeToFirst;
         
         console.log(`✅ Base to first appointment result: ${timeToFirst} minutes`);
         console.log(`🔑 Stored with key: base-to-${appointments[0].id}`);
       } else {
         console.log('❌ First appointment has no address:', appointments[0]);
+        console.log('   Tried getDisplayAddress but got:', firstAddress);
       }
       
       // Calculate travel times between consecutive appointments
@@ -2991,11 +3211,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         console.log(`   Current: ${current.client?.name} (ID: ${current.id})`);
         console.log(`   Next: ${next.client?.name} (ID: ${next.id})`);
         
-        if (current?.client?.address && next?.client?.address) {
-          console.log(`🗺️ From: "${current.client.address}"`);
-          console.log(`🗺️ To: "${next.client.address}"`);
+        const currentAddress = getDisplayAddress(current);
+        const nextAddress = getDisplayAddress(next);
+        
+        if (currentAddress && nextAddress) {
+          console.log(`🗺️ From: "${currentAddress}"`);
+          console.log(`🗺️ To: "${nextAddress}"`);
           
-          const travelTime = await calculateTravelTime(current.client.address, next.client.address);
+          const travelTime = await calculateTravelTime(currentAddress, nextAddress);
           const travelKey = `${current.id}-to-${next.id}`;
           newTravelTimes[travelKey] = travelTime;
           
@@ -3003,26 +3226,31 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           console.log(`🔑 Stored with key: ${travelKey}`);
         } else {
           console.log(`❌ Missing address data:`);
-          console.log(`   Current address: ${current?.client?.address || 'MISSING'}`);
-          console.log(`   Next address: ${next?.client?.address || 'MISSING'}`);
+          console.log(`   Current address: ${currentAddress || 'MISSING'}`);
+          console.log(`   Next address: ${nextAddress || 'MISSING'}`);
         }
       }
       
       // Calculate travel time from last appointment back to base
-      if (appointments.length > 0 && appointments[appointments.length - 1]?.client?.address) {
-        console.log('🏠 ===== CALCULATING LAST APPOINTMENT TO BASE =====');
+      if (appointments.length > 0) {
         const lastAppt = appointments[appointments.length - 1];
-        console.log(`📍 From: "${lastAppt.client.address}"`);
-        console.log(`🏠 To: "${BASE_LOCATION}"`);
+        const lastAddress = getDisplayAddress(lastAppt);
         
-        const timeToBase = await calculateTravelTime(lastAppt.client.address, BASE_LOCATION);
-        const baseKey = `${lastAppt.id}-to-base`;
-        newTravelTimes[baseKey] = timeToBase;
-        
-        console.log(`✅ Last appointment to base result: ${timeToBase} minutes`);
-        console.log(`🔑 Stored with key: ${baseKey}`);
-      } else {
-        console.log('❌ Last appointment has no address:', appointments[appointments.length - 1]);
+        if (lastAddress) {
+          console.log('🏠 ===== CALCULATING LAST APPOINTMENT TO BASE =====');
+          console.log(`📍 From: "${lastAddress}"`);
+          console.log(`🏠 To: "${BASE_LOCATION}"`);
+          
+          const timeToBase = await calculateTravelTime(lastAddress, BASE_LOCATION);
+          const baseKey = `${lastAppt.id}-to-base`;
+          newTravelTimes[baseKey] = timeToBase;
+          
+          console.log(`✅ Last appointment to base result: ${timeToBase} minutes`);
+          console.log(`🔑 Stored with key: ${baseKey}`);
+        } else {
+          console.log('❌ Last appointment has no address:', lastAppt);
+          console.log('   Tried getDisplayAddress but got:', lastAddress);
+        }
       }
       
       console.log('🎯 ===== FINAL TRAVEL TIMES SUMMARY =====');
@@ -3205,31 +3433,54 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
               </div>
             </div>
 
-            {/* Travel Time to First Appointment */}
+            {/* Travel Time to First Appointment with Leave By Time */}
             {dayAppointments.length > 0 && (
-              <div className="flex items-center space-x-4 py-2">
-                <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
-                <div className="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2">
-                  <Car className="w-4 h-4" />
-                  <span>
-                    {(() => {
-                      const travelTime = travelTimes[`base-to-${dayAppointments[0].id}`];
-                      if (travelTime === -1) {
-                        return '🚗 Cannot calculate route time to first appointment';
-                      } else if (travelTime) {
-                        return `🚗 ~${travelTime} min to first appointment`;
-                      } else {
-                        return '🚗 Calculating route time...';
-                      }
-                    })()}
-                  </span>
-                  <ArrowDown className="w-4 h-4" />
+              <div className="space-y-2">
+                <div className="flex items-center space-x-4 py-2">
+                  <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
+                  <div className="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2">
+                    <Car className="w-4 h-4" />
+                    <span>
+                      {(() => {
+                        const travelTime = travelTimes[`base-to-${dayAppointments[0].id}`];
+                        if (travelTime === -1) {
+                          return '🚗 Cannot calculate route time to first appointment';
+                        } else if (travelTime) {
+                          return `🚗 ~${travelTime} min to first appointment`;
+                        } else {
+                          return '🚗 Calculating route time...';
+                        }
+                      })()}
+                    </span>
+                    <ArrowDown className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
                 </div>
-                <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
+                
+                {/* Leave By Time */}
+                {(() => {
+                  const travelTime = travelTimes[`base-to-${dayAppointments[0].id}`];
+                  if (travelTime && travelTime > 0) {
+                    const leaveByTime = calculateLeaveByTime(dayAppointments[0].time || '8:00 AM', travelTime);
+                    return (
+                      <div className="text-center">
+                        <div className="inline-flex items-center space-x-2 bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">
+                          <Clock className="w-4 h-4" />
+                          <span>⏰ Leave by {leaveByTime}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             )}
 
-            {dayAppointments.map((appointment, index) => {
+            {(() => {
+              // Calculate adjusted appointment times to account for travel time
+              const adjustedAppointments = calculateAdjustedAppointmentTimes(dayAppointments);
+              
+              return adjustedAppointments.map((appointment, index) => {
               const nextAppointment = dayAppointments[index + 1];
               const travelKey = nextAppointment ? `${appointment.id}-to-${nextAppointment.id}` : null;
               const travelTimeToNext = nextAppointment ? travelTimes[travelKey!] : 0;
@@ -3271,6 +3522,12 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                   setShowRecurringControls(true);
                                 }}
                               />
+                              {/* Time Adjustment Badge */}
+                              {appointment.wasAdjusted && (
+                                <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full border border-yellow-200">
+                                  Adjusted +{appointment.adjustmentMinutes}min
+                                </span>
+                              )}
                             </div>
                             <div className="text-xs md:text-sm text-gray-600">
                               {getActualDuration(appointment)} minutes
@@ -3524,7 +3781,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   )}
                 </div>
               );
-            })}
+              });
+            })()}
             
             {/* Return to Base Card */}
             {dayAppointments.length > 0 && (
