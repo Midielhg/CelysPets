@@ -93,7 +93,7 @@ export class DashboardService {
           status,
           total_amount,
           created_at,
-          clients (
+          clients!appointments_client_id_fkey (
             name,
             email
           )
@@ -103,6 +103,12 @@ export class DashboardService {
 
       if (error) {
         console.error('❌ Error fetching recent activity:', error)
+        console.error('❌ Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        })
         throw error
       }
 
@@ -136,7 +142,7 @@ export class DashboardService {
           total_amount,
           services,
           groomer_id,
-          clients (
+          clients!appointments_client_id_fkey (
             name,
             email,
             phone
@@ -147,6 +153,12 @@ export class DashboardService {
 
       if (error) {
         console.error('❌ Error fetching today\'s schedule:', error)
+        console.error('❌ Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        })
         throw error
       }
 

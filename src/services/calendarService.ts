@@ -12,7 +12,7 @@ export class CalendarService {
         .from('appointments')
         .select(`
           *,
-          clients!client_id (
+          clients!appointments_client_id_fkey (
             name,
             phone,
             address

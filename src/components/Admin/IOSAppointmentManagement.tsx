@@ -15,7 +15,7 @@ import {
   ArrowDown,
   Mail,
   DollarSign,
-  Check
+  Check,
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import type { Appointment, Pet } from '../../types';
@@ -27,6 +27,10 @@ import { ClientService } from '../../services/clientService';
 import { UserService, type User as UserType } from '../../services/userService';
 import GroomerAssignmentModal from './GroomerAssignmentModal';
 import CalendarIntegrationSetup from './CalendarIntegrationSetup';
+import RecurringControls from './RecurringControls';
+import RecurringBadge from './RecurringBadge';
+import RecurringDashboard from './RecurringDashboard';
+import { RecurringAppointmentService } from '../../services/recurringAppointmentManager';
 
 // Type declarations for Google Maps
 declare global {
@@ -82,13 +86,13 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   // Helper function to transform Supabase appointment data to component format
   const transformAppointmentData = (apt: any): Appointment => ({
     id: apt.id.toString(),
-    client: apt.clients || apt.client || { // Handle both joined data and direct client data
-      id: apt.client_id?.toString() || apt.clients?.id?.toString() || '',
-      name: apt.clients?.name || apt.client?.name || 'Unknown',
-      email: apt.clients?.email || apt.client?.email || '',
-      phone: apt.clients?.phone || apt.client?.phone || '',
-      address: apt.clients?.address || apt.client?.address || '',
-      pets: apt.clients?.pets || apt.client?.pets || []
+    client: {
+      id: apt.client_id?.toString() || '',
+      name: apt.clients?.name || 'Unknown Client',
+      email: apt.clients?.email || '',
+      phone: apt.clients?.phone || '',
+      address: apt.clients?.address || '',
+      pets: apt.clients?.pets || []
     },
     services: parseServices(apt.services),
     date: apt.date,
@@ -115,6 +119,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const [availableStaff, setAvailableStaff] = useState<UserType[]>([]);
   const [showStaffFilter, setShowStaffFilter] = useState(false);
   const [showCalendarIntegration, setShowCalendarIntegration] = useState(false);
+  const [showRecurringDashboard, setShowRecurringDashboard] = useState(false);
 
   // Function to refresh appointments (can be called after calendar import)
   const refreshAppointments = () => {
@@ -126,6 +131,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const [statusPopover, setStatusPopover] = useState<{ appointmentId: string; type: 'status' | 'payment' } | null>(null);
   const [modalStatusPopover, setModalStatusPopover] = useState<{ type: 'status' | 'payment' } | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [showRecurringControls, setShowRecurringControls] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -157,6 +163,13 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     preferredDate: string;
     preferredTime: string;
     notes: string;
+    isRecurring: boolean;
+    recurringPattern: {
+      frequency: 'weekly' | 'biweekly' | 'monthly';
+      interval: number;
+      endDate?: string;
+      numberOfOccurrences?: number;
+    };
   }>({
     customerName: '',
     email: '',
@@ -173,7 +186,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     additionalServices: [],
     preferredDate: '',
     preferredTime: '',
-    notes: ''
+    notes: '',
+    isRecurring: false,
+    recurringPattern: {
+      frequency: 'weekly',
+      interval: 1,
+      endDate: '',
+      numberOfOccurrences: 4
+    }
   });
 
   // Additional state for form functionality
@@ -363,7 +383,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       additionalServices: [],
       preferredDate: '',
       preferredTime: '',
-      notes: ''
+      notes: '',
+      isRecurring: false,
+      recurringPattern: {
+        frequency: 'weekly',
+        interval: 1,
+        endDate: '',
+        numberOfOccurrences: 4
+      }
     });
   };
 
@@ -767,58 +794,27 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const loadAllAppointments = async () => {
     try {
       setLoading(true);
+      console.log('📅 Loading appointments from Supabase...');
       
-      // 1. Load regular appointments (sample data for now)
-      const today = new Date();
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
+      // 1. Load appointments from Supabase database with client relationships
+      const supabaseAppointments = await fetchAppointments();
+      console.log(`📊 Loaded ${supabaseAppointments.length} appointments from Supabase`);
       
-      const sampleAppointments: Appointment[] = [
-        {
-          id: 'sample-1',
-          date: today.toISOString(),
-          time: '6:00 AM',
-          endTime: '8:30 AM',
-          duration: 150,
-          assignedGroomer: 'Sofia Rodriguez',
-          status: 'confirmed',
-          paymentStatus: 'paid',
-          services: ['Matted Fur Treatment', 'Teeth Cleaning'],
-          createdAt: today.toISOString(),
-          updatedAt: today.toISOString(),
-          client: {
-            id: 'client-1',
-            name: 'Claritza Bosque',
-            email: 'claritza@example.com',
-            phone: '+1 (786) 734-9303',
-            address: '14371 SW 157th St',
-            pets: [
-              { 
-                name: 'Buddy', 
-                breed: 'Golden Retriever', 
-                type: 'dog', 
-                age: 3, 
-                weight: '65',
-                specialInstructions: 'Very friendly, loves treats' 
-              }
-            ]
-          }
-        }
-      ];
-
-      // 2. Load imported calendar appointments
+      // 2. Load imported calendar appointments from localStorage (if any)
       const importedAppointments = await loadImportedCalendarAppointments();
+      console.log(`📊 Loaded ${importedAppointments.length} appointments from localStorage`);
       
       // 3. Combine all appointments
-      const allAppointments = [...sampleAppointments, ...importedAppointments];
+      const allAppointments = [...supabaseAppointments, ...importedAppointments];
+      
+      console.log(`📅 Total appointments loaded: ${allAppointments.length}`);
+      console.log('� Sample appointments:', allAppointments.slice(0, 3));
       
       setAppointments(allAppointments);
-      setLoading(false);
-      
-      console.log(`📅 Loaded ${allAppointments.length} total appointments (${sampleAppointments.length} sample + ${importedAppointments.length} imported)`);
-      
     } catch (error) {
-      console.error('Error loading appointments:', error);
+      console.error('❌ Error loading appointments:', error);
+      showToast('Failed to load appointments', 'error');
+    } finally {
       setLoading(false);
     }
   };
@@ -868,7 +864,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
   useEffect(() => {
     loadAllAppointments();
-  }, []);
+  }, [selectedDate, viewMode]); // Refresh appointments when date or view changes
 
   // Close status popover when clicking outside
   useEffect(() => {
@@ -1272,6 +1268,24 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     }
   };
 
+  const handleRecurringAction = (action: string) => {
+    console.log('Recurring action:', action);
+    if (action === 'delete-series' || action === 'skip-occurrence') {
+      // Refresh appointments after action
+      fetchAppointments();
+      setSelectedAppointment(null);
+      setShowRecurringControls(false);
+    }
+    // Show success message based on action
+    const actionMessages = {
+      'skip-occurrence': 'Appointment skipped successfully',
+      'delete-series': 'Recurring series deleted successfully',
+      'view-series': 'Viewing recurring series',
+      'modify-series': 'Series modification initiated'
+    };
+    showToast(actionMessages[action as keyof typeof actionMessages] || 'Action completed', 'success');
+  };
+
   // Change appointment status
   const changeAppointmentStatus = async (appointmentId: string, newStatus: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled') => {
     try {
@@ -1596,30 +1610,76 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           
           console.log('✅ Step 1 Complete - Client created/found:', clientData);
           
-          const createData = {
-            client_id: clientData.id, // Use the actual client ID
-            date: bookingFormData.preferredDate,
-            time: bookingFormData.preferredTime,
-            services: selectedServices,
-            notes: bookingFormData.notes || '',
-            status: 'pending' as const,
-            total_amount: calculateTotal(),
-            original_amount: calculateSubtotal(),
-            groomer_id: null
-          };
-          
-          console.log('🔄 Step 2: Creating appointment with data:', createData);
+          // Check if this is a recurring appointment
+          if (bookingFormData.isRecurring && bookingFormData.recurringPattern) {
+            console.log('🔄 Step 2: Creating recurring appointment series...');
+            
+            const recurringData = {
+              client_id: clientData.id,
+              date: bookingFormData.preferredDate,
+              time: bookingFormData.preferredTime,
+              services: selectedServices,
+              notes: bookingFormData.notes || '',
+              status: 'pending' as const,
+              total_amount: calculateTotal(),
+              original_amount: calculateSubtotal(),
+              groomer_id: null
+            };
+            
+            const recurringResult = await RecurringAppointmentService.createRecurringSeries(
+              recurringData,
+              bookingFormData.recurringPattern
+            );
+            
+            console.log('✅ Step 2 Complete - Recurring series created:', recurringResult);
+            
+            // Transform all appointments and add to local state
+            const transformedAppointments = recurringResult.appointments.map((appt: any) => 
+              transformAppointmentData({
+                ...appt,
+                client: clientData
+              })
+            );
+            
+            // Add all appointments to local state
+            setAppointments(prev => [...prev, ...transformedAppointments]);
+            
+            // For the success message, we'll use the first appointment as the result
+            appointmentResult = transformedAppointments[0];
+            
+            showToast(`Recurring appointment series created successfully! ${recurringResult.created} appointments scheduled.`, 'success');
+          } else {
+            // Create single appointment
+            const createData = {
+              client_id: clientData.id, // Use the actual client ID
+              date: bookingFormData.preferredDate,
+              time: bookingFormData.preferredTime,
+              services: selectedServices,
+              notes: bookingFormData.notes || '',
+              status: 'pending' as const,
+              total_amount: calculateTotal(),
+              original_amount: calculateSubtotal(),
+              groomer_id: null
+            };
+            
+            console.log('🔄 Step 2: Creating single appointment with data:', createData);
 
-          const createdAppt = await AppointmentService.create(createData);
-          console.log('✅ Step 2 Complete - Appointment created:', createdAppt);
-          
-          // Add client data to the appointment before transforming
-          const appointmentWithClient = {
-            ...createdAppt,
-            client: clientData // Include the client data we created
-          };
-          
-          appointmentResult = transformAppointmentData(appointmentWithClient);
+            const createdAppt = await AppointmentService.create(createData);
+            console.log('✅ Step 2 Complete - Single appointment created:', createdAppt);
+            
+            // Add client data to the appointment before transforming
+            const appointmentWithClient = {
+              ...createdAppt,
+              client: clientData // Include the client data we created
+            };
+            
+            appointmentResult = transformAppointmentData(appointmentWithClient);
+            
+            // Add the appointment to local state
+            setAppointments(prev => [...prev, appointmentResult]);
+            
+            showToast('Appointment created successfully!', 'success');
+          }
           console.log('✅ Step 3 Complete - Appointment transformed:', appointmentResult);
         } catch (clientError) {
           console.error('❌ Error in appointment creation process:', clientError);
@@ -1631,11 +1691,6 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         }
         
         console.log('🎉 APPOINTMENT DEBUG - Created appointment:', appointmentResult);
-        
-        // Add the appointment to local state
-        setAppointments(prev => [...prev, appointmentResult]);
-        
-        showToast('Appointment created successfully!', 'success');
       }
       
       // Reset form and state
@@ -1649,7 +1704,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         additionalServices: [],
         preferredDate: '',
         preferredTime: '',
-        notes: ''
+        notes: '',
+        isRecurring: false,
+        recurringPattern: {
+          frequency: 'weekly',
+          interval: 1,
+          endDate: '',
+          numberOfOccurrences: 4
+        }
       });
       
       setSelectedAppointment(null);
@@ -1673,32 +1735,70 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     }
   };
 
-  // Fetch appointments
-  const fetchAppointments = async () => {
-    try {
-      setLoading(true);
-      const data = await AppointmentService.getAll();
+  // Calculate date range based on view mode and selected date
+  const getDateRange = () => {
+    const date = new Date(selectedDate);
+    
+    switch (viewMode) {
+      case 'day': {
+        const dayStr = date.toISOString().split('T')[0];
+        return { startDate: dayStr, endDate: dayStr };
+      }
       
-      console.log('Raw appointments from Supabase:', data);
+      case 'week':
+      case '4day': {
+        const startOfWeek = new Date(date);
+        startOfWeek.setDate(date.getDate() - date.getDay()); // Start on Sunday
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + (viewMode === '4day' ? 3 : 6));
+        
+        return {
+          startDate: startOfWeek.toISOString().split('T')[0],
+          endDate: endOfWeek.toISOString().split('T')[0]
+        };
+      }
+      
+      case 'month':
+      default: {
+        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        
+        return {
+          startDate: startOfMonth.toISOString().split('T')[0],
+          endDate: endOfMonth.toISOString().split('T')[0]
+        };
+      }
+    }
+  };
+
+  // Fetch appointments (optimized for current view)
+  const fetchAppointments = async (): Promise<Appointment[]> => {
+    try {
+      // Get date range for current view to limit results
+      const { startDate, endDate } = getDateRange();
+      console.log(`📅 Fetching appointments for ${viewMode} view: ${startDate} to ${endDate}`);
+      
+      // Use date range filtering instead of loading all appointments
+      const data = await AppointmentService.getByDateRange(startDate, endDate);
+      
+      console.log('Raw appointments from Supabase:', data?.length || 0, 'appointments found');
+      console.log('Sample raw appointment:', data?.[0]);
       
       // Transform Supabase data to match component's Appointment interface
-      const transformedAppointments = data.map(transformAppointmentData);
+      const transformedAppointments = (data || []).map(transformAppointmentData);
       
-      // Log services to see what we're working with
-      transformedAppointments.forEach((apt: any, index: number) => {
-        if (apt.services) {
-          console.log(`Appointment ${index} services:`, apt.services);
-        }
-      });
+      console.log('✅ Transformed appointments:', transformedAppointments.length);
+      console.log('Sample transformed appointment:', transformedAppointments[0]);
       
-      setAppointments(transformedAppointments.sort((a: Appointment, b: Appointment) => 
+      // Sort appointments by date and time
+      const sortedAppointments = transformedAppointments.sort((a: Appointment, b: Appointment) => 
         new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime()
-      ));
+      );
+      
+      return sortedAppointments;
     } catch (error) {
       console.error('Error fetching appointments:', error);
-      showToast('Failed to load appointments for the calendar', 'error');
-    } finally {
-      setLoading(false);
+      throw error;
     }
   };
 
@@ -1735,7 +1835,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   };
 
   useEffect(() => {
-    fetchAppointments();
+    loadAllAppointments();
     fetchBreeds();
     fetchAddons();
     fetchStaff();
@@ -1790,7 +1890,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         additionalServices: [], // This property doesn't exist in Appointment type
         preferredDate: selectedAppointment.date || '',
         preferredTime: selectedAppointment.time || '',
-        notes: selectedAppointment.notes || ''
+        notes: selectedAppointment.notes || '',
+        isRecurring: false,
+        recurringPattern: {
+          frequency: 'weekly',
+          interval: 1,
+          endDate: '',
+          numberOfOccurrences: 4
+        }
       });
     }
   }, [editMode, selectedAppointment, breeds]);
@@ -1884,7 +1991,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         additionalServices: additionalServices,
         preferredDate: selectedAppointment.date || '',
         preferredTime: selectedAppointment.time || '',
-        notes: selectedAppointment.notes || ''
+        notes: selectedAppointment.notes || '',
+        isRecurring: false,
+        recurringPattern: {
+          frequency: 'weekly',
+          interval: 1,
+          endDate: '',
+          numberOfOccurrences: 4
+        }
       });
     } else if (!editMode && !isAddingNew) {
       // Reset form when not editing and not adding new
@@ -1898,7 +2012,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         additionalServices: [],
         preferredDate: '',
         preferredTime: '',
-        notes: ''
+        notes: '',
+        isRecurring: false,
+        recurringPattern: {
+          frequency: 'weekly',
+          interval: 1,
+          endDate: '',
+          numberOfOccurrences: 4
+        }
       });
     } else if (isAddingNew) {
       // When adding new appointment, start with empty form
@@ -1912,7 +2033,14 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         additionalServices: [],
         preferredDate: '',
         preferredTime: '',
-        notes: ''
+        notes: '',
+        isRecurring: false,
+        recurringPattern: {
+          frequency: 'weekly',
+          interval: 1,
+          endDate: '',
+          numberOfOccurrences: 4
+        }
       });
     }
   }, [editMode, selectedAppointment, isAddingNew]);
@@ -2211,7 +2339,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
       // Refresh appointments and hide optimization alert
       console.log('\n🔄 Refreshing appointments...');
-      await fetchAppointments();
+      await loadAllAppointments();
       setShowOptimizationAlert(false);
       setRouteOptimization(null);
       
@@ -2341,7 +2469,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
       // Refresh appointments
       console.log('\n🔄 Refreshing appointments...');
-      await fetchAppointments();
+      await loadAllAppointments();
       
       // Show success message
       const successMessage = `Appointments auto-scheduled successfully! 🎉\n\n` +
@@ -2782,8 +2910,17 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                             {index + 1}
                           </div>
                           <div>
-                            <div className="text-sm md:text-lg font-semibold text-gray-900">
+                            <div className="text-sm md:text-lg font-semibold text-gray-900 flex items-center gap-2">
                               {appointment.time || 'No time'} - {appointment.endTime || calculateEndTime(appointment.time || '', getActualDuration(appointment))}
+                              {/* Recurring Badge */}
+                              <RecurringBadge 
+                                appointment={appointment}
+                                variant="compact"
+                                onClick={() => {
+                                  openViewModal(appointment);
+                                  setShowRecurringControls(true);
+                                }}
+                              />
                             </div>
                             <div className="text-xs md:text-sm text-gray-600">
                               {getActualDuration(appointment)} minutes
@@ -3179,6 +3316,13 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                 onClick={() => setShowCalendarIntegration(!showCalendarIntegration)}
                 className="p-1.5 md:p-2 text-gray-500 hover:text-gray-700 hover:bg-white rounded-full transition-colors"
                 title="Calendar Integration"
+              >
+                <Calendar className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
+              <button
+                onClick={() => setShowRecurringDashboard(!showRecurringDashboard)}
+                className="p-1.5 md:p-2 text-blue-500 hover:text-blue-700 hover:bg-white rounded-full transition-colors"
+                title="Recurring Dashboard"
               >
                 <Calendar className="w-4 h-4 md:w-5 md:h-5" />
               </button>
@@ -4576,6 +4720,25 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                     )}
                   </div>
 
+                  {/* Recurring Controls Section */}
+                  {selectedAppointment && (
+                    <RecurringBadge 
+                      appointment={selectedAppointment}
+                      variant={showRecurringControls ? "full" : "stats"}
+                      onClick={() => setShowRecurringControls(!showRecurringControls)}
+                    />
+                  )}
+                  
+                  {selectedAppointment && showRecurringControls && (
+                    <RecurringControls
+                      appointment={selectedAppointment}
+                      onAction={handleRecurringAction}
+                      onClose={() => setShowRecurringControls(false)}
+                      onRefresh={() => fetchAppointments()}
+                      showAdvanced={true}
+                    />
+                  )}
+
                   {/* Action Buttons */}
                   <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-amber-200">
                     <button
@@ -4787,6 +4950,112 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                           <option value="5:00 PM">5:00 PM</option>
                         </select>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Recurring Options */}
+                  <div className="space-y-4">
+                    <h4 className="text-lg sm:text-xl font-semibold text-amber-800">Recurring Options</h4>
+                    
+                    <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-amber-200/50">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <input
+                          type="checkbox"
+                          id="isRecurring"
+                          checked={bookingFormData.isRecurring}
+                          onChange={(e) => setBookingFormData(prev => ({
+                            ...prev,
+                            isRecurring: e.target.checked
+                          }))}
+                          className="w-4 h-4 text-rose-600 bg-white border-amber-300 rounded focus:ring-rose-500 focus:ring-2"
+                        />
+                        <label htmlFor="isRecurring" className="text-sm font-medium text-amber-900">
+                          Make this a recurring appointment
+                        </label>
+                      </div>
+                      
+                      {bookingFormData.isRecurring && (
+                        <div className="space-y-4 border-t border-amber-200 pt-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-amber-800 mb-2">
+                                Frequency *
+                              </label>
+                              <select
+                                value={bookingFormData.recurringPattern.frequency}
+                                onChange={(e) => setBookingFormData(prev => ({
+                                  ...prev,
+                                  recurringPattern: {
+                                    ...prev.recurringPattern,
+                                    frequency: e.target.value as 'weekly' | 'biweekly' | 'monthly'
+                                  }
+                                }))}
+                                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm text-sm sm:text-base"
+                              >
+                                <option value="weekly">Weekly</option>
+                                <option value="biweekly">Bi-weekly (Every 2 weeks)</option>
+                                <option value="monthly">Monthly</option>
+                              </select>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-amber-800 mb-2">
+                                Number of Appointments *
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="52"
+                                value={bookingFormData.recurringPattern.numberOfOccurrences}
+                                onChange={(e) => setBookingFormData(prev => ({
+                                  ...prev,
+                                  recurringPattern: {
+                                    ...prev.recurringPattern,
+                                    numberOfOccurrences: parseInt(e.target.value) || 1
+                                  }
+                                }))}
+                                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm text-sm sm:text-base"
+                                placeholder="4"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-amber-800 mb-2">
+                              End Date (Optional)
+                            </label>
+                            <input
+                              type="date"
+                              value={bookingFormData.recurringPattern.endDate || ''}
+                              onChange={(e) => setBookingFormData(prev => ({
+                                ...prev,
+                                recurringPattern: {
+                                  ...prev.recurringPattern,
+                                  endDate: e.target.value
+                                }
+                              }))}
+                              className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent bg-white/70 backdrop-blur-sm text-sm sm:text-base"
+                            />
+                            <p className="text-xs text-amber-600 mt-1">
+                              Leave empty to use number of appointments above
+                            </p>
+                          </div>
+                          
+                          {/* Preview */}
+                          <div className="bg-amber-50 rounded-xl p-3 border border-amber-200">
+                            <h5 className="text-sm font-medium text-amber-900 mb-2">Preview:</h5>
+                            <p className="text-xs text-amber-800">
+                              {bookingFormData.recurringPattern.frequency === 'weekly' && 'Weekly appointments'}
+                              {bookingFormData.recurringPattern.frequency === 'biweekly' && 'Bi-weekly appointments (every 2 weeks)'}
+                              {bookingFormData.recurringPattern.frequency === 'monthly' && 'Monthly appointments'}
+                              {' '}starting on {bookingFormData.preferredDate || '[Select Date]'}
+                              {bookingFormData.recurringPattern.numberOfOccurrences && 
+                                ` for ${bookingFormData.recurringPattern.numberOfOccurrences} appointments`
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -5335,6 +5604,26 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   refreshAppointments(); // Refresh when closing to pick up any new imports
                 }}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recurring Dashboard Modal */}
+      {showRecurringDashboard && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full my-8">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-xl font-semibold text-gray-900">Recurring Appointments Dashboard</h3>
+              <button
+                onClick={() => setShowRecurringDashboard(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6">
+              <RecurringDashboard onClose={() => setShowRecurringDashboard(false)} />
             </div>
           </div>
         </div>

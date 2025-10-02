@@ -89,6 +89,10 @@ export interface Database {
           promo_code_id: number | null
           promo_code_discount: number | null
           original_amount: number | null
+          is_recurring: boolean | null
+          parent_appointment_id: number | null
+          recurrence_pattern: Json | null
+          recurrence_end_date: string | null
           created_at: string
           updated_at: string
         }
@@ -106,6 +110,10 @@ export interface Database {
           promo_code_id?: number | null
           promo_code_discount?: number | null
           original_amount?: number | null
+          is_recurring?: boolean | null
+          parent_appointment_id?: number | null
+          recurrence_pattern?: Json | null
+          recurrence_end_date?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -123,6 +131,10 @@ export interface Database {
           promo_code_id?: number | null
           promo_code_discount?: number | null
           original_amount?: number | null
+          is_recurring?: boolean | null
+          parent_appointment_id?: number | null
+          recurrence_pattern?: Json | null
+          recurrence_end_date?: string | null
           created_at?: string
           updated_at?: string
         }

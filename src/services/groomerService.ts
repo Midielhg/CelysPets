@@ -82,7 +82,7 @@ export class GroomerService {
         .from('appointments')
         .select(`
           *,
-          clients:client_id (
+          clients!appointments_client_id_fkey (
             id,
             name,
             email,
