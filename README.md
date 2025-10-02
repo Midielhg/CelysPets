@@ -6,7 +6,7 @@ npm run dev:client
 
 # To run the build and copy to deployment folder
 npm run build
-cp -r dist/* simple-static-deploy/
+cp -r dist/* production/
 
 ## ⚠️ Important: Payment Status Database Migration Required
 

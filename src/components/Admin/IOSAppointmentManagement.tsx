@@ -113,6 +113,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | '4day' | 'day' | 'agenda'>('month');
+  const [isMobile, setIsMobile] = useState(false);
   const [filter, setFilter] = useState<'all' | 'today' | 'pending' | 'confirmed' | 'completed' | 'unpaid' | 'partial' | 'paid' | 'refunded' | 'disputed'>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [staffFilter, setStaffFilter] = useState<string>('all'); // 'all' or staff member ID
@@ -1124,6 +1125,19 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     }
   }, [statusPopover, modalStatusPopover]);
 
+  // Handle window resize for responsive labels
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    // Set initial value
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Date navigation helpers
   const today = new Date();
   const isToday = (date: Date) => {
@@ -1155,7 +1169,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     } else if (viewMode === 'week') {
       newDate.setDate(selectedDate.getDate() + (direction === 'next' ? 7 : -7));
     } else if (viewMode === '4day') {
-      newDate.setDate(selectedDate.getDate() + (direction === 'next' ? 4 : -4));
+      // Move 1 day on mobile (2-day view) and 4 days on desktop (4-day view)
+      const daysToMove = isMobile ? 1 : 4;
+      newDate.setDate(selectedDate.getDate() + (direction === 'next' ? daysToMove : -daysToMove));
     } else if (viewMode === 'day' || viewMode === 'agenda') {
       newDate.setDate(selectedDate.getDate() + (direction === 'next' ? 1 : -1));
     }
@@ -3892,7 +3908,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
               {viewMode === '4day' && (() => {
                 const startDate = new Date(selectedDate);
                 const endDate = new Date(selectedDate);
-                endDate.setDate(startDate.getDate() + 3);
+                const numDays = !isMobile ? 4 : 2;
+                endDate.setDate(startDate.getDate() + (numDays - 1));
                 
                 const startMonth = startDate.toLocaleDateString('en-US', { month: 'short' });
                 const endMonth = endDate.toLocaleDateString('en-US', { month: 'short' });
@@ -3954,7 +3971,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                 const labelMap = {
                   'month': 'Month',
                   'week': 'Week', 
-                  '4day': '4-Day',
+                  '4day': !isMobile ? '4-Day' : '2-Day',
                   'day': 'Day',
                   'agenda': 'Agenda'
                 };
@@ -4465,8 +4482,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
               <div className="relative">
                 {/* Time slots */}
                 <div className="flex">
-                  {/* Time column - Mobile Optimized */}
-                  <div className="w-10 md:w-16 border-r border-stone-200">
+                  {/* Time column - Mobile Optimized with larger sections */}
+                  <div className="w-12 md:w-16 border-r border-stone-200">
                     {Array.from({ length: 17 }, (_, hourIndex) => {
                       const hour = hourIndex + 6; // Start from 6 AM
                       const timeLabel = hour === 12 ? '12' : 
@@ -4476,9 +4493,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                       const period = hour >= 12 ? 'PM' : 'AM';
                       
                       return (
-                        <div key={hourIndex} className="h-12 md:h-16 flex items-center justify-end border-b border-gray-200 last:border-b-0">
-                          <div className="text-xs text-gray-500 mr-1 md:mr-2 text-right">
-                            <div className="font-medium text-xs">{timeLabel}</div>
+                        <div key={hourIndex} className="h-20 md:h-16 flex items-center justify-end border-b border-gray-200 last:border-b-0">
+                          <div className="text-sm md:text-xs text-gray-500 mr-1 md:mr-2 text-right">
+                            <div className="font-medium text-sm md:text-xs">{timeLabel}</div>
                             <div className="text-xs opacity-75">{period}</div>
                           </div>
                         </div>
@@ -4502,11 +4519,11 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                       onDragEnter={(e) => e.preventDefault()}
                     />
                     
-                    {/* Hour lines */}
+                    {/* Hour lines - Larger on mobile */}
                     {Array.from({ length: 17 }, (_, hourIndex) => (
                       <div 
                         key={hourIndex} 
-                        className="h-12 md:h-16 border-b border-gray-200 last:border-b-0 relative pointer-events-none"
+                        className="h-20 md:h-16 border-b border-gray-200 last:border-b-0 relative pointer-events-none"
                       >
                         {/* 15-minute markers */}
                         <div className="absolute inset-0">
@@ -4528,8 +4545,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                         const startMinutes = 360; // 6 AM
                         const relativeMinutes = appointmentMinutes - startMinutes;
                         
-                        // Calculate position (each hour is 48px on mobile, 64px on desktop)
-                        const hourHeight = window.innerWidth >= 768 ? 64 : 48;
+                        // Calculate position (each hour is 80px on mobile, 64px on desktop)
+                        const hourHeight = window.innerWidth >= 768 ? 64 : 80;
                         const topPosition = Math.max(0, (relativeMinutes / 60) * hourHeight);
                         
                         // Skip if appointment is outside visible hours
@@ -4687,34 +4704,37 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
             <div className="bg-gray-50 rounded-lg p-1 md:p-2 mb-2 md:mb-4">
               <div className="flex">
                 {/* Time column header - matches content width */}
-                <div className="w-10 md:w-16 p-1 md:p-2 text-xs font-medium text-gray-500 text-center">
+                <div className="w-12 md:w-16 p-1 md:p-2 text-sm md:text-xs font-medium text-gray-500 text-center">
                   Time
                 </div>
-                {/* Day headers */}
-                <div className="flex-1 grid grid-cols-4 gap-px md:gap-1">
-                  {Array.from({ length: 4 }, (_, i) => {
-                    const dayDate = new Date(selectedDate);
-                    dayDate.setDate(selectedDate.getDate() + i);
-                    const isTodayDate = isToday(dayDate);
-                    
-                    return (
-                      <div key={i} className="text-center py-1 md:py-2">
-                        <div className="text-xs text-stone-500 mb-1">
-                          {dayDate.toLocaleDateString('en-US', { weekday: 'short' })}
+                {/* Day headers - Responsive: 2 days on mobile, 4 days on desktop */}
+                <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-px md:gap-1">
+                  {(() => {
+                    const numDays = !isMobile ? 4 : 2;
+                    return Array.from({ length: numDays }, (_, i) => {
+                      const dayDate = new Date(selectedDate);
+                      dayDate.setDate(selectedDate.getDate() + i);
+                      const isTodayDate = isToday(dayDate);
+                      
+                      return (
+                        <div key={i} className="text-center py-2 md:py-2">
+                          <div className="text-sm md:text-xs text-stone-500 mb-1">
+                            {dayDate.toLocaleDateString('en-US', { weekday: 'short' })}
+                          </div>
+                          <div className={`text-sm md:text-sm font-semibold ${
+                            isTodayDate 
+                              ? 'bg-stone-600 text-white rounded-full w-6 h-6 md:w-7 md:h-7 flex items-center justify-center mx-auto text-sm' 
+                              : 'text-stone-800'
+                          }`}>
+                            {dayDate.getDate()}
+                          </div>
+                          <div className="text-sm md:text-xs text-stone-400 mt-1">
+                            {dayDate.toLocaleDateString('en-US', { month: 'short' })}
+                          </div>
                         </div>
-                        <div className={`text-xs md:text-sm font-semibold ${
-                          isTodayDate 
-                            ? 'bg-stone-600 text-white rounded-full w-5 h-5 md:w-7 md:h-7 flex items-center justify-center mx-auto text-xs' 
-                            : 'text-stone-800'
-                        }`}>
-                          {dayDate.getDate()}
-                        </div>
-                        <div className="text-xs text-stone-400 mt-1 hidden md:block">
-                          {dayDate.toLocaleDateString('en-US', { month: 'short' })}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             </div>
@@ -4724,8 +4744,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
               <div className="relative">
                 {/* Time slots */}
                 <div className="flex">
-                  {/* Time column - Mobile Optimized */}
-                  <div className="w-10 md:w-16 border-r border-gray-200">
+                  {/* Time column - Mobile Optimized with larger sections */}
+                  <div className="w-12 md:w-16 border-r border-gray-200">
                     {Array.from({ length: 17 }, (_, hourIndex) => {
                       const hour = hourIndex + 6; // Start from 6 AM
                       const timeLabel = hour === 12 ? '12' : 
@@ -4735,9 +4755,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                       const period = hour >= 12 ? 'PM' : 'AM';
                       
                       return (
-                        <div key={hourIndex} className="h-12 md:h-16 flex items-center justify-end border-b border-gray-200 last:border-b-0">
-                          <div className="text-xs text-gray-500 mr-1 md:mr-2 text-right">
-                            <div className="font-medium text-xs">{timeLabel}</div>
+                        <div key={hourIndex} className="h-20 md:h-16 flex items-center justify-end border-b border-gray-200 last:border-b-0">
+                          <div className="text-sm md:text-xs text-gray-500 mr-1 md:mr-2 text-right">
+                            <div className="font-medium text-sm md:text-xs">{timeLabel}</div>
                             <div className="text-xs opacity-75">{period}</div>
                           </div>
                         </div>
@@ -4747,15 +4767,16 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                   
                   {/* Days container */}
                   <div className="flex-1 relative">
-                    {/* Single large drop zone covering entire 4-day area */}
+                    {/* Single large drop zone covering entire day area (responsive) */}
                     <div
                       className="absolute inset-0 z-10"
                       onDrop={(e) => {
-                        // Calculate which day column was dropped on
+                        // Calculate which day column was dropped on (responsive)
                         const rect = e.currentTarget.getBoundingClientRect();
                         const relativeX = e.clientX - rect.left;
-                        const dayWidth = rect.width / 4;
-                        const dayIndex = Math.min(3, Math.floor(relativeX / dayWidth));
+                        const numDays = !isMobile ? 4 : 2;
+                        const dayWidth = rect.width / numDays;
+                        const dayIndex = Math.min(numDays - 1, Math.floor(relativeX / dayWidth));
                         
                         // Calculate the target date
                         const targetDate = new Date(selectedDate);
@@ -4773,15 +4794,15 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                       onDragEnter={(e) => e.preventDefault()}
                     />
                     
-                    {/* Day columns grid */}
-                    <div className="grid grid-cols-4 h-full">
-                      {Array.from({ length: 4 }, (_, dayIndex) => (
+                    {/* Day columns grid - Responsive */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 h-full">
+                      {Array.from({ length: !isMobile ? 4 : 2 }, (_, dayIndex) => (
                         <div key={dayIndex} className="border-r border-gray-100 last:border-r-0">
-                          {/* Hour lines for each day */}
+                          {/* Hour lines for each day - Larger on mobile */}
                           {Array.from({ length: 17 }, (_, hourIndex) => (
                             <div 
                               key={hourIndex} 
-                              className="h-12 md:h-16 border-b border-gray-200 last:border-b-0 relative pointer-events-none"
+                              className="h-20 md:h-16 border-b border-gray-200 last:border-b-0 relative pointer-events-none"
                             >
                               {/* 15-minute markers */}
                               <div className="absolute inset-0">
@@ -4799,9 +4820,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                       ))}
                     </div>
                     
-                    {/* Appointments overlay */}
+                    {/* Appointments overlay - Responsive */}
                     <div className="absolute inset-0 pointer-events-none z-20">
-                      {Array.from({ length: 4 }, (_, dayIndex) => {
+                      {Array.from({ length: !isMobile ? 4 : 2 }, (_, dayIndex) => {
                         const dayDate = new Date(selectedDate);
                         dayDate.setDate(selectedDate.getDate() + dayIndex);
                         
@@ -4810,8 +4831,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                           const startMinutes = 360; // 6 AM
                           const relativeMinutes = appointmentMinutes - startMinutes;
                           
-                          // Match the heights used in day view: 48px mobile, 64px desktop
-                          const hourHeight = window.innerWidth >= 768 ? 64 : 48;
+                          // Larger heights for mobile: 80px mobile, 64px desktop
+                          const hourHeight = !isMobile ? 64 : 80;
                           const topPosition = Math.max(0, (relativeMinutes * hourHeight) / 60);
                           
                           // Skip if appointment is outside visible hours
@@ -4831,23 +4852,23 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                 }
                               }}
                               onClick={() => openViewModal(appointment)}
-                              className={`absolute pointer-events-auto text-xs p-0.5 md:p-1 mx-0.5 rounded cursor-move shadow-sm hover:shadow-md transition-all duration-200 z-30 border-l-2 ${
+                              className={`absolute pointer-events-auto text-sm md:text-xs p-1 md:p-1 mx-0.5 rounded cursor-move shadow-sm hover:shadow-md transition-all duration-200 z-30 border-l-2 ${
                                 getStatusColors(appointment.status).bgLight
                               } ${getStatusColors(appointment.status).textDark} ${getStatusColors(appointment.status).border}`}
                               style={{
                                 top: `${topPosition}px`,
-                                left: `${(dayIndex * (100 / 4)) + 0.5}%`,
-                                width: `${(100 / 4) - 1}%`,
+                                left: `${(dayIndex * (100 / (!isMobile ? 4 : 2))) + 0.5}%`,
+                                width: `${(100 / (!isMobile ? 4 : 2)) - 1}%`,
                                 height: `${Math.min(hourHeight - 4, getAppointmentHeight(getActualDuration(appointment)))}px`,
                               }}
                               title={`${appointment.time || 'No time'} - ${appointment.client?.name || 'No client'}${getDisplayAddress(appointment) ? ` - ${getDisplayAddress(appointment)}` : ''} (Drag to move)`}
                             >
                               <div className="flex items-center justify-between leading-tight overflow-hidden">
-                                <div className="font-medium truncate text-xs flex-1 min-w-0">
+                                <div className="font-medium truncate text-sm md:text-xs flex-1 min-w-0">
                                   {appointment.client?.name?.split(' ')[0] || 'No client'}
                                 </div>
                                 {appointment.time && (
-                                  <div className="hidden lg:block text-xs opacity-75 ml-0.5 flex-shrink-0">
+                                  <div className="hidden md:block text-xs opacity-75 ml-0.5 flex-shrink-0">
                                     {appointment.time?.replace(' ', '') || ''}
                                   </div>
                                 )}
@@ -4867,7 +4888,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                 });
                                 
                                 return additionalServices.length > 0 ? (
-                                  <div className="truncate opacity-90 text-xs leading-tight">
+                                  <div className="truncate opacity-90 text-sm md:text-xs leading-tight">
                                     {Array.isArray(additionalServices) 
                                       ? additionalServices.slice(0, 1).map(service => 
                                           typeof service === 'string' ? service : (service?.name || String(service))
@@ -4888,7 +4909,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
               </div>
             </div>
             
-            {/* 4-Day View Instructions */}
+            {/* Multi-Day View Instructions */}
             <div className="text-center text-xs md:text-sm text-gray-500 bg-gray-50 rounded-lg p-2 md:p-3">
               <p>💡 <strong>Drag and drop appointments</strong> to reschedule them to different days and times (15-minute precision)</p>
             </div>
