@@ -265,9 +265,9 @@ export class SupabaseAuthService {
 
       console.log('🔍 Fetching profile for user:', userId);
       
-      // Increase timeout and add better error handling
+      // Add timeout for profile fetch
       const profileTimeout = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 30000); // Increased to 30 seconds
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 15000); // 15 seconds timeout
       });
       
       const profileFetch = supabase

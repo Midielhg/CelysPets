@@ -46,6 +46,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Debounce auth state processing to prevent rapid successive calls
+  const [authProcessingTimeout, setAuthProcessingTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Convert UserProfile to User interface for backward compatibility
   const convertToUser = (supabaseUser: SupabaseUser, profile: UserProfile): User => ({
@@ -93,6 +96,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const { data: { subscription } } = SupabaseAuthService.onAuthStateChange(async (event, session) => {
       console.log('🔄 Auth state changed:', event, session?.user?.email);
       
+      // Prevent redundant processing for TOKEN_REFRESHED events
+      if (event === 'TOKEN_REFRESHED' && user && session?.user?.id === user.id) {
+        console.log('🔄 Token refreshed for existing user, skipping profile reload');
+        setSession(session);
+        return;
+      }
+      
       setSession(session);
       setSupabaseUser(session?.user || null);
 
@@ -137,36 +147,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error(result.error);
       }
 
-      if (result.user) {
+      if (result.user && result.profile) {
+        // Direct login success with profile - set state immediately
         setSupabaseUser(result.user);
         setSession(result.session);
-        
-        if (result.profile) {
-          setUser(convertToUser(result.user, result.profile));
-          console.log('✅ Login successful with profile');
-        } else {
-          // User authenticated but no profile - this usually means RLS policy issues
-          console.log('⚠️ User authenticated but no profile - this may indicate RLS policy problems');
-          console.log('🔍 User metadata:', result.user.user_metadata);
+        setUser(convertToUser(result.user, result.profile));
+        console.log('✅ Login successful with profile');
+        return; // Exit early to avoid auth state change processing
+      } else if (result.user) {
+        // User authenticated but no profile - this usually means RLS policy issues
+        console.log('⚠️ User authenticated but no profile - this may indicate RLS policy problems');
+        console.log('🔍 User metadata:', result.user.user_metadata);
           
-          // Try to determine role from user metadata or email
-          let role: 'client' | 'admin' | 'groomer' = 'client';
-          if (result.user.email === 'admin@celyspets.com' || 
-              result.user.user_metadata?.role === 'admin') {
-            role = 'admin';
-          } else if (result.user.user_metadata?.role === 'groomer') {
-            role = 'groomer';
-          }
-          
-          const tempUser: User = {
-            id: result.user.id,
-            email: result.user.email || '',
-            name: result.user.user_metadata?.name || result.user.email?.split('@')[0] || 'User',
-            role: role
-          };
-          setUser(tempUser);
-          console.log('✅ Login successful with temporary profile, role:', role);
+        // Try to determine role from user metadata or email
+        let role: 'client' | 'admin' | 'groomer' = 'client';
+        if (result.user.email === 'admin@celyspets.com' || 
+            result.user.user_metadata?.role === 'admin') {
+          role = 'admin';
+        } else if (result.user.user_metadata?.role === 'groomer') {
+          role = 'groomer';
         }
+        
+        const tempUser: User = {
+          id: result.user.id,
+          email: result.user.email || '',
+          name: result.user.user_metadata?.name || result.user.email?.split('@')[0] || 'User',
+          role: role
+        };
+        setUser(tempUser);
+        console.log('✅ Login successful with temporary profile, role:', role);
       } else {
         throw new Error('Authentication failed - no user returned');
       }

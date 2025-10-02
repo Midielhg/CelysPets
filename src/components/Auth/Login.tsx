@@ -32,10 +32,10 @@ const Login: React.FC = () => {
 
     // Add timeout to prevent infinite hanging
     const timeoutId = setTimeout(() => {
-      console.error('⏰ Login timeout after 10 seconds');
+      console.error('⏰ Login timeout after 30 seconds');
       setIsLoading(false);
       showToast('Login timeout. Please check your connection and try again.', 'error');
-    }, 10000);
+    }, 30000);
 
     try {
       console.log('📞 Calling login function...');
