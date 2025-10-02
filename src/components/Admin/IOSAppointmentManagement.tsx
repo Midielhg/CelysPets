@@ -691,7 +691,6 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     for (let i = 1; i < adjustedAppointments.length; i++) {
       const previousAppointment = adjustedAppointments[i - 1];
       const currentAppointment = adjustedAppointments[i];
-      const originalAppointment = appointments[i];
       
       // Get travel time between appointments
       const travelKey = `${previousAppointment.id}-to-${currentAppointment.id}`;
@@ -2036,16 +2035,27 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         return { startDate: dayStr, endDate: dayStr };
       }
       
-      case 'week':
-      case '4day': {
+      case 'week': {
         const startOfWeek = new Date(date);
         startOfWeek.setDate(date.getDate() - date.getDay()); // Start on Sunday
         const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + (viewMode === '4day' ? 3 : 6));
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
         
         return {
           startDate: startOfWeek.toISOString().split('T')[0],
           endDate: endOfWeek.toISOString().split('T')[0]
+        };
+      }
+      
+      case '4day': {
+        // 4-day view shows 4 consecutive days starting from selectedDate
+        const startDate = new Date(date);
+        const endDate = new Date(date);
+        endDate.setDate(date.getDate() + 3); // 4 days starting from selectedDate
+        
+        return {
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0]
         };
       }
       
