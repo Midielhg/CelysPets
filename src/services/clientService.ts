@@ -174,11 +174,13 @@ export class ClientService {
 
   // Update client
   static async update(id: number, updates: ClientUpdate): Promise<Client> {
+    console.log('🔍 ClientService.update called with:', { id, updates });
     const updateData = { ...updates }
     if (updateData.email) {
       updateData.email = updateData.email.toLowerCase()
     }
 
+    console.log('🔄 Sending update to Supabase:', updateData);
     const { data, error } = await supabase
       .from('clients')
       .update(updateData)
@@ -186,14 +188,21 @@ export class ClientService {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('❌ Supabase update error:', error);
+      throw error;
+    }
+    console.log('✅ Supabase update success:', data);
     return data
   }
 
   // Update client for public booking (handles RLS permissions)
   static async updateForBooking(id: number, updates: ClientUpdate): Promise<Client> {
+    console.log('🔍 ClientService.updateForBooking called with:', { id, updates });
     try {
-      return await this.update(id, updates);
+      const result = await this.update(id, updates);
+      console.log('✅ ClientService.updateForBooking success:', result);
+      return result;
     } catch (error: any) {
       if (error.code === '42501') {
         console.warn('RLS policy blocking client update, attempting alternative approach');

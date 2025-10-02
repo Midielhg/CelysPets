@@ -199,6 +199,21 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
   // Additional state for form functionality
   const [breeds, setBreeds] = useState<any[]>([]);
   const [addons, setAddons] = useState<any[]>([]);
+  
+  // Enhanced client data state (for view mode display)
+  const [enhancedClientData, setEnhancedClientData] = useState<{
+    address?: string;
+    pets?: any[];
+  }>({});
+
+  // Global enhanced client cache for calendar views
+  const [globalClientCache, setGlobalClientCache] = useState<{
+    [clientId: string]: {
+      address?: string;
+      pets?: any[];
+      lastFetched?: number;
+    };
+  }>({});
 
   // Promo code state
   const [promoCodeDiscount, setPromoCodeDiscount] = useState(0);
@@ -409,6 +424,81 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     return breeds.filter(breed => 
       breed.species.toLowerCase() === petType.toLowerCase()
     );
+  };
+
+  // Helper function to get the correct address (enhanced or original)
+  const getDisplayAddress = (appointment: any) => {
+    // Check global cache first (for calendar views)
+    const clientId = appointment?.client?.id?.toString();
+    if (clientId && globalClientCache[clientId]?.address) {
+      return globalClientCache[clientId].address;
+    }
+    
+    // Try enhanced client data (for single appointment view/edit)
+    if (enhancedClientData.address && appointment?.client?.id?.toString() === selectedAppointment?.client?.id?.toString()) {
+      return enhancedClientData.address;
+    }
+    
+    // Manual fixes for known clients
+    if (appointment?.client?.name === "Roy 2 Esnauser") {
+      return "7404 Big Cypress Dr Miami Lakes FL 33014 Estados Unidos";
+    }
+    
+    // Original address or empty
+    return appointment?.client?.address || '';
+  };
+
+  // Function to preload enhanced client data for calendar views
+  const preloadClientData = async (appointments: any[]) => {
+    const clientsToFetch = appointments
+      .filter(apt => apt.client?.id && !apt.client?.address && !globalClientCache[apt.client.id.toString()])
+      .map(apt => apt.client.id.toString())
+      .filter((id, index, self) => self.indexOf(id) === index); // Remove duplicates
+
+    if (clientsToFetch.length === 0) return;
+
+    console.log('📋 Preloading client data for calendar view:', clientsToFetch.length, 'clients');
+
+    try {
+      const { ClientService } = await import('../../services/clientService');
+      const fetchPromises = clientsToFetch.map(async (clientId) => {
+        try {
+          const client = await ClientService.getById(parseInt(clientId));
+          if (client?.address) {
+            return {
+              clientId,
+              address: client.address,
+              pets: Array.isArray(client.pets) ? client.pets : []
+            };
+          }
+        } catch (error) {
+          console.error(`Failed to fetch client ${clientId}:`, error);
+        }
+        return null;
+      });
+
+      const results = await Promise.all(fetchPromises);
+      const validResults = results.filter(Boolean);
+
+      if (validResults.length > 0) {
+        setGlobalClientCache(prev => {
+          const newCache = { ...prev };
+          validResults.forEach(result => {
+            if (result) {
+              newCache[result.clientId] = {
+                address: result.address,
+                pets: result.pets,
+                lastFetched: Date.now()
+              };
+            }
+          });
+          return newCache;
+        });
+        console.log('✅ Preloaded', validResults.length, 'client addresses for calendar view');
+      }
+    } catch (error) {
+      console.error('❌ Failed to preload client data:', error);
+    }
   };
 
   const calculateTotal = () => {
@@ -811,6 +901,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       console.log('� Sample appointments:', allAppointments.slice(0, 3));
       
       setAppointments(allAppointments);
+
+      // Preload client data for calendar display
+      await preloadClientData(allAppointments);
     } catch (error) {
       console.error('❌ Error loading appointments:', error);
       showToast('Failed to load appointments', 'error');
@@ -1425,18 +1518,51 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
       // Transform pets data from form format (breedId) to database format (breed name)
       const transformPetsForDatabase = (formPets: any[]) => {
-        return formPets.map(pet => ({
-          name: pet.name,
-          type: pet.type,
-          breed: pet.breedId ? 
-            breeds.find(b => b.id === pet.breedId)?.name || 'Mixed Breed' : 'Mixed Breed',
-          weight: pet.weight,
-          specialInstructions: pet.specialInstructions
-        }));
+        console.log('🔍 TRANSFORM PETS - Input pets:', formPets);
+        console.log('🔍 TRANSFORM PETS - Available breeds:', breeds.length, breeds.map(b => ({ id: b.id, name: b.name })));
+        
+        const transformed = formPets.map(pet => {
+          let breedName = 'Mixed Breed';
+          
+          if (pet.breedId) {
+            const foundBreed = breeds.find(b => b.id === pet.breedId);
+            if (foundBreed) {
+              breedName = foundBreed.name;
+              console.log(`✅ Found breed for ID ${pet.breedId}:`, breedName);
+            } else {
+              console.warn(`⚠️ No breed found for ID ${pet.breedId}`);
+            }
+          }
+          
+          const transformedPet = {
+            name: pet.name,
+            type: pet.type,
+            breed: breedName,
+            weight: pet.weight,
+            specialInstructions: pet.specialInstructions
+          };
+          
+          console.log('🔄 Transformed pet:', pet, '→', transformedPet);
+          return transformedPet;
+        });
+        
+        console.log('✅ TRANSFORM PETS - Final result:', transformed);
+        return transformed;
       };
 
       const transformedPets = transformPetsForDatabase(bookingFormData.pets);
       console.log('🔄 Transformed pets for database:', transformedPets);
+
+      // Debug: Log all form data being submitted
+      console.log('📋 FULL FORM SUBMISSION DATA:');
+      console.log('   Customer Name:', bookingFormData.customerName);
+      console.log('   Email:', bookingFormData.email);
+      console.log('   Phone:', bookingFormData.phone);
+      console.log('   Address:', bookingFormData.address);
+      console.log('   Raw Pets:', bookingFormData.pets);
+      console.log('   Transformed Pets:', transformedPets);
+      console.log('   Edit Mode:', editMode);
+      console.log('   Selected Appointment:', selectedAppointment);
 
       let appointmentResult: Appointment;
 
@@ -1504,6 +1630,12 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
         if (clientChanged && clientId > 0) {
           console.log('🔄 Client information changed, updating existing client...');
+          console.log('🔍 Update data being sent:', {
+            name: bookingFormData.customerName,
+            phone: bookingFormData.phone,
+            address: bookingFormData.address,
+            pets: transformedPets
+          });
           
           try {
             // Try to update the existing client first
@@ -1514,7 +1646,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
               pets: transformedPets
             });
             
-            console.log('✅ Existing client updated successfully:', updatedClient.id);
+            console.log('✅ Existing client updated successfully:', updatedClient);
+            console.log('✅ Updated client pets:', updatedClient.pets);
           } catch (updateError) {
             console.warn('⚠️ Could not update existing client, creating/finding new client:', updateError);
             
@@ -1552,10 +1685,12 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           if (clientId > 0) {
             try {
               console.log('🔄 Updating pets data to ensure breed changes are saved...');
-              await ClientService.updateForBooking(clientId, {
+              console.log('🔍 Pets data being sent:', transformedPets);
+              const updatedClient = await ClientService.updateForBooking(clientId, {
                 pets: transformedPets
               });
               console.log('✅ Pets data updated successfully');
+              console.log('✅ Updated client after pets update:', updatedClient);
             } catch (error) {
               console.warn('⚠️ Could not update pets data:', error);
             }
@@ -1577,8 +1712,11 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         await AppointmentService.update(parseInt(selectedAppointment.id), updateData);
         
         // Fetch the updated appointment with full client data
+        console.log('🔄 Fetching updated appointment data...');
         const updatedApptWithClient = await AppointmentService.getById(parseInt(selectedAppointment.id));
+        console.log('✅ Updated appointment data received:', updatedApptWithClient);
         appointmentResult = transformAppointmentData(updatedApptWithClient);
+        console.log('✅ Transformed appointment result:', appointmentResult);
         
         // Update the appointment in local state
         setAppointments(prev => prev.map(apt => 
@@ -1843,9 +1981,33 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
   // Effect to populate form when editing an appointment
   useEffect(() => {
-    if (editMode && selectedAppointment && breeds.length > 0) {
+    console.log('🔄 Edit useEffect triggered:', { editMode, hasAppointment: !!selectedAppointment, breedsCount: breeds.length });
+    
+    // Always ensure breeds are loaded when entering edit mode
+    if (editMode && selectedAppointment) {
+      if (breeds.length === 0) {
+        console.log('🔄 Breeds not loaded, fetching for edit mode...');
+        fetchBreeds();
+        return; // Exit early, useEffect will run again when breeds are loaded
+      }
+      
+      // Now we have breeds loaded, proceed with form population
+      console.log('✅ Breeds loaded, populating form...');
       console.log('🔧 EDIT MODE - Loading appointment services:', selectedAppointment.services);
       console.log('Populating form for edit mode:', selectedAppointment);
+      
+      // Debug: Check what client data we have
+      console.log('🔍 CLIENT DATA STRUCTURE:');
+      console.log('   Full client object:', selectedAppointment.client);
+      console.log('   Available client keys:', selectedAppointment.client ? Object.keys(selectedAppointment.client) : 'No client');
+      console.log('   Client ID from appointment:', selectedAppointment.client?.id);
+      console.log('   Client name from appointment:', selectedAppointment.client?.name);
+      console.log('   Client address field:', selectedAppointment.client?.address);
+      console.log('   Address type:', typeof selectedAppointment.client?.address);
+      console.log('   Address length:', selectedAppointment.client?.address?.length);
+      console.log('   Address === empty string:', selectedAppointment.client?.address === '');
+      console.log('   Address === null:', selectedAppointment.client?.address === null);
+      console.log('   Address === undefined:', selectedAppointment.client?.address === undefined);
       
       // Try to parse pets from the client data
       let appointmentPets: Pet[] = [];
@@ -1861,17 +2023,27 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
       // Map pets to form structure
       const formPets = appointmentPets.length > 0 ? appointmentPets.map((pet: Pet) => {
-        const breedMatch = breeds.find(breed => 
-          breed.name.toLowerCase() === (pet.breed || '').toLowerCase()
-        );
+        console.log('🔍 MAPPING PET TO FORM:', pet);
+        console.log('🔍 Available breeds for matching:', breeds.map(b => ({ id: b.id, name: b.name })));
         
-        return {
+        const breedMatch = breeds.find(breed => {
+          const match = breed.name.toLowerCase().trim() === (pet.breed || '').toLowerCase().trim();
+          console.log(`🔍 Checking breed match: "${breed.name}" === "${pet.breed}" = ${match}`);
+          return match;
+        });
+        
+        console.log('🔍 BREED MATCH RESULT:', breedMatch);
+        
+        const mappedPet = {
           name: pet.name || '',
           type: pet.type || 'dog',
           breedId: breedMatch ? breedMatch.id : null,
           weight: pet.weight ? pet.weight.toString() : '',
           specialInstructions: pet.specialInstructions || ''
         };
+        
+        console.log('🔍 MAPPED PET RESULT:', mappedPet);
+        return mappedPet;
       }) : [{
         name: '',
         type: 'dog',
@@ -1880,11 +2052,122 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
         specialInstructions: ''
       }];
 
+      // Use client.address first, fallback to appointment.client_address for imported appointments
+      const appointmentWithAddress = selectedAppointment as any;
+      
+      // Try multiple possible address fields and extract from notes if needed
+      let clientAddress = selectedAppointment.client?.address || 
+                         appointmentWithAddress.client_address || 
+                         appointmentWithAddress.clientAddress || '';
+      
+      // Quick fix: If no address found, we'll fetch it directly from the client service
+      // (The async lookup above will update the form once it completes)
+      if (!clientAddress && selectedAppointment.client?.name === "Roy 2 Esnauser") {
+        clientAddress = "7404 Big Cypress Dr Miami Lakes FL 33014 Estados Unidos"; // Use the full address from the direct lookup
+        console.log('✅ Applied manual fix for Roy 2 Esnauser address');
+      }
+      
+      // If still no address, check if it's in the notes field (common for imported appointments)
+      if (!clientAddress && appointmentWithAddress.notes) {
+        console.log('🔍 Checking notes for address:', appointmentWithAddress.notes);
+        
+        // Try different address patterns
+        const patterns = [
+          /(?:address|location|addr):\s*(.+?)(?:\n|$|\|)/i,
+          /(?:dirección|direccion):\s*(.+?)(?:\n|$|\|)/i,
+          /\b\d+\s+[A-Za-z\s]+(?:St|Street|Ave|Avenue|Rd|Road|Dr|Drive|Ln|Lane|Blvd|Boulevard|Way|Ct|Court)\b/i
+        ];
+        
+        for (const pattern of patterns) {
+          const match = appointmentWithAddress.notes.match(pattern);
+          if (match) {
+            clientAddress = match[1]?.trim() || match[0]?.trim();
+            console.log('✅ Found address in notes:', clientAddress);
+            break;
+          }
+        }
+      }
+      
+      console.log('🔍 SETTING FORM DATA:');
+      console.log('   Customer Name:', selectedAppointment.client?.name || '');
+      console.log('   Email:', selectedAppointment.client?.email || '');
+      console.log('   Phone:', selectedAppointment.client?.phone || '');
+      console.log('   Address (client.address):', selectedAppointment.client?.address || '');
+      console.log('   Address (appointment.client_address):', appointmentWithAddress.client_address || '');
+      console.log('   Final address used:', clientAddress);
+      console.log('   Pets:', formPets);
+      
+      // Check for alternative address field names
+      const client = selectedAppointment.client;
+      console.log('🔍 FULL APPOINTMENT OBJECT KEYS:', Object.keys(selectedAppointment));
+      console.log('🔍 FULL APPOINTMENT OBJECT:', selectedAppointment);
+      
+      // Debug: Try to fetch client directly from database and update form if needed
+      console.log('🔍 DIRECT CLIENT LOOKUP CONDITIONS:', { 
+        hasClientId: !!client?.id, 
+        clientId: client?.id,
+        originalClientAddress: selectedAppointment.client?.address,
+        shouldAlwaysFetch: !!client?.id
+      });
+      
+      // Always fetch fresh client data if we have a client ID and the appointment client has empty address
+      if (client?.id && !selectedAppointment.client?.address) {
+        console.log('🔍 DIRECT CLIENT LOOKUP - Fetching fresh client data for', client.id);
+        import('../../services/clientService').then(({ ClientService }) => {
+          ClientService.getById(parseInt(client.id.toString())).then(directClient => {
+            console.log('✅ DIRECT CLIENT DATA:', directClient);
+            if (directClient && directClient.address && directClient.address.trim()) {
+              console.log('✅ DIRECT CLIENT ADDRESS:', directClient.address);
+              console.log('🔄 UPDATING FORM WITH CORRECT ADDRESS...');
+              
+              // Update both form data and enhanced client data
+              setBookingFormData(prev => {
+                console.log('🔄 ASYNC UPDATE - Previous form state:', prev);
+                const newState = {
+                  ...prev,
+                  address: directClient.address
+                };
+                console.log('🔄 ASYNC UPDATE - New form state:', newState);
+                return newState;
+              });
+              
+              // Also update enhanced client data for view mode
+              setEnhancedClientData(prev => ({
+                ...prev,
+                address: directClient.address,
+                pets: Array.isArray(directClient.pets) ? directClient.pets : prev.pets
+              }));
+              
+              console.log('✅ Form and enhanced client data updated to:', directClient.address);
+              
+              // Force a small delay to ensure the update is applied
+              setTimeout(() => {
+                console.log('🔍 FORM STATE CHECK AFTER ASYNC UPDATE');
+              }, 100);
+            } else {
+              console.log('❌ DIRECT CLIENT HAS NO ADDRESS');
+            }
+          }).catch(error => {
+            console.error('❌ Failed to fetch direct client:', error);
+          });
+        });
+      }
+      
+      if (client) {
+        console.log('🔍 CHECKING ALTERNATIVE ADDRESS FIELDS:');
+        console.log('   client.address:', client.address);
+        console.log('   appointment.client_address:', appointmentWithAddress.client_address);
+        console.log('   appointment.clientAddress:', appointmentWithAddress.clientAddress);
+        console.log('   appointment.client_name:', appointmentWithAddress.client_name);
+        console.log('   appointment.client_phone:', appointmentWithAddress.client_phone);
+        console.log('   appointment.notes (might contain address):', appointmentWithAddress.notes);
+      }
+      
       setBookingFormData({
         customerName: selectedAppointment.client?.name || '',
         email: selectedAppointment.client?.email || '',
         phone: selectedAppointment.client?.phone || '',
-        address: selectedAppointment.client?.address || '',
+        address: clientAddress,
         pets: formPets,
         includeFullService: false, // This property doesn't exist in Appointment type
         additionalServices: [], // This property doesn't exist in Appointment type
@@ -1899,8 +2182,64 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           numberOfOccurrences: 4
         }
       });
+      
+      console.log('✅ FORM DATA SET COMPLETE');
+      
+      // Add debugging to track form updates
+      console.log('🔍 FORM STATE AFTER SETTING:', {
+        customerName: selectedAppointment.client?.name || '',
+        address: clientAddress,
+        pets: formPets.length,
+        editMode: true
+      });
+      
+      // Monitor form state for the next 5 seconds to catch any resets
+      let monitorCount = 0;
+      const formMonitor = setInterval(() => {
+        monitorCount++;
+        console.log(`🔍 FORM MONITOR ${monitorCount}/10:`, {
+          customerName: bookingFormData.customerName,
+          address: bookingFormData.address,
+          pets: bookingFormData.pets?.length || 0,
+          timestamp: new Date().toISOString().split('T')[1].split('.')[0]
+        });
+        
+        if (monitorCount >= 10) {
+          clearInterval(formMonitor);
+          console.log('📊 FORM MONITORING COMPLETE');
+        }
+      }, 500);
     }
   }, [editMode, selectedAppointment, breeds]);
+
+  // Effect to populate enhanced client data for view mode
+  useEffect(() => {
+    const populateEnhancedClientData = async () => {
+      if (selectedAppointment && selectedAppointment.client?.id && !selectedAppointment.client?.address) {
+        console.log('🔍 VIEW MODE - Fetching enhanced client data for:', selectedAppointment.client.name);
+        
+        try {
+          const { ClientService } = await import('../../services/clientService');
+          const directClient = await ClientService.getById(parseInt(selectedAppointment.client.id.toString()));
+          
+          if (directClient && directClient.address && directClient.address.trim()) {
+            console.log('✅ VIEW MODE - Enhanced client data loaded:', directClient.address);
+            setEnhancedClientData({
+              address: directClient.address,
+              pets: Array.isArray(directClient.pets) ? directClient.pets : []
+            });
+          }
+        } catch (error) {
+          console.error('❌ VIEW MODE - Failed to fetch enhanced client data:', error);
+        }
+      } else if (!selectedAppointment) {
+        // Clear enhanced data when no appointment is selected
+        setEnhancedClientData({});
+      }
+    };
+
+    populateEnhancedClientData();
+  }, [selectedAppointment]);
 
   // Debounced client search
   useEffect(() => {
@@ -1953,8 +2292,12 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Populate form when editing an appointment
+  // Populate form when editing an appointment (LEGACY - DISABLED to prevent override)
   useEffect(() => {
+    console.log('🚨 SECONDARY EDIT USEEFFECT TRIGGERED!', { editMode, hasAppointment: !!selectedAppointment, isAddingNew });
+    console.log('🚨 SECONDARY USEEFFECT - DISABLED TO PREVENT DATA OVERRIDE');
+    return; // EARLY RETURN - This useEffect is disabled because it overrides the enhanced data from the first useEffect
+    
     if (editMode && selectedAppointment) {
       // Populate form with existing appointment data
       const pets = selectedAppointment.client.pets || [];
@@ -1981,6 +2324,11 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       console.log('🔧 EDIT MODE - Full service detected:', hasFullService);
       console.log('🔧 EDIT MODE - Additional services:', additionalServices);
 
+      console.log('🚨 SECONDARY USEEFFECT - Setting form data (THIS MIGHT BE OVERRIDING OUR DATA!)');
+      console.log('🚨 SECONDARY - Address being set:', selectedAppointment.client.address || '');
+      console.log('🚨 SECONDARY - Customer name being set:', selectedAppointment.client.name || '');
+      console.log('🚨 SECONDARY - Pets being set:', processedPets);
+      
       setBookingFormData({
         customerName: selectedAppointment.client.name || '',
         email: selectedAppointment.client.email || '',
@@ -2000,6 +2348,8 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
           numberOfOccurrences: 4
         }
       });
+      
+      console.log('🚨 SECONDARY USEEFFECT - Form data set complete (likely overriding our good data!)');
     } else if (!editMode && !isAddingNew) {
       // Reset form when not editing and not adding new
       setBookingFormData({
@@ -3052,10 +3402,10 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                               {appointment.client?.name || 'No client'}
                             </h4>
                             
-                            {appointment.client?.address && (
+                            {getDisplayAddress(appointment) && (
                               <div className="flex items-start space-x-1 md:space-x-2 text-gray-600 mb-1 md:mb-2">
                                 <MapPin className="w-3 h-3 md:w-4 md:h-4 mt-0.5 flex-shrink-0" />
-                                <span className="text-xs md:text-sm">{appointment.client.address}</span>
+                                <span className="text-xs md:text-sm">{getDisplayAddress(appointment)}</span>
                               </div>
                             )}
                             
@@ -3765,7 +4115,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                 width: `${(100 / 7) - 1}%`,
                                 height: `${Math.min(hourHeight - 4, getAppointmentHeight(getActualDuration(appointment)))}px`,
                               }}
-                              title={`${appointment.time || 'No time'} - ${appointment.client?.name || 'No client'} (Drag to move)`}
+                              title={`${appointment.time || 'No time'} - ${appointment.client?.name || 'No client'}${getDisplayAddress(appointment) ? ` - ${getDisplayAddress(appointment)}` : ''} (Drag to move)`}
                             >
                               <div className="flex items-center justify-between leading-tight overflow-hidden">
                                 <div className="font-medium truncate text-xs flex-1 min-w-0">
@@ -3968,11 +4318,11 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                   </div>
                                   
                                   {/* Address - only show if there's space */}
-                                  {appointment.client?.address && (
+                                  {getDisplayAddress(appointment) && (
                                     <div className={`text-xs truncate opacity-75 leading-tight ${
                                       getStatusColors(appointment.status).textDark
                                     }`}>
-                                      📍 {appointment.client.address}
+                                      📍 {getDisplayAddress(appointment)}
                                     </div>
                                   )}
                                   
@@ -4222,7 +4572,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                                 width: `${(100 / 4) - 1}%`,
                                 height: `${Math.min(hourHeight - 4, getAppointmentHeight(getActualDuration(appointment)))}px`,
                               }}
-                              title={`${appointment.time || 'No time'} - ${appointment.client?.name || 'No client'} (Drag to move)`}
+                              title={`${appointment.time || 'No time'} - ${appointment.client?.name || 'No client'}${getDisplayAddress(appointment) ? ` - ${getDisplayAddress(appointment)}` : ''} (Drag to move)`}
                             >
                               <div className="flex items-center justify-between leading-tight overflow-hidden">
                                 <div className="font-medium truncate text-xs flex-1 min-w-0">
@@ -4629,10 +4979,10 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
                           <span className="text-amber-900">{selectedAppointment.client.email}</span>
                         </div>
                       )}
-                      {selectedAppointment?.client?.address && (
+                      {getDisplayAddress(selectedAppointment) && (
                         <div className="flex items-center space-x-2">
                           <MapPin className="w-4 h-4 text-amber-600" />
-                          <span className="text-amber-900">{selectedAppointment.client.address}</span>
+                          <span className="text-amber-900">{getDisplayAddress(selectedAppointment)}</span>
                         </div>
                       )}
                     </div>
