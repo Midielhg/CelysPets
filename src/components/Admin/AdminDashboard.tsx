@@ -8,6 +8,7 @@ import PricingManagement from './PricingManagement';
 import PromoCodeManagement from './PromoCodeManagement';
 import TodaySchedule from './TodaySchedule';
 import RecentActivity from './RecentActivity';
+import TodoManager from './TodoManager';
 
 const AdminDashboard: React.FC = () => {
   const location = useLocation();
@@ -32,6 +33,11 @@ const AdminDashboard: React.FC = () => {
         <div className="space-y-4 sm:space-y-6">
           <div className="mb-6 sm:mb-8">
             <DashboardStats />
+          </div>
+
+          {/* Customer Contact To-Do Section */}
+          <div className="mb-6">
+            <TodoManager />
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">

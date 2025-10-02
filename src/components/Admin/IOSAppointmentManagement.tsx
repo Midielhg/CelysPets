@@ -1051,7 +1051,18 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       const allAppointments = [...supabaseAppointments, ...importedAppointments];
       
       console.log(`📅 Total appointments loaded: ${allAppointments.length}`);
-      console.log('� Sample appointments:', allAppointments.slice(0, 3));
+      console.log('📋 Sample appointments:', allAppointments.slice(0, 3));
+      
+      // Debug: Log each appointment's date and client info
+      allAppointments.forEach((apt, index) => {
+        console.log(`📋 Appointment ${index + 1}:`, {
+          id: apt.id,
+          client: apt.client?.name,
+          date: apt.date,
+          time: apt.time,
+          status: apt.status
+        });
+      });
       
       setAppointments(allAppointments);
 
@@ -1062,6 +1073,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       showToast('Failed to load appointments', 'error');
     } finally {
       setLoading(false);
+      setInitialLoad(false);
     }
   };
 
@@ -1110,7 +1122,7 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
 
   useEffect(() => {
     loadAllAppointments();
-  }, [selectedDate, viewMode]); // Refresh appointments when date or view changes
+  }, [selectedDate, viewMode]); // Reload when date or view changes to get relevant appointments
 
   // Close status popover when clicking outside
   useEffect(() => {
@@ -1309,8 +1321,10 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     const dateStr = date.toISOString().split('T')[0];
     console.log('🔍 getAppointmentsForDate called with:', date);
     console.log('🔍 Target date string:', dateStr);
+    console.log('🔍 Total appointments available:', appointments.length);
     
     const filtered = getFilteredAppointments();
+    console.log('🔍 Filtered appointments:', filtered.length);
     const result = filtered.filter(apt => {
       const aptDate = apt.date ? apt.date.split('T')[0] : '';
       const matches = aptDate === dateStr;
@@ -2157,6 +2171,28 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
     fetchAddons();
     fetchStaff();
   }, []);
+
+  // Check for appointment ID from TodoManager and auto-open modal
+  useEffect(() => {
+    const openAppointmentId = localStorage.getItem('openAppointmentId');
+    if (openAppointmentId && appointments.length > 0) {
+      console.log('🔍 Auto-opening appointment from TodoManager:', openAppointmentId);
+      
+      // Find the appointment by ID
+      const appointmentToOpen = appointments.find(apt => apt.id === openAppointmentId);
+      if (appointmentToOpen) {
+        console.log('✅ Found appointment to auto-open:', appointmentToOpen);
+        // Open the view modal for this appointment
+        openViewModal(appointmentToOpen);
+        // Clear the stored ID so it doesn't auto-open again
+        localStorage.removeItem('openAppointmentId');
+      } else {
+        console.log('❌ Appointment not found with ID:', openAppointmentId);
+        // Clear invalid ID
+        localStorage.removeItem('openAppointmentId');
+      }
+    }
+  }, [appointments]); // Run when appointments are loaded or updated
 
   // Effect to populate form when editing an appointment
   useEffect(() => {
@@ -3876,6 +3912,9 @@ const IOSAppointmentManagement: React.FC<IOSAppointmentManagementProps> = () => 
       </div>
     );
   }
+
+  // Debug: Show appointments count in console after loading
+  console.log(`🚀 Calendar rendering with ${appointments.length} appointments`);
 
   const calendarDays = generateCalendarDays();
 

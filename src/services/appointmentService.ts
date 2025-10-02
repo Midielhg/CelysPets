@@ -130,6 +130,8 @@ export class AppointmentService {
     if (error) throw error
   }
 
+
+
   // Get appointments by date range
   static async getByDateRange(startDate: string, endDate: string): Promise<Appointment[]> {
     const { data, error } = await supabase

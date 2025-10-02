@@ -170,4 +170,51 @@ export class DashboardService {
       throw error
     }
   }
+
+  /**
+   * Get pending appointments (same pattern as getTodaySchedule)
+   */
+  static async getPendingAppointments() {
+    try {
+      console.log('📅 DashboardService: Fetching pending appointments...')
+
+      const { data: pendingAppointments, error } = await supabase
+        .from('appointments')
+        .select(`
+          id,
+          date,
+          time,
+          status,
+          total_amount,
+          services,
+          groomer_id,
+          clients!appointments_client_id_fkey (
+            name,
+            email,
+            phone
+          )
+        `)
+        .eq('status', 'pending')
+        .order('date', { ascending: true })
+        .order('time', { ascending: true })
+
+      if (error) {
+        console.error('❌ Error fetching pending appointments:', error)
+        console.error('❌ Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        })
+        throw error
+      }
+
+      console.log('📋 Pending appointments:', pendingAppointments?.length || 0)
+      return pendingAppointments || []
+
+    } catch (error) {
+      console.error('❌ DashboardService.getPendingAppointments error:', error)
+      throw error
+    }
+  }
 }
