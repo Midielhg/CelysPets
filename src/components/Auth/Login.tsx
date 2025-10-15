@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import { LoginPerformanceMonitor } from '../../utils/loginPerformanceMonitor';
 
 const Login: React.FC = () => {
   const { user, login } = useAuth();
@@ -29,23 +30,28 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     console.log('🚀 Login form submitted with:', { email: formData.email });
+    LoginPerformanceMonitor.startLogin();
 
-    // Add timeout to prevent infinite hanging
+    // Reduced timeout for faster user feedback
     const timeoutId = setTimeout(() => {
-      console.error('⏰ Login timeout after 30 seconds');
+      console.error('⏰ Login timeout after 10 seconds');
       setIsLoading(false);
+      LoginPerformanceMonitor.endLogin();
       showToast('Login timeout. Please check your connection and try again.', 'error');
-    }, 30000);
+    }, 10000);
 
     try {
       console.log('📞 Calling login function...');
       await login(formData.email, formData.password);
       console.log('✅ Login function completed successfully');
+      LoginPerformanceMonitor.recordStep('Login Complete');
+      LoginPerformanceMonitor.endLogin();
       clearTimeout(timeoutId);
       showToast('Logged in successfully!', 'success');
       // Navigation will be handled by useEffect after user state updates
     } catch (error) {
       console.error('❌ Login error caught:', error);
+      LoginPerformanceMonitor.endLogin();
       clearTimeout(timeoutId);
       const errorMessage = error instanceof Error ? error.message : 'Login failed';
       showToast(errorMessage, 'error');

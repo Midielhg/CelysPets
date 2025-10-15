@@ -14,7 +14,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Check your .env file.')
 }
 
-// Create untyped client for easier development - types will be fixed later
+// Create optimized client for better performance
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
@@ -38,6 +38,20 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         }
       }
     }
+  },
+  // Performance optimizations
+  realtime: {
+    params: {
+      eventsPerSecond: 2 // Limit realtime events for better performance
+    }
+  },
+  global: {
+    headers: {
+      'cache-control': 'no-cache', // Prevent aggressive caching issues
+    },
+  },
+  db: {
+    schema: 'public'
   }
 })
 

@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase'
+import { LoginPerformanceMonitor } from '../utils/loginPerformanceMonitor'
 
 export interface UserProfile {
   id: string
@@ -15,12 +16,13 @@ export class SupabaseAuthService {
   private static profileCache = new Map<string, { profile: UserProfile; timestamp: number }>();
   private static CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-  // Simple sign in with timeout handling
+  // Optimized sign in with fast authentication and background profile loading
   static async signIn(email: string, password: string) {
     try {
       console.log('🔐 Signing in:', email);
       
-      // Step 1: Authenticate with Supabase
+      // Step 1: Fast authentication (only authenticate, don't wait for profile)
+      const authStart = Date.now();
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password: password,
@@ -35,76 +37,86 @@ export class SupabaseAuthService {
         return { user: null, profile: null, session: null, error: 'No user returned' };
       }
 
-      console.log('✅ User authenticated:', data.user.email);
+      const authTime = Date.now() - authStart;
+      console.log('✅ User authenticated in', authTime + 'ms:', data.user.email);
+      LoginPerformanceMonitor.recordStep('Auth Complete');
 
-      // Step 2: Try to get profile with timeout
+      // Step 2: Try to get profile quickly (reduced timeout for fast login)
       let profile: UserProfile | null = null;
+      const profileStart = Date.now();
       
       try {
-        // Add timeout to profile fetch (increased to 10 seconds)
-        const profileTimeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Profile fetch timeout')), 10000);
-        });
-        
-        const profileFetch = supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .maybeSingle();
+        // Check cache first for instant response
+        const cached = this.profileCache.get(data.user.id);
+        if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+          profile = cached.profile;
+          console.log('⚡ Using cached profile (0ms)');
+        } else {
+          // Fast profile fetch with shorter timeout (3 seconds max)
+          const profileTimeout = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Profile fetch timeout')), 3000);
+          });
           
-        const { data: profileData, error: profileError } = await Promise.race([
-          profileFetch,
-          profileTimeout
-        ]);
-        
-        if (profileError && !profileError.message.includes('timeout')) {
-          console.warn('⚠️ Profile fetch error (non-timeout):', profileError);
+          const profileFetch = supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .maybeSingle();
+            
+          const { data: profileData, error: profileError } = await Promise.race([
+            profileFetch,
+            profileTimeout
+          ]);
+          
+          if (!profileError && profileData) {
+            profile = profileData;
+            // Cache immediately for next time
+            this.profileCache.set(data.user.id, {
+              profile: profile as UserProfile,
+              timestamp: Date.now()
+            });
+            const profileTime = Date.now() - profileStart;
+            console.log('✅ Profile fetched in', profileTime + 'ms');
+            LoginPerformanceMonitor.recordStep('Profile Fetched');
+          } else {
+            console.warn('⚠️ Profile fetch failed:', profileError?.message || 'timeout');
+          }
         }
-        
-        profile = profileData;
-        
       } catch (fetchError: any) {
         console.warn('⚠️ Profile fetch failed:', fetchError.message);
       }
 
-      // Step 3: If no profile, create a basic one (with timeout)
+      // Step 3: If no profile, create one in background (don't block login)
       if (!profile) {
-        try {
-          console.log('🔧 Creating basic profile...');
-          
-          const basicProfile = {
-            id: data.user.id,
-            email: data.user.email || '',
-            name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User',
-            role: 'client' as const,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-          
-          const createTimeout = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error('Profile creation timeout')), 2000);
-          });
-          
-          const createProfile = supabase
-            .from('user_profiles')
-            .upsert([basicProfile])
-            .select()
-            .single();
-            
-          const { data: newProfile, error: createError } = await Promise.race([
-            createProfile,
-            createTimeout
-          ]);
-          
-          if (!createError && newProfile) {
-            profile = newProfile as UserProfile;
-            console.log('✅ Created profile:', profile.email);
+        console.log('🔧 Creating profile in background...');
+        
+        // Create basic profile without waiting (fire and forget)
+        this.createProfileInBackground(data.user).then(backgroundProfile => {
+          if (backgroundProfile) {
+            console.log('✅ Background profile created:', backgroundProfile.email);
+            // Update cache for future use
+            this.profileCache.set(data.user.id, {
+              profile: backgroundProfile,
+              timestamp: Date.now()
+            });
           }
-          
-        } catch (createErr: any) {
-          console.warn('⚠️ Profile creation failed:', createErr.message);
-        }
+        }).catch(err => {
+          console.warn('⚠️ Background profile creation failed:', err.message);
+        });
+
+        // Return with temporary profile for immediate login
+        profile = {
+          id: data.user.id,
+          email: data.user.email || '',
+          name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User',
+          role: 'client' as const,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
       }
+
+      const totalTime = Date.now() - authStart;
+      console.log('🎉 Login completed in', totalTime + 'ms');
 
       return { 
         user: data.user, 
@@ -119,7 +131,43 @@ export class SupabaseAuthService {
     }
   }
 
-  // Sign up new user with better error handling and validation
+  // Helper method to create profile in background
+  private static async createProfileInBackground(user: any): Promise<UserProfile | null> {
+    try {
+      const basicProfile = {
+        id: user.id,
+        email: user.email || '',
+        name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+        role: 'client' as const,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      // Shorter timeout for background operation (1 second)
+      const createTimeout = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Background profile creation timeout')), 1000);
+      });
+      
+      const createProfile = supabase
+        .from('user_profiles')
+        .upsert([basicProfile])
+        .select()
+        .single();
+      
+      const { data: newProfile, error: createError } = await Promise.race([
+        createProfile,
+        createTimeout
+      ]);
+      
+      if (!createError && newProfile) {
+        return newProfile as UserProfile;
+      }
+      
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }  // Sign up new user with better error handling and validation
   static async signUp(email: string, password: string, name: string, role: 'client' | 'admin' | 'groomer' = 'client') {
     try {
       console.log('🔐 Creating new user:', email, 'Role:', role);
@@ -265,9 +313,9 @@ export class SupabaseAuthService {
 
       console.log('🔍 Fetching profile for user:', userId);
       
-      // Add timeout for profile fetch
+      // Add timeout for profile fetch (reduced for better performance)
       const profileTimeout = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 15000); // 15 seconds timeout
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000); // 5 seconds timeout
       });
       
       const profileFetch = supabase

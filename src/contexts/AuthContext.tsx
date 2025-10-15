@@ -102,6 +102,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setSession(session);
         return;
       }
+
+      // Skip profile loading if this is from a direct login call
+      if (event === 'SIGNED_IN' && user && session?.user?.id === user.id) {
+        console.log('⚡ Skipping redundant profile fetch - user already set from login');
+        setSession(session);
+        setSupabaseUser(session.user);
+        setIsLoading(false);
+        return;
+      }
       
       setSession(session);
       setSupabaseUser(session?.user || null);
